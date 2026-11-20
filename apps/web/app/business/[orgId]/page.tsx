@@ -97,13 +97,11 @@ export default async function OrgHome({ params, searchParams }: { params: Promis
                         <li key={e.id}>
                           <Link href={`/business/${orgId}/eventos/${e.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 rounded-lg hover:bg-ink/[0.03] sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)_auto]">
                             <span className="truncate text-sm font-medium">{e.title}</span>
-                            <span className="order-3 col-span-2 h-6 overflow-hidden rounded-md bg-ink/[0.05] sm:order-none sm:col-span-1">
-                              <span className="flex h-full items-center rounded-md bg-ink px-2 text-xs font-semibold text-paper" style={{ width: `${Math.max(pct, 9)}%` }}>
-                                {pct}%
-                              </span>
+                            <span className="order-3 col-span-2 h-2.5 overflow-hidden rounded-full bg-ink/[0.07] sm:order-none sm:col-span-1">
+                              <span className="block h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
                             </span>
                             <span className="text-right text-xs tabular-nums text-muted">
-                              {e.sold.toLocaleString('es-AR')} de {e.capacity.toLocaleString('es-AR')}
+                              <span className="font-semibold text-ink">{pct}%</span> · {e.sold.toLocaleString('es-AR')} de {e.capacity.toLocaleString('es-AR')}
                             </span>
                           </Link>
                         </li>
