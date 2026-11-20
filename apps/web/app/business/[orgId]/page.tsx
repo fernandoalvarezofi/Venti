@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { PageTitle, StatCard, StatusBadge, StockBar } from '@/components/business/ui';
 import { EmptyState, ErrorState } from '@/components/states';
 import { getOverview } from '@/lib/api';
-import { dateParts } from '@/lib/format';
+import { dateParts, formatMoney } from '@/lib/format';
 import { AdmitLink } from '@/components/ticket-button';
 
 export const metadata: Metadata = { title: 'Resumen' };
@@ -29,10 +29,10 @@ export default async function OrgDashboard({ params }: { params: Promise<{ orgId
       />
 
       <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="A la venta" value={String(totals.published)} hint={totals.drafts ? `${totals.drafts} en borrador` : undefined} />
-        <StatCard label="Entradas emitidas" value={totals.ticketsSold.toLocaleString('es-AR')} />
-        <StatCard label="Capacidad total" value={totals.capacity.toLocaleString('es-AR')} />
-        <StatCard label="Ocupación" value={`${occupancy}%`} hint="Emitidas sobre capacidad" />
+        <StatCard label="Neto a cobrar" value={formatMoney(totals.netCents)} hint={`Bruto ${formatMoney(totals.grossCents)} · comisión ${(totals.commissionBps / 100).toLocaleString('es-AR')}%`} />
+        <StatCard label="Entradas emitidas" value={totals.ticketsSold.toLocaleString('es-AR')} hint={`${occupancy}% de ${totals.capacity.toLocaleString('es-AR')} lugares`} />
+        <StatCard label="Ingresaron" value={totals.checkedIn.toLocaleString('es-AR')} hint={totals.ticketsSold > 0 ? `${Math.round((totals.checkedIn / totals.ticketsSold) * 100)}% de las emitidas` : undefined} />
+        <StatCard label="A la venta" value={String(totals.published)} hint={totals.drafts ? `${totals.drafts} en borrador` : 'Sin borradores'} />
       </div>
 
       <section className="mt-10" aria-labelledby="proximos">
@@ -70,7 +70,12 @@ export default async function OrgDashboard({ params }: { params: Promise<{ orgId
                         {d.weekday} {d.time} h{e.venueName ? ` · ${e.venueName}, ${e.city}` : ' · Sin lugar asignado'}
                       </p>
                     </div>
-                    <StockBar sold={e.sold} held={e.held} capacity={e.capacity} label={e.title} />
+                    <div>
+                      <StockBar sold={e.sold} held={e.held} capacity={e.capacity} label={e.title} />
+                      <p className="mt-1 text-xs tabular-nums text-muted">
+                        {formatMoney(e.grossCents)} recaudado{e.checkedIn > 0 ? ` · ${e.checkedIn} ingresaron` : ''}
+                      </p>
+                    </div>
                   </Link>
                 </li>
               );

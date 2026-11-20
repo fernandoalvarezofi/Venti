@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { AddTicketTypeForm, CourtesyForm, EditEventForm, EventActions, TicketTypeCard } from '@/components/business/event-manage';
 import { ContentEditor, MediaEditor } from '@/components/business/content-editor';
 import { StaffManager } from '@/components/business/staff-manager';
+import { EntryProgress, EventTabs, EVENT_TABS, MoneyBreakdown, Readiness, TypeBreakdown, type EventTab } from '@/components/business/insights';
+import { SalesChart } from '@/components/business/sales-chart';
 import { PageTitle, Panel, StatCard, StatusBadge } from '@/components/business/ui';
 import { ErrorState } from '@/components/states';
 import { getAttendees, getEventStats, getMembers, getOrgEvent, getStaffShifts } from '@/lib/api';
@@ -25,10 +27,11 @@ export default async function ManageEventPage({
   searchParams,
 }: {
   params: Promise<{ orgId: string; eventId: string }>;
-  searchParams: Promise<{ q?: string; aviso?: string; pagina?: string }>;
+  searchParams: Promise<{ q?: string; aviso?: string; pagina?: string; tab?: string }>;
 }) {
   const { orgId, eventId } = await params;
-  const { q, aviso, pagina } = await searchParams;
+  const { q, aviso, pagina, tab: tabRaw } = await searchParams;
+  const tab: EventTab = EVENT_TABS.some((t) => t.id === tabRaw) ? (tabRaw as EventTab) : 'resumen';
   if (!/^[0-9a-f-]{36}$/.test(eventId)) notFound();
   const page = Math.max(0, Number(pagina) || 0);
   const [ev, stats, attendees, shifts, members] = await Promise.all([
@@ -65,24 +68,44 @@ export default async function ManageEventPage({
         </div>
       </div>
 
-      {s ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Emitidas" value={s.sold.toLocaleString('es-AR')} hint={`de ${s.capacity.toLocaleString('es-AR')} · ${s.courtesies} cortesías`} />
-          <StatCard label="En reserva ahora" value={s.held.toLocaleString('es-AR')} hint={`${s.activeHolds} compras en curso`} />
-          <StatCard label="Disponibles" value={s.available.toLocaleString('es-AR')} />
-          <StatCard label="Ingresaron" value={s.checkedIn.toLocaleString('es-AR')} hint={`Venta: ${formatMoney(s.grossCents)}`} />
-        </div>
+      <EventTabs base={`/business/${orgId}/eventos/${e.id}`} active={tab} counts={{ entradas: e.ticketTypes.length, asistentes: attendees.ok ? attendees.data.total : undefined, equipo: shifts.ok ? shifts.data.items.length : undefined }} />
+
+      {tab === 'resumen' ? (
+        s ? (
+          <div className="space-y-8">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard label="Emitidas" value={s.sold.toLocaleString('es-AR')} hint={`de ${s.capacity.toLocaleString('es-AR')} · ${s.courtesies} cortesías`} />
+              <StatCard label="Disponibles" value={s.available.toLocaleString('es-AR')} hint={s.held > 0 ? `${s.held} en reserva ahora` : undefined} />
+              <StatCard label="Ingresaron" value={s.checkedIn.toLocaleString('es-AR')} hint={s.sold > 0 ? `${Math.round((s.checkedIn / s.sold) * 100)}% de las emitidas` : undefined} />
+              <StatCard label="Neto a cobrar" value={formatMoney(s.netCents)} hint={`Bruto ${formatMoney(s.grossCents)}`} />
+            </div>
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+              <Panel title="Ventas" description="Entradas emitidas por día, últimos 30 días.">
+                <SalesChart days={s.daily} />
+              </Panel>
+              <Panel title="Ingreso en la puerta">
+                <EntryProgress s={s} orgId={orgId} eventId={e.id} published={e.status === 'published'} />
+              </Panel>
+            </div>
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+              <Panel title="Por tipo de entrada">
+                <TypeBreakdown s={s} />
+              </Panel>
+              <Panel title="Plata">
+                <MoneyBreakdown s={s} />
+              </Panel>
+            </div>
+            {e.status !== 'cancelled' && e.status !== 'finished' ? (
+              <Panel title="Para vender más" description="Lo que falta para que el evento esté completo.">
+                <Readiness e={e} orgId={orgId} staffCount={shifts.ok ? shifts.data.items.length : 0} />
+              </Panel>
+            ) : null}
+          </div>
+        ) : (
+          <ErrorState message={stats.ok ? '' : stats.error?.message ?? 'No pudimos cargar las estadísticas.'} />
+        )
       ) : null}
-
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <Panel title="Imágenes" description="La portada aparece de fondo en la tarjeta del evento.">
-          <MediaEditor orgId={orgId} event={e} />
-        </Panel>
-        <Panel title="Contenido" description="Line-up, qué hay en el evento, datos útiles y enlaces.">
-          <ContentEditor orgId={orgId} event={e} />
-        </Panel>
-      </div>
-
+      {tab === 'entradas' ? (
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <Panel title="Entradas y precios" description="Stock en tiempo real. Las etapas se venden en orden.">
           <div className="space-y-4">
@@ -98,28 +121,31 @@ export default async function ManageEventPage({
           <Panel title="Cortesías" description="Entradas sin cargo que descuentan stock real.">
             <CourtesyForm orgId={orgId} event={e} />
           </Panel>
-          {shifts.ok && e.status !== 'cancelled' && e.status !== 'finished' ? (
-            <Panel title="Personal de acceso" description="Sólo escanean dentro de su turno y en este evento.">
-              <StaffManager
-                orgId={orgId}
-                eventId={e.id}
-                startsAt={e.startsAt}
-                endsAt={e.endsAt}
-                shifts={shifts.data.items}
-                accessMembers={members.ok ? members.data.items.filter((m) => m.role === 'access_staff') : []}
-              />
-            </Panel>
-          ) : null}
-          {e.status !== 'cancelled' && e.status !== 'finished' ? (
-            <Panel title="Datos del evento">
-              <EditEventForm orgId={orgId} event={e} />
-            </Panel>
-          ) : null}
         </div>
       </div>
 
+      ) : null}
+      {tab === 'contenido' ? (
+        <div className="space-y-8">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <Panel title="Imágenes" description="La portada aparece de fondo en la tarjeta del evento.">
+            <MediaEditor orgId={orgId} event={e} />
+          </Panel>
+          <Panel title="Contenido" description="Line-up, qué hay en el evento, datos útiles y enlaces.">
+            <ContentEditor orgId={orgId} event={e} />
+          </Panel>
+        </div>
+        {e.status !== 'cancelled' && e.status !== 'finished' ? (
+          <Panel title="Datos del evento" description="Título, categoría, fechas y lugar.">
+            <EditEventForm orgId={orgId} event={e} />
+          </Panel>
+        ) : null}
+        </div>
+      ) : null}
+      {tab === 'asistentes' ? (
       <Panel title="Asistentes" description={attendees.ok ? `${attendees.data.total.toLocaleString('es-AR')} entradas emitidas` : undefined}>
-        <form method="get" className="mb-4 flex gap-2" role="search">
+        <form method="get" className="mb-4 flex flex-wrap gap-2" role="search">
+          <input type="hidden" name="tab" value="asistentes" />
           <label htmlFor="q" className="sr-only">
             Buscar por nombre, email o DNI
           </label>
@@ -128,9 +154,14 @@ export default async function ManageEventPage({
             Buscar
           </button>
           {q ? (
-            <Link href={`/business/${orgId}/eventos/${eventId}`} className="btn btn-ghost h-10 text-sm">
+            <Link href={`/business/${orgId}/eventos/${eventId}?tab=asistentes`} className="btn btn-ghost h-10 text-sm">
               Limpiar
             </Link>
+          ) : null}
+          {attendees.ok && attendees.data.total > 0 ? (
+            <a href={`/business/${orgId}/eventos/${eventId}/asistentes.csv`} className="btn btn-ink ml-auto h-10 text-sm" download>
+              Descargar planilla (CSV)
+            </a>
           ) : null}
         </form>
         {!attendees.ok ? (
@@ -178,12 +209,12 @@ export default async function ManageEventPage({
                 </span>
                 <span className="flex gap-2">
                   {page > 0 ? (
-                    <Link className="btn btn-ghost h-9 text-xs" href={`?${new URLSearchParams({ ...(q ? { q } : {}), pagina: String(page - 1) })}`}>
+                    <Link className="btn btn-ghost h-9 text-xs" href={`?${new URLSearchParams({ tab: 'asistentes', ...(q ? { q } : {}), pagina: String(page - 1) })}`}>
                       Anterior
                     </Link>
                   ) : null}
                   {(page + 1) * 50 < attendees.data.total ? (
-                    <Link className="btn btn-ghost h-9 text-xs" href={`?${new URLSearchParams({ ...(q ? { q } : {}), pagina: String(page + 1) })}`}>
+                    <Link className="btn btn-ghost h-9 text-xs" href={`?${new URLSearchParams({ tab: 'asistentes', ...(q ? { q } : {}), pagina: String(page + 1) })}`}>
                       Siguiente
                     </Link>
                   ) : null}
@@ -193,6 +224,31 @@ export default async function ManageEventPage({
           </>
         )}
       </Panel>
+      ) : null}
+      {tab === 'equipo' ? (
+        <div className="space-y-8">
+        {shifts.ok && e.status !== 'cancelled' && e.status !== 'finished' ? (
+          <Panel title="Personal de acceso" description="Sólo escanean dentro de su turno y en este evento.">
+            <StaffManager
+              orgId={orgId}
+              eventId={e.id}
+              startsAt={e.startsAt}
+              endsAt={e.endsAt}
+              shifts={shifts.data.items}
+              accessMembers={members.ok ? members.data.items.filter((m) => m.role === 'access_staff') : []}
+            />
+          </Panel>
+        ) : null}
+          {!shifts.ok || e.status === 'cancelled' || e.status === 'finished' ? <p className="text-sm text-muted">El evento está cerrado o no tenés permiso para gestionar turnos.</p> : null}
+          <p className="text-sm text-muted">
+            Para sumar personas a tu productora (y darles el rol de acceso), andá a{' '}
+            <Link href={`/business/${orgId}/equipo`} className="font-semibold text-ink underline">
+              Equipo
+            </Link>
+            .
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

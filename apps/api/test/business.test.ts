@@ -151,6 +151,11 @@ describe('gestión de eventos (Lintick Business)', () => {
 
     const stats = await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/stats`, { token: owner.token });
     expect(stats.body).toMatchObject({ capacity: 100, sold: 3, courtesies: 3, checkedIn: 0, grossCents: 0, available: 97 });
+    expect(stats.body).toMatchObject({ commissionCents: 0, netCents: 0, commissionBps: 1000 });
+    expect(stats.body.daily).toHaveLength(30);
+    expect(stats.body.daily.at(-1)).toMatchObject({ sold: 0, courtesies: 3 });
+    const orgOverview = await call(ctx, 'GET', `/v1/organizations/${orgId}/overview`, { token: owner.token });
+    expect(orgOverview.body.totals).toMatchObject({ ticketsSold: 3, checkedIn: 0, grossCents: 0, netCents: 0, commissionBps: 1000 });
 
     const all = await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/attendees`, { token: owner.token });
     expect(all.body.total).toBe(3);

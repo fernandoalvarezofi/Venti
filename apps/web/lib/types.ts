@@ -147,10 +147,23 @@ export interface OverviewEvent {
   capacity: number;
   sold: number;
   held: number;
+  checkedIn: number;
+  grossCents: number;
 }
 
 export interface Overview {
-  totals: { events: number; published: number; drafts: number; ticketsSold: number; capacity: number };
+  totals: {
+    events: number;
+    published: number;
+    drafts: number;
+    ticketsSold: number;
+    capacity: number;
+    checkedIn: number;
+    grossCents: number;
+    commissionCents: number;
+    netCents: number;
+    commissionBps: number;
+  };
   events: OverviewEvent[];
 }
 
@@ -211,8 +224,12 @@ export interface EventStats {
   courtesies: number;
   checkedIn: number;
   grossCents: number;
+  commissionCents: number;
+  netCents: number;
+  commissionBps: number;
   activeHolds: number;
-  byType: { id: string; name: string; kind: string; capacity: number; sold: number; held: number; courtesies: number; checkedIn: number }[];
+  byType: { id: string; name: string; kind: string; capacity: number; sold: number; held: number; courtesies: number; checkedIn: number; grossCents: number }[];
+  daily: { date: string; sold: number; courtesies: number }[];
 }
 
 export interface Attendee {

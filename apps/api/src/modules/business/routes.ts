@@ -10,6 +10,8 @@ import {
   holds,
   inArray,
   memberships,
+  orders,
+  organizations,
   staffAssignments,
   users,
   priceStages,
@@ -27,7 +29,7 @@ import { inOrg, requireOrgPermission, type OrgAccess, type Services } from '../.
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
 import { maskEmail, protectDocument } from '../../lib/identity.ts';
 import { EventContentFields } from '../events/content.ts';
-import { releaseEventHoldsTx } from '../inventory/service.ts';
+import { commissionBpsFromSettings, releaseEventHoldsTx } from '../inventory/service.ts';
 
 const OrgParams = z.object({ orgId: z.string().uuid() });
 const EventParams = OrgParams.extend({ eventId: z.string().uuid() });
@@ -51,15 +53,24 @@ const StatsDto = z.object({
   available: z.number(),
   courtesies: z.number(),
   checkedIn: z.number(),
+  /** Lo que pagaron los compradores (sólo ventas cobradas). */
   grossCents: z.number(),
+  /** Comisión de Lintick sobre esas ventas (se descuenta a la productora). */
+  commissionCents: z.number(),
+  /** Lo que cobra la productora: bruto − comisión. */
+  netCents: z.number(),
+  /** Comisión vigente para las próximas ventas, en puntos básicos (1000 = 10%). */
+  commissionBps: z.number(),
   activeHolds: z.number(),
   byType: z.array(
-    z.object({ id: z.string().uuid(), name: z.string(), kind: z.string(), capacity: z.number(), sold: z.number(), held: z.number(), courtesies: z.number(), checkedIn: z.number() }),
+    z.object({ id: z.string().uuid(), name: z.string(), kind: z.string(), capacity: z.number(), sold: z.number(), held: z.number(), courtesies: z.number(), checkedIn: z.number(), grossCents: z.number() }),
   ),
+  /** Entradas emitidas por día (hora de Argentina), últimos 30 días. */
+  daily: z.array(z.object({ date: z.string(), sold: z.number(), courtesies: z.number() })),
 });
 
 /** Estadísticas de un evento calculadas en una sola transacción (consistentes entre sí). */
-async function eventStats(tx: Tx, eventId: string) {
+async function eventStats(tx: Tx, eventId: string, orgId: string, now: Date) {
   const types = await tx.select().from(ticketTypes).where(eq(ticketTypes.eventId, eventId)).orderBy(asc(ticketTypes.createdAt));
   const perType = await tx
     .select({
@@ -71,13 +82,35 @@ async function eventStats(tx: Tx, eventId: string) {
     .from(tickets)
     .where(eq(tickets.eventId, eventId))
     .groupBy(tickets.ticketTypeId);
+  const [money] = await tx
+    .select({ commissionCents: sql<number>`coalesce(sum(${orders.commissionCents}), 0)`.mapWith(Number) })
+    .from(orders)
+    .where(and(eq(orders.eventId, eventId), eq(orders.status, 'paid')));
+  const [org] = await tx.select({ settings: organizations.settings }).from(organizations).where(eq(organizations.id, orgId));
+  const since = new Date(now.getTime() - 29 * 86_400_000);
+  const dayExpr = sql<string>`to_char((${tickets.issuedAt} at time zone 'America/Argentina/Buenos_Aires')::date, 'YYYY-MM-DD')`;
+  const dailyRows = await tx
+    .select({
+      date: dayExpr,
+      sold: sql<number>`count(*) filter (where ${tickets.orderId} is not null)`.mapWith(Number),
+      courtesies: sql<number>`count(*) filter (where ${tickets.orderId} is null)`.mapWith(Number),
+    })
+    .from(tickets)
+    .where(and(eq(tickets.eventId, eventId), sql`${tickets.issuedAt} >= ${since}`))
+    .groupBy(dayExpr);
+  const daily: { date: string; sold: number; courtesies: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
+    const row = dailyRows.find((r) => r.date === d);
+    daily.push({ date: d, sold: row?.sold ?? 0, courtesies: row?.courtesies ?? 0 });
+  }
   const [holdsRow] = await tx
     .select({ n: count() })
     .from(holds)
     .where(and(eq(holds.eventId, eventId), eq(holds.status, 'active')));
   const byType = types.map((t) => {
     const p = perType.find((x) => x.ticketTypeId === t.id);
-    return { id: t.id, name: t.name, kind: t.kind, capacity: t.capacity, sold: t.sold, held: t.held, courtesies: p?.courtesies ?? 0, checkedIn: p?.checkedIn ?? 0 };
+    return { id: t.id, name: t.name, kind: t.kind, capacity: t.capacity, sold: t.sold, held: t.held, courtesies: p?.courtesies ?? 0, checkedIn: p?.checkedIn ?? 0, grossCents: p?.grossCents ?? 0 };
   });
   const sum = (k: 'capacity' | 'sold' | 'held' | 'courtesies' | 'checkedIn') => byType.reduce((a, t) => a + t[k], 0);
   return {
@@ -88,8 +121,12 @@ async function eventStats(tx: Tx, eventId: string) {
     courtesies: sum('courtesies'),
     checkedIn: sum('checkedIn'),
     grossCents: perType.reduce((a, p) => a + p.grossCents, 0),
+    commissionCents: money?.commissionCents ?? 0,
+    netCents: perType.reduce((a, p) => a + p.grossCents, 0) - (money?.commissionCents ?? 0),
+    commissionBps: commissionBpsFromSettings(org?.settings ?? null),
     activeHolds: holdsRow?.n ?? 0,
     byType,
+    daily,
   };
 }
 
@@ -106,7 +143,18 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
         params: OrgParams,
         response: {
           200: z.object({
-            totals: z.object({ events: z.number(), published: z.number(), drafts: z.number(), ticketsSold: z.number(), capacity: z.number() }),
+            totals: z.object({
+              events: z.number(),
+              published: z.number(),
+              drafts: z.number(),
+              ticketsSold: z.number(),
+              capacity: z.number(),
+              checkedIn: z.number(),
+              grossCents: z.number(),
+              commissionCents: z.number(),
+              netCents: z.number(),
+              commissionBps: z.number(),
+            }),
             events: z.array(
               z.object({
                 id: z.string().uuid(),
@@ -119,6 +167,8 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
                 capacity: z.number(),
                 sold: z.number(),
                 held: z.number(),
+                checkedIn: z.number(),
+                grossCents: z.number(),
               }),
             ),
           }),
@@ -140,13 +190,27 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
             capacity: sql<number>`coalesce((select sum(tt.capacity) from ticket_types tt where tt.event_id = ${events.id}), 0)`.mapWith(Number),
             sold: sql<number>`coalesce((select sum(tt.sold) from ticket_types tt where tt.event_id = ${events.id}), 0)`.mapWith(Number),
             held: sql<number>`coalesce((select sum(tt.held) from ticket_types tt where tt.event_id = ${events.id}), 0)`.mapWith(Number),
+            checkedIn: sql<number>`(select count(*) from tickets t where t.event_id = ${events.id} and t.status = 'used')`.mapWith(Number),
+            grossCents: sql<number>`coalesce((select sum(t.price_cents) from tickets t where t.event_id = ${events.id} and t.order_id is not null and t.status in ('valid','used','locked')), 0)`.mapWith(Number),
           })
           .from(events)
           .leftJoin(venues, eq(venues.id, events.venueId))
           .where(eq(events.organizationId, access.orgId))
           .orderBy(desc(events.startsAt));
+        const [money] = await tx
+          .select({ commissionCents: sql<number>`coalesce(sum(${orders.commissionCents}), 0)`.mapWith(Number) })
+          .from(orders)
+          .where(and(eq(orders.organizationId, access.orgId), eq(orders.status, 'paid')));
+        const [org] = await tx.select({ settings: organizations.settings }).from(organizations).where(eq(organizations.id, access.orgId));
+        const grossCents = rows.reduce((a, e) => a + e.grossCents, 0);
+        const commissionCents = money?.commissionCents ?? 0;
         return {
           totals: {
+            checkedIn: rows.reduce((a, e) => a + e.checkedIn, 0),
+            grossCents,
+            commissionCents,
+            netCents: grossCents - commissionCents,
+            commissionBps: commissionBpsFromSettings(org?.settings ?? null),
             events: rows.length,
             published: rows.filter((e) => e.status === 'published').length,
             drafts: rows.filter((e) => e.status === 'draft').length,
@@ -396,7 +460,7 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
       const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.read');
       return inOrg(s.db, access, async (tx) => {
         const e = await loadOwnEvent(tx, access, req.params.eventId);
-        return eventStats(tx, e.id);
+        return eventStats(tx, e.id, access.orgId, s.now());
       });
     },
   );
