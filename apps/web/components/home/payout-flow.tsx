@@ -95,7 +95,7 @@ export function PayoutFlow() {
       {/* Teléfono del comprador */}
       <div className="text-center md:text-left">
         <div className="mx-auto grid h-44 w-24 place-items-center rounded-[1.4rem] bg-[#0e0c0b] p-1.5 shadow-[0_0_0_1.5px_rgb(244_239_230/0.15),6px_6px_0_var(--color-accent)] md:mx-0">
-          <div className="grid h-full w-full place-items-center rounded-[1.1rem] bg-ink text-center">
+          <div className="grid h-full w-full place-items-center rounded-[1.1rem] bg-ink text-center text-paper">
             <span key={`ok-${i}-${reduced}`} className="payflow-ok">
               <span className="mx-auto grid size-11 place-items-center rounded-full bg-[#16a34a] text-lg font-bold text-white shadow-[0_0_0_4px_rgb(22_163_74/0.2)]">✓</span>
               <span className="mt-2 block text-[0.68rem] font-bold leading-tight">
@@ -107,20 +107,20 @@ export function PayoutFlow() {
           </div>
         </div>
         <p className="mt-4 font-semibold">Tu público</p>
-        <p className="text-sm text-paper/55" aria-live="off">
+        <p className="text-sm text-muted" aria-live="off">
           paga {ars(sale.paid)}
         </p>
       </div>
 
       {/* El camino del dinero */}
       <div className="relative h-24 md:h-28" aria-hidden>
-        <span className="hand absolute left-1/2 top-0 w-max -translate-x-1/2">directo, sin escalas</span>
-        <span className="absolute inset-x-2 top-[58%] border-t-2 border-dotted border-paper/30" />
+        <span className="hand absolute left-1/2 top-0 w-max -translate-x-1/2 !text-accent">directo, sin escalas</span>
+        <span className="absolute inset-x-2 top-[58%] border-t-2 border-dotted border-ink/25" />
         {/* Punto donde se descuenta la comisión */}
         <span className="absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2">
-          <span className="block size-3 rounded-full bg-paper/40 ring-4 ring-paper/10" />
+          <span className="block size-3 rounded-full bg-ink/35 ring-4 ring-ink/10" />
         </span>
-        <span key={`fee-${i}-${reduced}`} className="payflow-fee absolute left-1/2 top-[58%] -translate-x-1/2 whitespace-nowrap rounded-full bg-paper/10 px-2 py-0.5 text-[0.65rem] font-semibold text-paper/80">
+        <span key={`fee-${i}-${reduced}`} className="payflow-fee absolute left-1/2 top-[58%] -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 text-[0.65rem] font-semibold text-paper">
           Lintick 10% · {ars(fee)}
         </span>
         {/* El billete que viaja */}
@@ -135,7 +135,7 @@ export function PayoutFlow() {
       </div>
 
       {/* Cuenta de la productora */}
-      <div className={`mx-auto w-full max-w-[17rem] rotate-2 rounded-2xl bg-paper p-5 text-ink shadow-[0_24px_40px_-18px_rgb(0_0_0/0.7)] transition-transform duration-300 ${arrived ? 'payflow-bump' : ''}`} key={`acc-${i}-${arrived}`}>
+      <div className={`mx-auto w-full max-w-[17rem] rotate-2 rounded-2xl bg-white p-5 text-ink shadow-[0_24px_40px_-18px_rgb(23_20_17/0.45)] transition-transform duration-300 ${arrived ? 'payflow-bump' : ''}`} key={`acc-${i}-${arrived}`}>
         <p className="flex items-center gap-2 text-xs font-semibold text-muted">
           <span className="grid size-5 place-items-center rounded bg-ink text-[0.6rem] text-paper">MP</span> Tu cuenta
           <span className={`ml-auto size-2 rounded-full ${arrived ? 'bg-success' : 'bg-ink/20'}`} />

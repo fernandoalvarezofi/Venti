@@ -19,11 +19,11 @@ export function Payouts() {
           Lintick no retiene ni intermedia tus fondos: <strong className="text-paper">cada venta se acredita directo en tu cuenta de Mercado Pago</strong>, con nuestra comisión ya descontada.
         </p>
 
-        <div className="relative mx-auto mt-14 max-w-4xl rounded-[22px] bg-[radial-gradient(80%_120%_at_50%_0%,rgb(210_58_31/0.35),transparent_70%),#1f1b18] p-6 text-left shadow-[0_0_0_1px_rgb(244_239_230/0.1)] outline-dashed outline-[1.5px] outline-offset-[-10px] outline-paper/20 sm:p-10">
+        <div className="payout-box relative mx-auto mt-14 max-w-4xl p-6 text-left sm:p-10">
           <PayoutFlow />
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-paper/10 pt-6 text-sm text-paper/60">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-ink/10 pt-6 text-sm text-muted">
             <span>Cobrás con</span>
-            <span className="rounded-full bg-paper/10 px-3 py-1 font-semibold text-paper">Mercado Pago</span>
+            <span className="rounded-full bg-[#009ee3] px-3 py-1 font-semibold text-white">Mercado Pago</span>
             <span className="text-xs">Ejemplo: de $ 120.000 te llegan $ 108.000 (comisión Lintick 10%). Montos ilustrativos.</span>
           </div>
         </div>
