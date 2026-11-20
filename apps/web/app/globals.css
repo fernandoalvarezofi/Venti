@@ -987,7 +987,7 @@
   color: var(--hz-text);
 }
 .hz-muted { color: var(--hz-muted); }
-.hz-ghost { color: rgb(244 239 230 / 0.42); }
+.hz-ghost { color: var(--color-accent); }
 /* Cuadrícula fina (como un cuaderno técnico) */
 .hz-grid {
   background-image:
@@ -1221,7 +1221,7 @@
   --hz-text: var(--color-ink);
   --hz-muted: rgb(23 20 17 / 0.64);
 }
-.hz-light .hz-ghost { color: rgb(23 20 17 / 0.4); }
+.hz-light .hz-ghost { color: var(--color-accent); }
 .hz-light .hz-num { -webkit-text-stroke-color: rgb(23 20 17 / 0.3); }
 .hz-light .hand { color: var(--color-accent); }
 .hz-light .hz-mark { background: linear-gradient(transparent 55%, rgb(210 58 31 / 0.28) 55%, rgb(210 58 31 / 0.28) 92%, transparent 92%); }

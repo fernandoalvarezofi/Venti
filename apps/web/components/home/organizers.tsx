@@ -279,7 +279,7 @@ export function FinalCta() {
             Empezá a<br />
             vender
             <br />
-            <span className="text-white/60">en 10 minutos.</span>
+            <span className="text-ink">en 10 minutos.</span>
           </h2>
           <p className="mt-6 max-w-md text-white/90">Creá tu cuenta. Conectá Mercado Pago. Publicá. Sin tarjeta, sin compromiso, sin sorpresas.</p>
         </div>
