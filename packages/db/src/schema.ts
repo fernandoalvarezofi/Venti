@@ -39,6 +39,28 @@ export interface LineupItem {
   /** Hora de presentación (ISO) si se conoce. */
   startsAt: string | null;
   stage: string | null;
+  /** Biografía corta, enlace y foto (id de event_media kind 'asset'). Opcionales: los line-ups viejos no los tienen. */
+  bio?: string;
+  link?: string | null;
+  imageId?: string | null;
+}
+export interface EventVideo {
+  url: string;
+  title: string;
+}
+export interface EventSponsor {
+  name: string;
+  tier: 'sponsor' | 'partner' | 'brand' | 'producer' | 'media';
+  url: string | null;
+  logoId: string | null;
+}
+export interface EventFaq {
+  q: string;
+  a: string;
+}
+export interface EventSection {
+  key: string;
+  visible: boolean;
 }
 export interface EventLinks {
   instagram?: string;
@@ -246,6 +268,15 @@ export const events = pgTable(
     extraAmenities: jsonb('extra_amenities').$type<string[]>().notNull().default([]),
     links: jsonb('links').$type<EventLinks>().notNull().default({}),
     policies: text('policies').notNull().default(''),
+    /** Descripción corta (para tarjetas, buscadores y vista previa al compartir). */
+    summary: text('summary').notNull().default(''),
+    videos: jsonb('videos').$type<EventVideo[]>().notNull().default([]),
+    sponsors: jsonb('sponsors').$type<EventSponsor[]>().notNull().default([]),
+    faq: jsonb('faq').$type<EventFaq[]>().notNull().default([]),
+    contact: jsonb('contact').$type<{ email?: string; whatsapp?: string }>().notNull().default({}),
+    seo: jsonb('seo').$type<{ title?: string; description?: string }>().notNull().default({}),
+    /** Orden y visibilidad de las secciones de la página pública (vacío = orden por defecto). */
+    pageSections: jsonb('page_sections').$type<EventSection[]>().notNull().default([]),
     coverMediaId: uuid('cover_media_id'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -626,7 +657,7 @@ export const eventMedia = pgTable(
     eventId: uuid('event_id')
       .notNull()
       .references(() => events.id, { onDelete: 'cascade' }),
-    kind: text('kind', { enum: ['cover', 'gallery'] }).notNull(),
+    kind: text('kind', { enum: ['cover', 'gallery', 'asset'] }).notNull(),
     position: integer('position').notNull().default(0),
     contentType: text('content_type', { enum: ['image/jpeg', 'image/png', 'image/webp'] }).notNull(),
     bytes: bytea('bytes').notNull(),

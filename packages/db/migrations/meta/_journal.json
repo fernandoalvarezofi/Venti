@@ -99,6 +99,13 @@
       "when": 1795207307237,
       "tag": "0013_user_identities",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795217507940,
+      "tag": "0014_event_customization",
+      "breakpoints": true
     }
   ]
 }

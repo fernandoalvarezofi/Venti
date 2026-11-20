@@ -187,4 +187,50 @@ describe('contenido del evento', () => {
       expect((await call(ctx, 'PATCH', base, { token: owner.token, body })).status).toBe(400);
     }
   });
+
+  it('personalización: videos, artistas con foto y bio, patrocinadores con logo, preguntas, contacto, SEO y orden de secciones', async () => {
+    const owner = await registerUser(ctx);
+    const { orgId, eventId } = await publishedEvent(ctx, owner.token);
+    const base = `/v1/organizations/${orgId}/events/${eventId}`;
+    const logo = (await upload(orgId, eventId, owner.token, png(600, 600, 70), 'asset' as 'cover')).body.id as string;
+    const photo = (await upload(orgId, eventId, owner.token, png(600, 600, 71), 'asset' as 'cover')).body.id as string;
+    const body = {
+      summary: 'La fiesta de fin de año más grande del pueblo.',
+      videos: [{ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Aftermovie 2025' }, { url: 'https://vimeo.com/76979871' }],
+      lineup: [{ name: 'Los Tres Soles', role: 'headliner', bio: 'Banda de rock de Lincoln.', link: 'https://lostressoles.com.ar', imageId: photo }],
+      sponsors: [{ name: 'Cervecería Norte', tier: 'sponsor', url: 'https://cerveceria.example', logoId: logo }, { name: 'Radio Pueblo', tier: 'media' }],
+      faq: [{ q: '¿Hay estacionamiento?', a: 'Sí, gratis en la cuadra.' }],
+      contact: { email: 'Hola@Productora.example', whatsapp: '+54 9 2355 123456' },
+      seo: { title: 'Fiesta de fin de año en Lincoln', description: 'Entradas para la fiesta de fin de año.' },
+      pageSections: [{ key: 'videos', visible: true }, { key: 'lineup', visible: true }, { key: 'faq', visible: false }],
+    };
+    expect((await call(ctx, 'PATCH', base, { token: owner.token, body })).status).toBe(200);
+    const pub = (await call(ctx, 'GET', `/v1/public/events/${eventId}`)).body;
+    expect(pub).toMatchObject({ summary: body.summary, faq: body.faq, seo: body.seo, pageSections: body.pageSections });
+    expect(pub.contact).toEqual({ email: 'hola@productora.example', whatsapp: '+54 9 2355 123456' });
+    expect(pub.videos).toEqual([{ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Aftermovie 2025' }, { url: 'https://vimeo.com/76979871', title: '' }]);
+    expect(pub.lineup[0]).toMatchObject({ bio: 'Banda de rock de Lincoln.', link: 'https://lostressoles.com.ar', imageId: photo });
+    expect(pub.sponsors).toEqual([
+      { name: 'Cervecería Norte', tier: 'sponsor', url: 'https://cerveceria.example', logoId: logo },
+      { name: 'Radio Pueblo', tier: 'media', url: null, logoId: null },
+    ]);
+
+    // Un logo borrado no deja una imagen rota: la referencia desaparece.
+    expect((await call(ctx, 'DELETE', `${base}/media/${logo}`, { token: owner.token })).status).toBe(204);
+    expect((await call(ctx, 'GET', `/v1/public/events/${eventId}`)).body.sponsors[0].logoId).toBeNull();
+
+    // Validaciones: video de otro sitio, imagen de OTRO evento, sección repetida, whatsapp con letras.
+    const other = await publishedEvent(ctx, owner.token);
+    const foreign = (await upload(other.orgId, other.eventId, owner.token, png(600, 600, 72), 'asset' as 'cover')).body.id as string;
+    expect(foreign).toMatch(/^[0-9a-f-]{36}$/);
+    for (const bad of [
+      { videos: [{ url: 'https://videos.example/v/1' }] },
+      { sponsors: [{ name: 'Ajena', logoId: foreign }] },
+      { pageSections: [{ key: 'faq', visible: true }, { key: 'faq', visible: false }] },
+      { contact: { whatsapp: 'llamame' } },
+    ]) {
+      const res = await call(ctx, 'PATCH', base, { token: owner.token, body: bad });
+      expect(res.status, JSON.stringify(bad)).toBe(400);
+    }
+  });
 });

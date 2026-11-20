@@ -10,6 +10,8 @@ import { MAX_IMAGE_BYTES, inspectImage } from '../../lib/images.ts';
 import { MediaDto, mediaUrl } from './content.ts';
 
 const MAX_GALLERY = 8;
+/** Logos de patrocinadores y fotos de artistas por evento. */
+const MAX_ASSETS = 60;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export async function mediaRoutes(app: FastifyInstance, s: Services): Promise<void> {
@@ -28,7 +30,7 @@ export async function mediaRoutes(app: FastifyInstance, s: Services): Promise<vo
         summary: 'Subir una imagen del evento (portada o galería)',
         description: 'Cuerpo binario JPG, PNG o WebP de hasta 3 MB, sin metadatos EXIF. La portada nueva reemplaza a la anterior. Galería: hasta 8.',
         params: EventParams,
-        querystring: z.object({ kind: z.enum(['cover', 'gallery']).default('gallery') }),
+        querystring: z.object({ kind: z.enum(['cover', 'gallery', 'asset']).default('gallery') }),
         response: { 201: MediaDto },
       },
     },
@@ -46,6 +48,13 @@ export async function mediaRoutes(app: FastifyInstance, s: Services): Promise<vo
         if (!e) throw notFound('Evento');
         if (e.status === 'cancelled' || e.status === 'finished') throw conflict('event_closed', 'El evento está cerrado y ya no admite cambios.');
         let position = 0;
+        if (kind === 'asset') {
+          const [row] = await tx
+            .select({ n: sql<number>`count(*)`.mapWith(Number) })
+            .from(eventMedia)
+            .where(and(eq(eventMedia.eventId, e.id), eq(eventMedia.kind, 'asset')));
+          if ((row?.n ?? 0) >= MAX_ASSETS) throw conflict('assets_full', `Llegaste al máximo de ${MAX_ASSETS} logos y fotos para este evento.`);
+        }
         if (kind === 'gallery') {
           const [row] = await tx
             .select({ n: sql<number>`count(*)`.mapWith(Number), max: sql<number>`coalesce(max(${eventMedia.position}), 0)`.mapWith(Number) })
@@ -77,7 +86,7 @@ export async function mediaRoutes(app: FastifyInstance, s: Services): Promise<vo
         await audit(tx, {
           orgId: access.orgId,
           actorUserId: access.userId,
-          action: kind === 'cover' ? 'event.cover_set' : 'event.gallery_added',
+          action: kind === 'cover' ? 'event.cover_set' : kind === 'asset' ? 'event.asset_added' : 'event.gallery_added',
           entityType: 'event',
           entityId: e.id,
           data: { mediaId: id, sha256: info.sha256, sizeBytes: info.sizeBytes, width: info.width, height: info.height },

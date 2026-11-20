@@ -286,11 +286,19 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
             doorsOpenAt: b.doorsOpenAt ?? null,
             minAge: b.minAge ?? null,
             dressCode: b.dressCode ?? null,
-            lineup: b.lineup ?? [],
+            lineup: (b.lineup ?? []).map((l) => ({ ...l, imageId: null })),
             amenities: b.amenities ?? [],
             extraAmenities: b.extraAmenities ?? [],
             links: b.links ?? {},
             policies: b.policies ?? '',
+            summary: b.summary ?? '',
+            videos: b.videos ?? [],
+            // Al crear todavía no hay imágenes subidas: logos y fotos se agregan después.
+            sponsors: (b.sponsors ?? []).map((x) => ({ ...x, logoId: null })),
+            faq: b.faq ?? [],
+            contact: b.contact ?? {},
+            seo: b.seo ?? {},
+            pageSections: b.pageSections ?? [],
           })
           .returning();
         await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'event.created', entityType: 'event', entityId: e!.id, ip: req.ip });

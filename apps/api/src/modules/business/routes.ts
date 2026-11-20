@@ -8,6 +8,7 @@ import {
   eq,
   events,
   holds,
+  eventMedia,
   inArray,
   memberships,
   orders,
@@ -28,7 +29,7 @@ import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireOrgPermission, type OrgAccess, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
 import { maskEmail, protectDocument } from '../../lib/identity.ts';
-import { EventContentFields } from '../events/content.ts';
+import { EventContentFields, referencedAssetIds } from '../events/content.ts';
 import { commissionBpsFromSettings, releaseEventHoldsTx } from '../inventory/service.ts';
 
 const OrgParams = z.object({ orgId: z.string().uuid() });
@@ -344,6 +345,14 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
           if (!v) throw notFound('Lugar');
         }
         if (e.status === 'published' && b.venueId === null) throw conflict('venue_required', 'Un evento publicado necesita un lugar.');
+        const assetIds = referencedAssetIds(b);
+        if (assetIds.length) {
+          const found = await tx
+            .select({ id: eventMedia.id })
+            .from(eventMedia)
+            .where(and(eq(eventMedia.eventId, e.id), eq(eventMedia.kind, 'asset'), inArray(eventMedia.id, assetIds)));
+          if (found.length !== assetIds.length) throw new AppError(400, 'invalid_image', 'Alguna imagen (logo o foto) no es de este evento. Volvé a subirla.');
+        }
         await tx
           .update(events)
           .set({ ...b, updatedAt: s.now() })
