@@ -13,7 +13,8 @@ export function HowItWorks() {
   return (
     <section id="como-funciona" className="hz hz-grid relative scroll-mt-20 overflow-hidden" aria-labelledby="como-funciona-t">
       <div className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 sm:py-28">
-        <h2 id="como-funciona-t" className="hz-title text-[clamp(2.6rem,7vw,4.6rem)]">
+        <p className="hz-eyebrow">Para vendedores</p>
+        <h2 id="como-funciona-t" className="hz-title mt-4 text-[clamp(2.6rem,7vw,4.6rem)]">
           ¿Cómo funciona?
           <br />
           Empezá en minutos
