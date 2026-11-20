@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { EventPoster } from '@/components/event-card';
 import { ArrowLeftIcon, CalendarIcon, PinIcon } from '@/components/icons';
 import { ErrorState } from '@/components/states';
-import { TicketSelector } from '@/components/ticket-selector';
+import { BuyPanel } from '@/components/checkout';
 import { getCurrentUser, getEvent } from '@/lib/api';
 import { categoryLabel, dateParts } from '@/lib/format';
 
@@ -35,7 +35,7 @@ export default async function EventPage({ params }: { params: Params }) {
   const end = dateParts(e.endsAt);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 sm:pt-10">
+    <div className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 sm:pt-10 lg:pb-0">
       <Link href="/eventos" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
         <ArrowLeftIcon className="size-4" /> Eventos
       </Link>
@@ -93,7 +93,7 @@ export default async function EventPage({ params }: { params: Params }) {
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:self-start" aria-label="Entradas">
-          <TicketSelector event={{ id: e.id, status: e.status }} ticketTypes={e.ticketTypes} loggedIn={Boolean(user)} />
+          <BuyPanel event={e} loggedIn={Boolean(user)} />
         </aside>
       </div>
     </div>

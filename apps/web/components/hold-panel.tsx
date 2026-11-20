@@ -73,7 +73,11 @@ export function HoldPanel({ hold }: { hold: Hold }) {
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
+        <div className="flex items-baseline justify-between gap-4 py-2 text-sm text-muted">
+          <span>Cargo por servicio</span>
+          <span className="tabular-nums">{formatMoney(hold.feeCents, hold.currency)}</span>
+        </div>
+        <div className="mt-2 flex items-baseline justify-between border-t border-line pt-4">
           <span className="font-semibold">Total</span>
           <span className="font-display text-3xl font-extrabold tabular-nums">{formatMoney(hold.totalCents, hold.currency)}</span>
         </div>
@@ -84,16 +88,31 @@ export function HoldPanel({ hold }: { hold: Hold }) {
           </Link>
         ) : (
           <>
-            <div className="mt-6 rounded-xl bg-ink/[0.04] p-4">
-              <div className="flex gap-3">
-                <LockIcon className="mt-0.5 size-5 shrink-0 text-ink-soft" />
-                <div className="text-sm">
-                  <p className="font-semibold">El pago online todavía no está habilitado</p>
-                  <p className="mt-1 text-muted">
-                    Estamos conectando Mercado Pago y transferencias. Hasta entonces no se cobra nada: la reserva se libera sola cuando termina el tiempo.
-                  </p>
-                </div>
+            <fieldset className="mt-6">
+              <legend className="mb-2 text-sm font-semibold">Medio de pago</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { id: 'mp', title: 'Mercado Pago', body: 'Tarjeta, débito o dinero en cuenta' },
+                  { id: 'transfer', title: 'Transferencia', body: 'Desde cualquier banco o billetera' },
+                ].map((m) => (
+                  <label key={m.id} className="flex cursor-not-allowed items-start gap-3 rounded-xl p-3.5 opacity-60 shadow-[inset_0_0_0_1px_var(--color-line-strong)]">
+                    <input type="radio" name="metodo" value={m.id} disabled className="mt-1 accent-[var(--color-ink)]" />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        {m.title}
+                        <span className="rounded-full bg-ink/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">Pronto</span>
+                      </span>
+                      <span className="block text-xs text-muted">{m.body}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
+            </fieldset>
+            <div className="mt-4 flex gap-3 rounded-xl bg-ink/[0.04] p-4 text-sm">
+              <LockIcon className="mt-0.5 size-5 shrink-0 text-ink-soft" />
+              <p className="text-muted">
+                <span className="font-semibold text-ink">Todavía no cobramos online.</span> Estamos conectando Mercado Pago y transferencias. No se te cobra nada: la reserva se libera sola cuando termina el tiempo.
+              </p>
             </div>
             <button type="button" disabled className="btn btn-primary mt-4 w-full" aria-describedby="pago-nota">
               Pagar {formatMoney(hold.totalCents, hold.currency)}

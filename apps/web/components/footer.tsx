@@ -18,7 +18,10 @@ export function Footer() {
         </div>
         <div className="text-sm">
           <p className="eyebrow mb-3">Productoras</p>
-          <p className="text-muted">VENTI Business llega en la próxima etapa.</p>
+          <ul className="space-y-2 text-ink-soft">
+            <li><Link href="/business" className="hover:underline">Vendé con VENTI</Link></li>
+            <li><Link href="/business" className="hover:underline">Ingresar al panel</Link></li>
+          </ul>
         </div>
       </div>
     </footer>

@@ -37,7 +37,14 @@ con firma y consulta del pago). Transferencias bancarias con validación manual 
 Macroclick (requiere convenio y credenciales del banco). Emisión de tickets sólo con pago verificado.
 App `web` (marketplace) con Next.js.
 
-## Etapa 3 — VENTI BUSINESS ⏳
+## Etapa 3 — VENTI BUSINESS 🚧
+✅ Hecho y probado (tests + navegador): alta de productora, resumen con ocupación, asistente de evento
+(datos → lugar → entradas con etapas → revisar/publicar), gestión del evento (publicar, editar, cancelar con
+anulación de entradas y liberación de reservas), tipos de entrada (capacidad, ocultar, etapas: agregar y editar
+precio sólo si no vendió), cortesías, asistentes con búsqueda, equipo y roles.
+✅ Compra pública rediseñada: hoja de compra (abajo en celular, lateral en escritorio) con cotización del servidor
+y cargo por servicio (10% por defecto, por productora).
+⏳ Falta:
 Panel con eventos, entradas, sectores, cupones, promociones, RRPP y vendedores con links trackeados,
 cortesías e invitados, colaboradores y permisos, estadísticas básicas.
 

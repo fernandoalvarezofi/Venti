@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { API_URL } from './config';
-import type { ApiErrorBody, PublicEvent, PublicEventDetail, Ticket, User, Hold } from './types';
+import type { AdminEvent, ApiErrorBody, Attendee, EventStats, Hold, Member, Org, Overview, PublicEvent, PublicEventDetail, Ticket, User, Venue } from './types';
 
 /** Llamada a la API desde el servidor, reenviando la cookie de sesión del visitante. */
 async function apiGet<T>(path: string, opts: { auth?: boolean; revalidate?: number } = {}): Promise<{ ok: true; data: T } | { ok: false; status: number; error: ApiErrorBody['error'] | null }> {
@@ -55,4 +55,36 @@ export function getMyTickets() {
 
 export function getHold(id: string) {
   return apiGet<Hold>(`/v1/holds/${encodeURIComponent(id)}`, { auth: true });
+}
+
+// ─── VENTI BUSINESS (siempre con la sesión del usuario; la API valida rol y organización) ───
+
+export function getMyOrgs() {
+  return apiGet<{ items: Org[] }>('/v1/organizations', { auth: true });
+}
+
+export function getOverview(orgId: string) {
+  return apiGet<Overview>(`/v1/organizations/${encodeURIComponent(orgId)}/overview`, { auth: true });
+}
+
+export function getOrgEvent(orgId: string, eventId: string) {
+  return apiGet<AdminEvent>(`/v1/organizations/${encodeURIComponent(orgId)}/events/${encodeURIComponent(eventId)}`, { auth: true });
+}
+
+export function getEventStats(orgId: string, eventId: string) {
+  return apiGet<EventStats>(`/v1/organizations/${encodeURIComponent(orgId)}/events/${encodeURIComponent(eventId)}/stats`, { auth: true });
+}
+
+export function getAttendees(orgId: string, eventId: string, params: { q?: string; offset?: number } = {}) {
+  const qs = new URLSearchParams({ limit: '50', offset: String(params.offset ?? 0) });
+  if (params.q && params.q.length >= 2) qs.set('q', params.q);
+  return apiGet<{ total: number; items: Attendee[] }>(`/v1/organizations/${encodeURIComponent(orgId)}/events/${encodeURIComponent(eventId)}/attendees?${qs}`, { auth: true });
+}
+
+export function getVenues(orgId: string) {
+  return apiGet<{ items: Venue[] }>(`/v1/organizations/${encodeURIComponent(orgId)}/venues`, { auth: true });
+}
+
+export function getMembers(orgId: string) {
+  return apiGet<{ items: Member[] }>(`/v1/organizations/${encodeURIComponent(orgId)}/members`, { auth: true });
 }
