@@ -13,13 +13,13 @@ export function HowItWorks() {
   return (
     <section id="como-funciona" className="hz hz-grid relative scroll-mt-20 overflow-hidden" aria-labelledby="como-funciona-t">
       <div className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 sm:py-28">
-        <p className="hz-eyebrow">Para vendedores</p>
+        <p className="hz-eyebrow">Para vendedores · Empezar</p>
         <h2 id="como-funciona-t" className="hz-title mt-4 text-[clamp(2.6rem,7vw,4.6rem)]">
           ¿Cómo funciona?
           <br />
-          Empezá en minutos
+          <span className="hz-ghost">De cero a tu primera venta.</span>
         </h2>
-        <p className="hz-muted mx-auto mt-5 max-w-lg">Pagás sólo cuando vendés: sin abono mensual, sin contratos y sin anticipos. En pocos minutos publicás tu primer evento.</p>
+        <p className="hz-muted mx-auto mt-5 max-w-lg">Cuatro pasos, una sola vez. Pagás sólo cuando vendés: sin abono mensual, sin contratos y sin anticipos.</p>
 
         <ol className="relative mt-16 grid justify-items-center gap-x-6 gap-y-28 sm:grid-cols-2 sm:gap-y-24 lg:grid-cols-4">
           {/* Hilo punteado que une las notas (escritorio) */}

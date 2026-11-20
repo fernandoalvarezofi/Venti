@@ -51,11 +51,13 @@ export function FeatureSteps() {
   return (
     <section className="hz hz-light" aria-labelledby="vender-online">
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pt-28">
-        <h2 id="vender-online" className="hz-title pb-14 text-[clamp(2.6rem,7vw,4.6rem)]">
+        <p className="hz-eyebrow">El panel de Lintick</p>
+        <h2 id="vender-online" className="hz-title mt-4 text-[clamp(2.6rem,7vw,4.6rem)]">
           Todo lo que necesitás
           <br />
-          <span className="hz-mark">para vender online.</span>
+          <span className="hz-mark">para vender más.</span>
         </h2>
+        <p className="hz-muted mt-5 max-w-xl pb-14">Una vez publicado tu evento, estas son las herramientas para hacerlo crecer y tenerlo bajo control: desde la preventa hasta la última persona que entra.</p>
 
         <Step
           n="01"
