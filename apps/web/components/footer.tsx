@@ -24,6 +24,11 @@ export function Footer() {
           </ul>
         </div>
       </div>
+      <div className="mx-auto flex max-w-6xl flex-wrap gap-x-5 gap-y-2 border-t border-line px-4 py-5 text-xs text-muted sm:px-6">
+        <Link href="/privacidad" className="hover:underline">Privacidad</Link>
+        <Link href="/terminos" className="hover:underline">Términos y condiciones</Link>
+        <Link href="/ayuda" className="hover:underline">Ayuda</Link>
+      </div>
     </footer>
   );
 }
