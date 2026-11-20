@@ -125,7 +125,7 @@ export async function organizationRoutes(app: FastifyInstance, s: Services): Pro
       schema: {
         tags: ['organizations'],
         summary: 'Agregar un colaborador o cambiar su rol',
-        description: 'El usuario debe tener cuenta en LinTICK. Sólo un owner puede asignar el rol owner.',
+        description: 'El usuario debe tener cuenta en Lintick. Sólo un owner puede asignar el rol owner.',
         params: OrgId,
         body: z.object({ email: z.string().trim().toLowerCase().email(), role: z.enum(ORG_ROLES) }),
         response: { 200: MemberDto },

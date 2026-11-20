@@ -6,8 +6,8 @@ const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-br
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'LinTICK — Entradas para lo que pasa', template: '%s · LinTICK' },
-  description: 'Descubrí recitales, fiestas, festivales y obras en Argentina. Comprá tus entradas en LinTICK.',
+  title: { default: 'Lintick — Entradas para lo que pasa', template: '%s · Lintick' },
+  description: 'Descubrí recitales, fiestas, festivales y obras en Argentina. Comprá tus entradas en Lintick.',
   robots: { index: false, follow: false },
 };
 

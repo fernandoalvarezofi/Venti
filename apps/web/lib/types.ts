@@ -125,7 +125,7 @@ export interface ApiErrorBody {
   error: { code: string; message: string; details?: Record<string, unknown> };
 }
 
-// ─── LinTICK Business ───
+// ─── Lintick Business ───
 
 export type OrgRole = 'owner' | 'admin' | 'manager' | 'finance' | 'sales' | 'access_staff' | 'viewer';
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'finished';

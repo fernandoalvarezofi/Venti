@@ -1,4 +1,4 @@
-# LinTICK — Roadmap y criterios de aceptación
+# Lintick — Roadmap y criterios de aceptación
 
 Estado: ✅ verificado con tests · 🚧 en curso · ⏳ pendiente
 
@@ -37,7 +37,7 @@ con firma y consulta del pago). Transferencias bancarias con validación manual 
 Macroclick (requiere convenio y credenciales del banco). Emisión de tickets sólo con pago verificado.
 App `web` (marketplace) con Next.js.
 
-## Etapa 3 — LinTICK Business 🚧
+## Etapa 3 — Lintick Business 🚧
 ✅ Hecho y probado (tests + navegador): alta de productora, resumen con ocupación, asistente de evento
 (datos → lugar → entradas con etapas → revisar/publicar), gestión del evento (publicar, editar, cancelar con
 anulación de entradas y liberación de reservas), tipos de entrada (capacidad, ocultar, etapas: agregar y editar
@@ -52,7 +52,7 @@ cortesías e invitados, colaboradores y permisos, estadísticas básicas.
 Transferencias, reventa oficial con precio tope, Ticket Swap con intercambio bilateral transaccional,
 lista de espera, cola virtual anti-bots.
 
-## Etapa 5 — LinTICK Access ⏳
+## Etapa 5 — Lintick Access ⏳
 PWA offline, manifiestos firmados, escaneo QR/DNI, reingresos, puertas y sectores, ocupación en tiempo real,
 alertas de capacidad, acreditaciones. Protocolo de molinetes y lectores RFID/NFC con simuladores (sin afirmar
 integración con hardware que no se haya probado).

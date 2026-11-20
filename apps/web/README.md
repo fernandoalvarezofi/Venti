@@ -1,4 +1,4 @@
-# LinTICK — web pública
+# Lintick — web pública
 
 App Next.js (App Router) con el marketplace: catálogo, detalle de evento, reserva, ingreso y "Mis entradas".
 

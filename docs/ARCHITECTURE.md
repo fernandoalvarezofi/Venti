@@ -1,14 +1,14 @@
-# LinTICK — Arquitectura
+# Lintick — Arquitectura
 
 Documento vivo. Las decisiones puntuales con sus alternativas están en `docs/adr/`.
 
 ## 1. Arquitectura general
 
-LinTICK es **un solo núcleo (core) con cuatro productos encima**:
+Lintick es **un solo núcleo (core) con cuatro productos encima**:
 
 ```
                ┌───────────────┐ ┌────────────────┐ ┌──────────────┐ ┌──────────────────┐
-  Productos    │ LinTICK (web)   │ │ LinTICK Business │ │ LinTICK Access │ │ WHITE LABEL      │
+  Productos    │ Lintick (web)   │ │ Lintick Business │ │ Lintick Access │ │ WHITE LABEL      │
                │ marketplace   │ │ panel admin    │ │ PWA offline  │ │ = apps/web por   │
                │ + checkout    │ │                │ │ escaneo/sync │ │   dominio/brand  │
                └──────┬────────┘ └───────┬────────┘ └──────┬───────┘ └────────┬─────────┘
@@ -61,7 +61,7 @@ precios dinámicos y segmentación se resuelven con reglas deterministas y estad
 ## 3. Estructura de carpetas
 
 ```
-LinTICK/
+Lintick/
 ├─ apps/
 │  ├─ api/                 Core HTTP API + worker (entrypoints separados)
 │  │  └─ src/

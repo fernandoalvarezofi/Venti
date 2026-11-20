@@ -22,7 +22,7 @@ async function apiGet<T>(path: string, opts: { auth?: boolean; revalidate?: numb
     }
     return { ok: true, data: (await res.json()) as T };
   } catch {
-    return { ok: false, status: 503, error: { code: 'api_unreachable', message: 'No pudimos conectarnos con LinTICK.' } };
+    return { ok: false, status: 503, error: { code: 'api_unreachable', message: 'No pudimos conectarnos con Lintick.' } };
   }
 }
 
@@ -57,7 +57,7 @@ export function getHold(id: string) {
   return apiGet<Hold>(`/v1/holds/${encodeURIComponent(id)}`, { auth: true });
 }
 
-// ─── LinTICK Business (siempre con la sesión del usuario; la API valida rol y organización) ───
+// ─── Lintick Business (siempre con la sesión del usuario; la API valida rol y organización) ───
 
 export function getMyOrgs() {
   return apiGet<{ items: Org[] }>('/v1/organizations', { auth: true });

@@ -16,7 +16,9 @@ export class AppError extends Error {
   }
 }
 
-export const notFound = (what = 'Recurso') => new AppError(404, 'not_found', `${what} no encontrado.`);
+const FEMININE = new Set(['Entrada', 'Etapa', 'Imagen', 'Organización', 'Reserva']);
+export const notFound = (what = 'Recurso') =>
+  new AppError(404, 'not_found', `${what} no ${FEMININE.has(what) ? 'encontrada' : 'encontrado'}.`);
 export const forbidden = () => new AppError(403, 'forbidden', 'No tenés permisos para esta acción.');
 export const unauthorized = () => new AppError(401, 'unauthorized', 'Necesitás iniciar sesión.');
 export const conflict = (code: string, message: string, details?: Record<string, unknown>) => new AppError(409, code, message, details);

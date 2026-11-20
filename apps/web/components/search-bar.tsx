@@ -1,5 +1,6 @@
 import { CATEGORY_LABELS } from '@/lib/format';
 import { PinIcon, SearchIcon } from './icons';
+import { TicketButton } from './ticket-button';
 
 /** Formulario GET: funciona sin JavaScript y deja la búsqueda en la URL (se puede compartir). */
 export function SearchBar({ q = '', city = '', category = '' }: { q?: string; city?: string; category?: string }) {
@@ -26,9 +27,9 @@ export function SearchBar({ q = '', city = '', category = '' }: { q?: string; ci
           ))}
         </select>
       </label>
-      <button type="submit" className="btn btn-primary h-12 px-6">
+      <TicketButton type="submit" tone="ink" className="h-12 min-w-[9.5rem]" stub={<SearchIcon className="size-[18px]" />}>
         Buscar
-      </button>
+      </TicketButton>
     </form>
   );
 }

@@ -48,7 +48,7 @@ const ConfigSchema = z.object({
    */
   EMAIL_PROVIDER: z.enum(['resend', 'outbox', 'disabled']).default('outbox'),
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('LinTICK <no-reply@lintick.local>'),
+  EMAIL_FROM: z.string().default('Lintick <no-reply@lintick.local>'),
   /** Clave HMAC para el DNI (32+ bytes en base64). El DNI nunca se guarda en claro. */
   DOC_HMAC_KEY: z
     .string()

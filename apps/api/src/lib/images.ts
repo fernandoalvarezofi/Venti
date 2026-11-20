@@ -82,7 +82,7 @@ export function inspectImage(buf: Buffer): ImageInfo {
   if (!size || size.width === 0 || size.height === 0) throw new AppError(400, 'image_corrupt', 'No pudimos leer la imagen. Probá exportarla de nuevo.');
   if (exif) {
     // La web siempre re-codifica antes de subir; si llega EXIF es que vino sin pasar por ahí.
-    throw new AppError(422, 'image_has_metadata', 'La imagen trae metadatos (ubicación, cámara). Subila desde LinTICK para que los quitemos.');
+    throw new AppError(422, 'image_has_metadata', 'La imagen trae metadatos (ubicación, cámara). Subila desde Lintick para que los quitemos.');
   }
   if (Math.min(size.width, size.height) < MIN_SIDE) throw new AppError(422, 'image_too_small', `La imagen es muy chica: el lado menor tiene que medir al menos ${MIN_SIDE} px.`);
   if (Math.max(size.width, size.height) > MAX_SIDE) throw new AppError(422, 'image_too_big', `La imagen es muy grande: máximo ${MAX_SIDE} px por lado.`);

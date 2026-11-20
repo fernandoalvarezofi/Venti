@@ -1,7 +1,7 @@
-# LinTICK
+# Lintick
 
 Plataforma de ticketing para productoras de Argentina y Latinoamérica. Un solo núcleo para cuatro productos:
-**LinTICK** (marketplace y compra), **LinTICK Business** (panel de productoras), **LinTICK Access** (control de accesos)
+**Lintick** (marketplace y compra), **Lintick Business** (panel de productoras), **Lintick Access** (control de accesos)
 y **White Label** (ticketera propia con la marca de cada productora).
 
 - Arquitectura: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)

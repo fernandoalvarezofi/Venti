@@ -463,7 +463,7 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
     },
   );
 
-  // Catálogo público (LinTICK y white label)
+  // Catálogo público (Lintick y white label)
   r.get(
     '/v1/public/events',
     {

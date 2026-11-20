@@ -56,7 +56,7 @@ export function EventActions({ orgId, event }: { orgId: string; event: AdminEven
       <div className="flex flex-wrap gap-2">
         {event.status === 'published' ? (
           <a href={`/eventos/${event.id}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
-            Ver en LinTICK ↗
+            Ver en Lintick ↗
           </a>
         ) : null}
         {event.status === 'draft' ? (

@@ -23,7 +23,7 @@ import { ticketRoutes } from './modules/tickets/routes.ts';
 import { businessRoutes } from './modules/business/routes.ts';
 
 const LOGO_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="0.5">LinTICK</text></svg>';
+  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="0.5">Lintick</text></svg>';
 
 export interface BuildOptions {
   readonly config: Config;
@@ -90,7 +90,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
 
   await app.register(swagger, {
     openapi: {
-      info: { title: 'LinTICK API', version: '0.1.0', description: 'Núcleo de LinTICK, LinTICK Business, LinTICK Access y White Label.' },
+      info: { title: 'Lintick API', version: '0.1.0', description: 'Núcleo de Lintick, Lintick Business, Lintick Access y White Label.' },
       components: {
         securitySchemes: {
           bearer: { type: 'http', scheme: 'bearer' },

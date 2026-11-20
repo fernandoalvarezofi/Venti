@@ -1,5 +1,5 @@
 /**
- * Fase 1 de LinTICK ID & TICKET SECURITY (docs/security/ID-TICKET-SECURITY.md).
+ * Fase 1 de Lintick ID & TICKET SECURITY (docs/security/ID-TICKET-SECURITY.md).
  * Cada bloque prueba la corrección de un hallazgo concreto (H1, H3, H4, H7).
  */
 import { randomUUID } from 'node:crypto';

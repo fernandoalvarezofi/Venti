@@ -22,7 +22,7 @@ export default async function TeamPage({ params }: { params: Promise<{ orgId: st
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <PageTitle eyebrow="Equipo" title="Quién trabaja con vos" />
-      <Panel title="Sumar a alguien" description="La persona tiene que tener cuenta en LinTICK con ese email.">
+      <Panel title="Sumar a alguien" description="La persona tiene que tener cuenta en Lintick con ese email.">
         <AddMemberForm orgId={orgId} roles={Object.entries(ROLE_INFO).map(([value, r]) => ({ value: value as OrgRole, label: r.label, body: r.body }))} />
       </Panel>
       <Panel title="Miembros">
