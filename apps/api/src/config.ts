@@ -64,7 +64,7 @@ const ConfigSchema = z.object({
   MP_CLIENT_SECRET: z.string().trim().optional(),
   /** Clave secreta de la sección Webhooks de la aplicación (para verificar la firma x-signature). */
   MP_WEBHOOK_SECRET: z.string().trim().optional(),
-  /** true = pedir credenciales de prueba al conectar (cuentas de test de Mercado Pago). */
+  /** true = pedir credenciales de prueba al conectar (cuentas de test de Mercado Pago). En producción: false (cobros reales). */
   MP_TEST_MODE: z
     .enum(['true', 'false'])
     .default('false')
