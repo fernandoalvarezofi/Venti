@@ -22,7 +22,7 @@ export default async function Home() {
 
       <section className="relative mx-auto max-w-6xl px-4 pb-14 pt-40 sm:px-6 sm:pt-52">
         <h1 className="sr-only">Lintick: entradas para recitales, fiestas, festivales y teatro</h1>
-        <div className="relative isolate max-w-4xl">
+        <div className="relative isolate mx-auto max-w-4xl">
           <div aria-hidden className="search-aura" />
           <HeroRunner />
           <SearchBar />
