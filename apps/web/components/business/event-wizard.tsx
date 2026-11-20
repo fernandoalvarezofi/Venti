@@ -1,13 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { fromLocalInput, parseMoneyToCents, send } from '@/lib/client-api';
-import { CATEGORY_LABELS, formatMoney } from '@/lib/format';
+import { CATEGORY_LABELS, dateParts, formatMoney } from '@/lib/format';
 import { prepareImage, uploadEventImage } from '@/lib/image-prep';
 import type { Venue } from '@/lib/types';
 import { MinusIcon, PlusIcon } from '../icons';
 import { AdmitButton } from '../ticket-button';
+import { PanelIcon, type PanelIconName } from './panel-icons';
 
 export const KIND_LABELS: Record<string, string> = {
   general: 'General',
@@ -40,6 +41,41 @@ interface TypeDraft {
 
 const emptyType = (): TypeDraft => ({ name: '', kind: 'general', capacity: '', maxPerOrder: '6', description: '', stages: [{ name: 'General', price: '', limit: '', endsAt: '' }] });
 const STEPS = ['Datos', 'Lugar', 'Entradas', 'Revisar'] as const;
+const STEP_INFO: { icon: PanelIconName; hint: string }[] = [
+  { icon: 'events', hint: 'Nombre, fecha y portada' },
+  { icon: 'pin', hint: 'Dónde se hace' },
+  { icon: 'ticket', hint: 'Tipos, precios y cupos' },
+  { icon: 'check', hint: 'Revisá y publicá' },
+];
+
+/** Lo que se guarda solo en este dispositivo mientras se completa el asistente (la portada no: es un archivo). */
+interface Draft {
+  v: 1;
+  step: number;
+  info: { title: string; category: string; description: string; startsAt: string; endsAt: string };
+  venueMode: 'existing' | 'new';
+  venueId: string;
+  venue: { name: string; address: string; city: string; province: string; capacity: string };
+  types: TypeDraft[];
+  savedAt: number;
+}
+const draftKey = (orgId: string) => `lintick:borrador-evento:${orgId}`;
+function readDraft(orgId: string): Draft | null {
+  try {
+    const raw = localStorage.getItem(draftKey(orgId));
+    const d = raw ? (JSON.parse(raw) as Draft) : null;
+    return d && d.v === 1 && Array.isArray(d.types) ? d : null;
+  } catch {
+    return null;
+  }
+}
+function clearDraft(orgId: string) {
+  try {
+    localStorage.removeItem(draftKey(orgId));
+  } catch {
+    /* sin almacenamiento: no hay nada que borrar */
+  }
+}
 
 export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] }) {
   const router = useRouter();
@@ -55,6 +91,52 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
   const [types, setTypes] = useState<TypeDraft[]>([emptyType()]);
   const [cover, setCover] = useState<{ blob: Blob; preview: string } | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
+  const [restored, setRestored] = useState<number | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const loaded = useRef(false);
+
+  // Al entrar: si había algo a medio cargar en este dispositivo, se recupera.
+  useEffect(() => {
+    const d = readDraft(orgId);
+    if (d && (d.info.title || d.types.some((t) => t.name || t.capacity))) {
+      setInfo(d.info);
+      setVenueMode(d.venueMode === 'existing' && !venues.length ? 'new' : d.venueMode);
+      if (venues.some((v) => v.id === d.venueId)) setVenueId(d.venueId);
+      setVenue(d.venue);
+      setTypes(d.types.length ? d.types : [emptyType()]);
+      setStep(Math.min(Math.max(0, d.step), STEPS.length - 1));
+      setRestored(d.savedAt);
+    }
+    loaded.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
+
+  // Autoguardado: medio segundo después de cada cambio.
+  useEffect(() => {
+    if (!loaded.current) return;
+    const t = setTimeout(() => {
+      const d: Draft = { v: 1, step, info, venueMode, venueId, venue, types, savedAt: Date.now() };
+      try {
+        localStorage.setItem(draftKey(orgId), JSON.stringify(d));
+        setSavedAt(d.savedAt);
+      } catch {
+        /* navegador sin almacenamiento: el asistente sigue funcionando igual */
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [orgId, step, info, venueMode, venueId, venue, types]);
+
+  function startOver() {
+    clearDraft(orgId);
+    setInfo({ title: '', category: 'music', description: '', startsAt: '', endsAt: '' });
+    setVenueMode(venues.length ? 'existing' : 'new');
+    setVenueId(venues[0]?.id ?? '');
+    setVenue({ name: '', address: '', city: '', province: '', capacity: '' });
+    setTypes([emptyType()]);
+    setStep(0);
+    setErrors({});
+    setRestored(null);
+  }
 
   async function pickCover(file: File | undefined) {
     setCoverError(null);
@@ -152,6 +234,8 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
       });
       if (!ev.ok) return setSubmitError(ev.code === 'slug_taken' ? 'Ya tenés un evento con ese nombre en esa fecha.' : `No se pudo crear el evento: ${ev.message}`);
       const eventUrl = `/business/${orgId}/eventos/${ev.data.id}`;
+      // El evento ya existe en el servidor: el borrador local deja de hacer falta.
+      clearDraft(orgId);
       if (cover) {
         const up = await uploadEventImage(orgId, ev.data.id, cover.blob, 'cover');
         if (!up.ok) {
@@ -186,6 +270,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
           return;
         }
       }
+      clearDraft(orgId);
       router.push(eventUrl);
       router.refresh();
     });
@@ -199,28 +284,75 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
   );
   const selectedVenue = venues.find((v) => v.id === venueId);
 
-  return (
-    <div>
-      <ol className="mb-6 grid grid-cols-4 gap-2" aria-label="Pasos">
-        {STEPS.map((s, i) => (
-          <li key={s}>
-            <button
-              type="button"
-              onClick={() => i < step && setStep(i)}
-              disabled={i > step}
-              aria-current={i === step ? 'step' : undefined}
-              className="w-full text-left disabled:cursor-default"
-            >
-              <span className={`block h-1 rounded-full ${i <= step ? 'bg-ink' : 'bg-ink/10'}`} />
-              <span className={`mt-2 block text-xs font-semibold ${i === step ? 'text-ink' : 'text-muted'}`}>
-                {i + 1}. {s}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
+  const vName = venueMode === 'existing' ? selectedVenue?.name : venue.name;
+  const vCity = venueMode === 'existing' ? selectedVenue?.city : venue.city;
+  const prices = types.flatMap((t) => t.stages.map((st) => parseMoneyToCents(st.price))).filter((c): c is number => c !== null);
+  const fromPrice = prices.length ? Math.min(...prices) : null;
+  const totalCap = types.reduce((a, t) => a + (Number(t.capacity) || 0), 0);
+  const startIso = fromLocalInput(info.startsAt);
+  const checks = [
+    { ok: info.title.trim().length >= 3, text: 'Nombre del evento' },
+    { ok: !!startIso && !!fromLocalInput(info.endsAt), text: 'Fecha y horario' },
+    { ok: venueMode === 'existing' ? !!venueId : venue.name.trim().length >= 2 && venue.city.trim().length >= 2, text: 'Lugar' },
+    { ok: types.every((t) => t.name.trim() && Number(t.capacity) > 0 && t.stages.every((st) => parseMoneyToCents(st.price) !== null)), text: 'Entradas con precio y cantidad' },
+    { ok: !!cover, text: 'Portada (opcional, recomendada)' },
+  ];
 
-      <div className="rounded-[var(--radius-ticket)] bg-surface p-5 sm:p-7">
+  return (
+    <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
+      {/* Pasos */}
+      <nav aria-label="Pasos" className="xl:sticky xl:top-8 xl:self-start">
+        <ol className="flex gap-2 overflow-x-auto xl:flex-col xl:gap-1">
+          {STEPS.map((label_, i) => {
+            const done = i < step;
+            const current = i === step;
+            return (
+              <li key={label_} className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => i < step && setStep(i)}
+                  disabled={i > step}
+                  aria-current={current ? 'step' : undefined}
+                  className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition-colors disabled:cursor-default ${current ? 'bg-surface shadow-[inset_0_0_0_1px_var(--color-line)]' : done ? 'hover:bg-ink/[0.04]' : ''}`}
+                >
+                  <span className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${current ? 'bg-accent text-white' : done ? 'bg-ink text-paper' : 'bg-ink/[0.07] text-muted'}`}>
+                    {done ? <PanelIcon name="check" className="size-4" /> : i + 1}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`block text-sm font-semibold ${current || done ? 'text-ink' : 'text-muted'}`}>{label_}</span>
+                    <span className="hidden text-xs text-muted xl:block">{STEP_INFO[i]!.hint}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <p className="mt-4 hidden px-3 text-xs text-muted xl:block" aria-live="polite">
+          {savedAt ? 'Guardado en este dispositivo.' : 'Se guarda solo mientras cargás.'}
+        </p>
+      </nav>
+
+      <div className="min-w-0">
+      {restored ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[14px] bg-accent/[0.08] px-4 py-3 text-sm">
+          <span>Recuperamos lo que estabas cargando{cover ? '' : ' (la portada hay que elegirla de nuevo)'}.</span>
+          <button type="button" onClick={startOver} className="font-semibold underline">
+            Empezar de cero
+          </button>
+        </div>
+      ) : null}
+      <div className="rounded-[18px] bg-surface p-5 sm:p-7">
+        <div className="mb-6 flex items-center gap-3 border-b border-line pb-5">
+          <span className="grid size-10 place-items-center rounded-full bg-accent text-white">
+            <PanelIcon name={STEP_INFO[step]!.icon} className="size-5" />
+          </span>
+          <div>
+            <p className="text-xs text-muted">
+              Paso {step + 1} de {STEPS.length}
+            </p>
+            <h2 className="text-lg font-bold">{STEPS[step]}</h2>
+          </div>
+        </div>
         {step === 0 ? (
           <div className="space-y-5">
             <div>
@@ -468,7 +600,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
         ) : null}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || pending} className="btn btn-ghost">
           Atrás
         </button>
@@ -487,6 +619,59 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
           </div>
         )}
       </div>
+      </div>
+
+      {/* Vista previa: así lo va a ver el público */}
+      <aside className="space-y-4 xl:sticky xl:top-8 xl:self-start" aria-label="Vista previa">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Vista previa</p>
+        <div className="overflow-hidden rounded-[18px] bg-surface shadow-[inset_0_0_0_1px_var(--color-line)]">
+          <div className="relative aspect-[16/10] bg-[#c4553a] text-[#fff7ef]">
+            {cover ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={cover.preview} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : startIso ? (
+              <span className="absolute bottom-3 left-4 font-display leading-none">
+                <span className="block text-4xl font-extrabold tracking-[-0.05em]">{dateParts(startIso).day}</span>
+                <span className="text-sm font-bold">{dateParts(startIso).month}</span>
+              </span>
+            ) : null}
+            <span className="absolute left-3 top-3 rounded-full bg-paper/95 px-2.5 py-1 text-[0.7rem] font-semibold text-ink">{CATEGORY_LABELS[info.category]}</span>
+          </div>
+          <div className="p-4">
+            <p className={`text-lg font-bold leading-snug ${info.title ? '' : 'text-muted'}`}>{info.title || 'Nombre del evento'}</p>
+            <ul className="mt-2 space-y-1 text-sm text-muted">
+              <li className="flex items-center gap-2">
+                <PanelIcon name="clock" className="size-4 shrink-0" />
+                {startIso ? `${dateParts(startIso).long} · ${dateParts(startIso).time} h` : 'Fecha a definir'}
+              </li>
+              <li className="flex items-center gap-2">
+                <PanelIcon name="pin" className="size-4 shrink-0" />
+                <span className="truncate">{vName ? `${vName}${vCity ? `, ${vCity}` : ''}` : 'Lugar a definir'}</span>
+              </li>
+            </ul>
+            <div className="mt-4 flex items-end justify-between gap-3 border-t border-line pt-3">
+              <span className="text-sm">
+                <span className="block text-xs text-muted">Desde</span>
+                <span className="font-display text-xl font-extrabold tabular-nums">{fromPrice !== null ? formatMoney(fromPrice) : '—'}</span>
+              </span>
+              <span className="text-xs text-muted">{totalCap ? `${totalCap.toLocaleString('es-AR')} entradas` : ''}</span>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-[18px] bg-surface p-4">
+          <p className="text-sm font-semibold">Para publicar</p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {checks.map((c) => (
+              <li key={c.text} className="flex items-center gap-2.5">
+                <span className={`grid size-5 shrink-0 place-items-center rounded-full ${c.ok ? 'bg-success text-white' : 'shadow-[inset_0_0_0_1.5px_var(--color-line-strong)]'}`}>
+                  {c.ok ? <PanelIcon name="check" className="size-3" /> : null}
+                </span>
+                <span className={c.ok ? 'text-ink' : 'text-muted'}>{c.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
     </div>
   );
 }
