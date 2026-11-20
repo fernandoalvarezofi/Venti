@@ -463,6 +463,29 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
     },
   );
 
+  // Cantidad de eventos a la venta por categoría (para la cinta de categorías del inicio).
+  r.get(
+    '/v1/public/categories',
+    {
+      schema: {
+        tags: ['catalog'],
+        summary: 'Eventos publicados y vigentes por categoría',
+        response: { 200: z.object({ items: z.array(z.object({ category: z.string(), count: z.number() })) }) },
+      },
+    },
+    async () => {
+      const now = s.now();
+      const rows = await withContext(s.db, {}, (tx) =>
+        tx
+          .select({ category: events.category, count: sql<number>`count(*)`.mapWith(Number) })
+          .from(events)
+          .where(and(eq(events.status, 'published'), gt(events.endsAt, now)))
+          .groupBy(events.category),
+      );
+      return { items: rows };
+    },
+  );
+
   // Catálogo público (Lintick y white label)
   r.get(
     '/v1/public/events',

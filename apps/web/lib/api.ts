@@ -97,3 +97,8 @@ export function getStaffShifts(orgId: string, eventId: string) {
 export function getAccessEvents() {
   return apiGet<{ items: AccessEvent[] }>('/v1/me/access-events', { auth: true });
 }
+
+/** Eventos a la venta por categoría (se refresca cada minuto). */
+export function getCategoryCounts() {
+  return apiGet<{ items: { category: string; count: number }[] }>('/v1/public/categories', { revalidate: 60 });
+}

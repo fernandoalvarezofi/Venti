@@ -30,7 +30,7 @@ export async function Header() {
         <Link href="/" aria-label="Lintick, inicio" className="shrink-0">
           <Logo />
         </Link>
-        <MainNav user={user ? { firstName: firstName ?? '', email: user.email } : null} />
+        <MainNav user={user ? { firstName: firstName ?? '', fullName: user.fullName, email: user.email } : null} />
       </div>
     </header>
   );
