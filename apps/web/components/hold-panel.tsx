@@ -22,6 +22,26 @@ export function HoldPanel({ hold }: { hold: Hold }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [releaseError, setReleaseError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+
+  /** Crea la orden y el enlace de pago, y lleva a Mercado Pago. Las entradas se emiten sólo cuando MP confirma. */
+  async function pay() {
+    setPaying(true);
+    setPayError(null);
+    const res = await fetch(`/api/v1/holds/${hold.id}/checkout`, { method: 'POST' }).catch(() => null);
+    const body = (await res?.json().catch(() => null)) as { orderId?: string; status?: string; checkoutUrl?: string | null; error?: { message?: string } } | null;
+    if (!res?.ok || !body?.orderId) {
+      setPaying(false);
+      setPayError(body?.error?.message ?? 'No pudimos iniciar el pago. Revisá tu conexión e intentá de nuevo.');
+      return;
+    }
+    if (body.status === 'paid' || !body.checkoutUrl) {
+      router.push(`/compra/${body.orderId}`);
+      return;
+    }
+    window.location.assign(body.checkoutUrl);
+  }
   const remaining = useRemaining(hold.expiresAt);
   const expired = hold.status !== 'active' || remaining === 0;
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
@@ -87,38 +107,29 @@ export function HoldPanel({ hold }: { hold: Hold }) {
           </Link>
         ) : (
           <>
-            <fieldset className="mt-6">
-              <legend className="mb-2 text-sm font-semibold">Medio de pago</legend>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  { id: 'mp', title: 'Mercado Pago', body: 'Tarjeta, débito o dinero en cuenta' },
-                  { id: 'transfer', title: 'Transferencia', body: 'Desde cualquier banco o billetera' },
-                ].map((m) => (
-                  <label key={m.id} className="flex cursor-not-allowed items-start gap-3 rounded-xl p-3.5 opacity-60 shadow-[inset_0_0_0_1px_var(--color-line-strong)]">
-                    <input type="radio" name="metodo" value={m.id} disabled className="mt-1 accent-[var(--color-ink)]" />
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-2 text-sm font-semibold">
-                        {m.title}
-                        <span className="rounded-full bg-ink/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">Pronto</span>
-                      </span>
-                      <span className="block text-xs text-muted">{m.body}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <div className="mt-4 flex gap-3 rounded-xl bg-ink/[0.04] p-4 text-sm">
+            <div className="mt-6 flex items-center gap-3 rounded-xl p-4 shadow-[inset_0_0_0_1px_var(--color-line-strong)]">
+              <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#009ee3] text-xs font-extrabold text-white" aria-hidden>
+                MP
+              </span>
+              <span className="min-w-0 text-sm">
+                <span className="block font-semibold">Pagás con Mercado Pago</span>
+                <span className="block text-xs text-muted">Tarjeta de crédito o débito, o dinero en tu cuenta. Sin cargos extra.</span>
+              </span>
+            </div>
+            <div className="mt-3 flex gap-3 rounded-xl bg-ink/[0.04] p-4 text-sm">
               <LockIcon className="mt-0.5 size-5 shrink-0 text-ink-soft" />
               <p className="text-muted">
-                <span className="font-semibold text-ink">Todavía no cobramos online.</span> Estamos conectando Mercado Pago y transferencias. No se te cobra nada: la reserva se libera sola cuando termina el tiempo.
+                El pago lo procesa Mercado Pago: Lintick nunca ve los datos de tu tarjeta. Tus entradas aparecen en “Mis entradas” apenas se confirma.
               </p>
             </div>
-            <TicketButton type="button" disabled className="mt-4 w-full" aria-describedby="pago-nota" stub={formatMoney(hold.totalCents, hold.currency)}>
-              Pagar
+            {payError ? (
+              <p role="alert" className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                {payError}
+              </p>
+            ) : null}
+            <TicketButton type="button" onClick={pay} disabled={paying} className="mt-4 w-full" stub={formatMoney(hold.totalCents, hold.currency)}>
+              {paying ? 'Abriendo Mercado Pago…' : 'Pagar'}
             </TicketButton>
-            <p id="pago-nota" className="sr-only">
-              Botón deshabilitado: el pago online todavía no está disponible.
-            </p>
             {releaseError ? (
               <p role="alert" className="mt-3 text-sm text-danger">
                 {releaseError}

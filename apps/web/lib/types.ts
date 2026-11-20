@@ -287,3 +287,14 @@ export interface ScanResponse {
   message: string;
   ticket: { id: string; holderName: string; holderDocLast3: string | null; ticketTypeName: string; status: string; usedAt: string | null } | null;
 }
+
+export interface PaymentAccountStatus {
+  available: boolean;
+  connected: boolean;
+  liveMode: boolean | null;
+  sellerId: string | null;
+  connectedAt: string | null;
+  expiresAt: string | null;
+  lastError: string | null;
+  commissionBps: number;
+}

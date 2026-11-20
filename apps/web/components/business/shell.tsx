@@ -21,6 +21,7 @@ export function BusinessShell({ org, orgs, userName, children }: { org: Org; org
     { href: base, label: 'Resumen', exact: true },
     { href: `${base}/eventos/nuevo`, label: 'Nuevo evento' },
     { href: `${base}/equipo`, label: 'Equipo' },
+    { href: `${base}/cobros`, label: 'Cobros' },
     { href: '/acceso', label: 'Control de ingreso' },
   ];
   return (

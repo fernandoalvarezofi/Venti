@@ -99,7 +99,7 @@ export function TypeBreakdown({ s }: { s: EventStats }) {
 }
 
 /** Lista de chequeo antes y después de publicar: qué falta para que el evento venda bien. */
-export function Readiness({ e, orgId, staffCount }: { e: AdminEvent; orgId: string; staffCount: number }) {
+export function Readiness({ e, orgId, staffCount, paymentsConnected }: { e: AdminEvent; orgId: string; staffCount: number; paymentsConnected: boolean | null }) {
   const base = `/business/${orgId}/eventos/${e.id}`;
   const items = [
     { ok: e.ticketTypes.length > 0, label: 'Tipos de entrada con precio', href: `${base}?tab=entradas`, required: true },
@@ -109,6 +109,7 @@ export function Readiness({ e, orgId, staffCount }: { e: AdminEvent; orgId: stri
     { ok: e.amenities.length + e.extraAmenities.length > 0, label: 'Qué hay en el evento', href: `${base}?tab=contenido` },
     { ok: e.description.trim().length >= 40, label: 'Descripción de al menos 40 letras', href: `${base}?tab=contenido` },
     { ok: staffCount > 0, label: 'Personal de acceso con turno', href: `${base}?tab=equipo` },
+    ...(paymentsConnected === null ? [] : [{ ok: paymentsConnected, label: 'Cuenta de Mercado Pago conectada (para cobrar online)', href: `/business/${orgId}/cobros`, required: true }]),
   ];
   const done = items.filter((i) => i.ok).length;
   return (

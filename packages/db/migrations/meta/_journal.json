@@ -78,6 +78,20 @@
       "when": 1795164428381,
       "tag": "0010_commission_to_organizer",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795178424619,
+      "tag": "0011_payments_mercadopago",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795178426386,
+      "tag": "0012_payments_rls",
+      "breakpoints": true
     }
   ]
 }

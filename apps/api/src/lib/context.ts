@@ -1,4 +1,6 @@
 import type { KeyObject } from 'node:crypto';
+import type { MercadoPagoClient } from './mercadopago.ts';
+import type { SecretBox } from './secret-box.ts';
 import { roleHas, type OrgRole, type Permission } from '@venti/domain';
 import { and, eq, memberships, withContext, type Db, type Tx } from '@venti/db';
 import type { FastifyRequest } from 'fastify';
@@ -15,6 +17,10 @@ export interface Services {
   /** Clave HMAC para documentos (DNI). */
   readonly docKey: Buffer;
   readonly now: () => Date;
+  /** Mercado Pago (null si los cobros no están configurados: nunca se simulan). */
+  readonly mp: MercadoPagoClient | null;
+  /** Cifrado de tokens de las productoras (null si no hay clave). */
+  readonly secretBox: SecretBox | null;
 }
 
 export interface AuthInfo {

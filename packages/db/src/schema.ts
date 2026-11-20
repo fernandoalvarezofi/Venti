@@ -401,6 +401,8 @@ export const orders = pgTable(
     commissionBps: integer('commission_bps').notNull().default(0),
     commissionCents: cents('commission_cents').notNull().default(0),
     idempotencyKey: text('idempotency_key').notNull(),
+    /** Preferencia de Checkout Pro creada para esta orden. */
+    providerPreferenceId: text('provider_preference_id'),
     paidAt: ts('paid_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -623,4 +625,69 @@ export const eventMedia = pgTable(
     index('event_media_event_idx').on(t.eventId, t.kind, t.position),
     check('event_media_size', sql`${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 3145728`),
   ],
+);
+
+/**
+ * Cuenta de cobro de la productora (Mercado Pago, conectada con OAuth).
+ * Los tokens se guardan CIFRADOS (AES-256-GCM, clave fuera de la base): una copia de la base no alcanza para cobrar.
+ */
+export const paymentAccounts = pgTable(
+  'payment_accounts',
+  {
+    organizationId: uuid('organization_id')
+      .primaryKey()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    provider: text('provider', { enum: ['mercadopago'] }).notNull().default('mercadopago'),
+    status: text('status', { enum: ['connected', 'revoked', 'error'] }).notNull().default('connected'),
+    /** user_id de Mercado Pago del vendedor (para reconocer sus notificaciones). */
+    providerUserId: text('provider_user_id').notNull(),
+    accessTokenEnc: text('access_token_enc').notNull(),
+    refreshTokenEnc: text('refresh_token_enc'),
+    publicKey: text('public_key'),
+    scope: text('scope'),
+    /** false = credenciales de prueba (cuentas de test de Mercado Pago). */
+    liveMode: boolean('live_mode').notNull().default(true),
+    expiresAt: ts('expires_at'),
+    connectedBy: uuid('connected_by').references(() => users.id, { onDelete: 'set null' }),
+    lastError: text('last_error'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex('payment_accounts_provider_user_uq').on(t.provider, t.providerUserId)],
+);
+
+/** Intentos de conexión OAuth en curso (el "state" viaja a Mercado Pago y vuelve). Vencen en 15 minutos. */
+export const paymentOauthStates = pgTable('payment_oauth_states', {
+  stateHash: text('state_hash').primaryKey(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: ts('expires_at').notNull(),
+  createdAt: createdAt(),
+});
+
+/** Cada pago informado por el proveedor, tal como lo confirmó su API (nunca lo que dice la notificación). */
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'restrict' }),
+    orderId: uuid('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'restrict' }),
+    provider: text('provider', { enum: ['mercadopago'] }).notNull().default('mercadopago'),
+    providerPaymentId: text('provider_payment_id').notNull(),
+    status: text('status').notNull(),
+    statusDetail: text('status_detail'),
+    amountCents: cents('amount_cents').notNull(),
+    currency: currency('currency').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex('payments_provider_uq').on(t.provider, t.providerPaymentId), index('payments_order_idx').on(t.orderId)],
 );

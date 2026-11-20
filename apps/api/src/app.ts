@@ -22,6 +22,9 @@ import { organizationRoutes } from './modules/organizations/routes.ts';
 import { ticketRoutes } from './modules/tickets/routes.ts';
 import { accessRoutes } from './modules/access/routes.ts';
 import { businessRoutes } from './modules/business/routes.ts';
+import { paymentRoutes } from './modules/payments/routes.ts';
+import { HttpMercadoPago, type MercadoPagoClient } from './lib/mercadopago.ts';
+import { SecretBox } from './lib/secret-box.ts';
 
 const LOGO_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="0.5">Lintick</text></svg>';
@@ -33,6 +36,8 @@ export interface BuildOptions {
   readonly db?: DbHandle;
   /** Inyectable en tests (buzón en memoria). */
   readonly email?: EmailSender;
+  /** Inyectable en tests: cliente de Mercado Pago de prueba. En producción se usa el real. */
+  readonly mercadopago?: MercadoPagoClient;
 }
 
 export interface VentiApp {
@@ -56,6 +61,8 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
     email: opts.email ?? createEmailSender(config),
     docKey: Buffer.from(config.DOC_HMAC_KEY, 'base64'),
     now: opts.now ?? (() => new Date()),
+    mp: opts.mercadopago ?? (config.MP_CLIENT_ID && config.MP_CLIENT_SECRET ? new HttpMercadoPago(config.MP_CLIENT_ID, config.MP_CLIENT_SECRET, config.MP_TEST_MODE) : null),
+    secretBox: config.PAYMENTS_ENC_KEY ? new SecretBox(config.PAYMENTS_ENC_KEY) : null,
   };
 
   const app = Fastify({
@@ -119,6 +126,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
   await ticketRoutes(app, services);
   await accessRoutes(app, services);
   await businessRoutes(app, services);
+  await paymentRoutes(app, services);
 
   return {
     app,

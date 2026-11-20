@@ -54,7 +54,30 @@ const ConfigSchema = z.object({
     .string()
     .min(1)
     .refine((v) => Buffer.from(v, 'base64').length >= 32, 'DOC_HMAC_KEY debe ser al menos 32 bytes en base64.'),
+  /** URL pública de esta API (para las notificaciones y la vuelta de Mercado Pago). */
+  PUBLIC_API_URL: z.string().url().default('http://localhost:4000'),
+  /**
+   * Mercado Pago (modelo marketplace). Si falta MP_CLIENT_ID, los cobros quedan apagados:
+   * la API responde 503 explicándolo, nunca simula un pago.
+   */
+  MP_CLIENT_ID: z.string().trim().optional(),
+  MP_CLIENT_SECRET: z.string().trim().optional(),
+  /** Clave secreta de la sección Webhooks de la aplicación (para verificar la firma x-signature). */
+  MP_WEBHOOK_SECRET: z.string().trim().optional(),
+  /** true = pedir credenciales de prueba al conectar (cuentas de test de Mercado Pago). */
+  MP_TEST_MODE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  /** Clave para cifrar los tokens de las productoras (32 bytes en base64). */
+  PAYMENTS_ENC_KEY: z.string().optional(),
 }).superRefine((c, ctx) => {
+  if (c.MP_CLIENT_ID) {
+    if (!c.MP_CLIENT_SECRET) ctx.addIssue({ code: 'custom', path: ['MP_CLIENT_SECRET'], message: 'Falta MP_CLIENT_SECRET.' });
+    if (!c.PAYMENTS_ENC_KEY || Buffer.from(c.PAYMENTS_ENC_KEY, 'base64').length !== 32) {
+      ctx.addIssue({ code: 'custom', path: ['PAYMENTS_ENC_KEY'], message: 'PAYMENTS_ENC_KEY debe ser exactamente 32 bytes en base64.' });
+    }
+  }
   if (c.NODE_ENV === 'production' && c.EMAIL_PROVIDER === 'outbox') {
     ctx.addIssue({ code: 'custom', path: ['EMAIL_PROVIDER'], message: 'En producción no se permite el buzón en memoria: usá resend o disabled.' });
   }

@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { API_URL } from './config';
-import type { AccessEvent, AdminEvent, ApiErrorBody, Attendee, EventStats, Hold, Member, Org, Overview, PublicEvent, PublicEventDetail, StaffShift, Ticket, User, Venue } from './types';
+import type { AccessEvent, AdminEvent, PaymentAccountStatus, ApiErrorBody, Attendee, EventStats, Hold, Member, Org, Overview, PublicEvent, PublicEventDetail, StaffShift, Ticket, User, Venue } from './types';
 
 /** Llamada a la API desde el servidor, reenviando la cookie de sesión del visitante. */
 async function apiGet<T>(path: string, opts: { auth?: boolean; revalidate?: number } = {}): Promise<{ ok: true; data: T } | { ok: false; status: number; error: ApiErrorBody['error'] | null }> {
@@ -101,4 +101,9 @@ export function getAccessEvents() {
 /** Eventos a la venta por categoría (se refresca cada minuto). */
 export function getCategoryCounts() {
   return apiGet<{ items: { category: string; count: number }[] }>('/v1/public/categories', { revalidate: 60 });
+}
+
+/** Cuenta de Mercado Pago de la productora (requiere permiso de finanzas). */
+export function getPaymentAccount(orgId: string) {
+  return apiGet<PaymentAccountStatus>(`/v1/organizations/${encodeURIComponent(orgId)}/payments/mercadopago`, { auth: true });
 }

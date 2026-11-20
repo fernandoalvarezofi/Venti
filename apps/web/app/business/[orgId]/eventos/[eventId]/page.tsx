@@ -8,7 +8,7 @@ import { EntryProgress, EventTabs, EVENT_TABS, MoneyBreakdown, Readiness, TypeBr
 import { SalesChart } from '@/components/business/sales-chart';
 import { PageTitle, Panel, StatCard, StatusBadge } from '@/components/business/ui';
 import { ErrorState } from '@/components/states';
-import { getAttendees, getEventStats, getMembers, getOrgEvent, getStaffShifts } from '@/lib/api';
+import { getAttendees, getEventStats, getMembers, getOrgEvent, getPaymentAccount, getStaffShifts } from '@/lib/api';
 import { dateParts, formatMoney } from '@/lib/format';
 
 export const metadata: Metadata = { title: 'Evento' };
@@ -34,12 +34,13 @@ export default async function ManageEventPage({
   const tab: EventTab = EVENT_TABS.some((t) => t.id === tabRaw) ? (tabRaw as EventTab) : 'resumen';
   if (!/^[0-9a-f-]{36}$/.test(eventId)) notFound();
   const page = Math.max(0, Number(pagina) || 0);
-  const [ev, stats, attendees, shifts, members] = await Promise.all([
+  const [ev, stats, attendees, shifts, members, payAcc] = await Promise.all([
     getOrgEvent(orgId, eventId),
     getEventStats(orgId, eventId),
     getAttendees(orgId, eventId, { q, offset: page * 50 }),
     getStaffShifts(orgId, eventId),
     getMembers(orgId),
+    getPaymentAccount(orgId),
   ]);
   if (!ev.ok) {
     if (ev.status === 404) notFound();
@@ -97,7 +98,7 @@ export default async function ManageEventPage({
             </div>
             {e.status !== 'cancelled' && e.status !== 'finished' ? (
               <Panel title="Para vender más" description="Lo que falta para que el evento esté completo.">
-                <Readiness e={e} orgId={orgId} staffCount={shifts.ok ? shifts.data.items.length : 0} />
+                <Readiness e={e} orgId={orgId} staffCount={shifts.ok ? shifts.data.items.length : 0} paymentsConnected={payAcc.ok && payAcc.data.available ? payAcc.data.connected : null} />
               </Panel>
             ) : null}
           </div>
