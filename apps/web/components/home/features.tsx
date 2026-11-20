@@ -14,7 +14,7 @@ function Window({ children, note }: { children: React.ReactNode; note: string })
 
 function Step({ n, title, body, bullets, soon, flip, children }: { n: string; title: React.ReactNode; body: string; bullets: string[]; soon?: string[]; flip?: boolean; children: React.ReactNode }) {
   return (
-    <article className="grid items-center gap-12 border-t border-paper/10 py-16 sm:py-20 lg:grid-cols-2 lg:gap-16">
+    <article className="hz-rule grid items-center gap-12 border-t py-16 sm:py-20 lg:grid-cols-2 lg:gap-16">
       <div className={flip ? 'lg:order-2' : ''}>
         <p className="hz-num" aria-hidden>
           {n}
@@ -28,7 +28,7 @@ function Step({ n, title, body, bullets, soon, flip, children }: { n: string; ti
             </li>
           ))}
           {soon?.map((b) => (
-            <li key={b} className="flex items-center gap-2.5 text-sm text-paper/55">
+            <li key={b} className="hz-faint flex items-center gap-2.5 text-sm">
               <span className="hz-soon">Próximamente</span>
               {b}
             </li>
@@ -49,7 +49,7 @@ const bar = (pct: number) => (
 /** "Todo lo que necesitás para vender online." — pasos 01 a 06 (referencias: paso 1 a paso 6). */
 export function FeatureSteps() {
   return (
-    <section className="hz" aria-labelledby="vender-online">
+    <section className="hz hz-light" aria-labelledby="vender-online">
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-20 sm:px-6 sm:pt-28">
         <h2 id="vender-online" className="hz-title pb-14 text-[clamp(2.6rem,7vw,4.6rem)]">
           Todo lo que necesitás

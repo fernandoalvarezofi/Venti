@@ -73,7 +73,7 @@ export function Payouts() {
 /** "Infaltables para tu evento" (referencia: infaltables). */
 export function Essentials() {
   return (
-    <section className="hz" aria-labelledby="infaltables">
+    <section className="hz hz-light" aria-labelledby="infaltables">
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
         <h2 id="infaltables" className="hz-title text-[clamp(2.6rem,7vw,4.6rem)]">
           Infaltables para
@@ -264,10 +264,10 @@ const FAQ = [
 /** Preguntas frecuentes (referencia: preguntas frecuentes). */
 export function Faq() {
   return (
-    <section id="preguntas" className="hz scroll-mt-20" aria-labelledby="preguntas-t">
+    <section id="preguntas" className="hz hz-light scroll-mt-20" aria-labelledby="preguntas-t">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <div>
-          <p className="hz-eyebrow !text-paper/50">Preguntas frecuentes</p>
+          <p className="hz-eyebrow">Preguntas frecuentes</p>
           <h2 id="preguntas-t" className="hz-title mt-4 text-[clamp(2.6rem,6vw,4rem)]">
             Lo que
             <br />
@@ -277,20 +277,20 @@ export function Faq() {
           </h2>
           <p className="hz-muted mt-5 text-sm">
             ¿No encontrás tu respuesta?{' '}
-            <Link href="/ayuda" className="text-paper underline underline-offset-4 hover:text-accent">
+            <Link href="/ayuda" className="font-semibold text-ink underline underline-offset-4 hover:text-accent">
               Centro de ayuda →
             </Link>
           </p>
         </div>
-        <div className="hz-faq overflow-hidden rounded-2xl bg-[#1f1b18] shadow-[0_0_0_1px_rgb(244_239_230/0.1)]">
+        <div className="hz-faq hz-panel overflow-hidden rounded-2xl">
           {FAQ.map(([q, a], i) => (
-            <details key={q} className={i > 0 ? 'border-t border-paper/10' : ''}>
+            <details key={q} className={i > 0 ? 'hz-rule border-t' : ''}>
               <summary className="flex items-center justify-between gap-4 px-5 py-5 font-semibold sm:px-6">
                 <span>
                   {q}
                   {i === 0 ? <Soon /> : null}
                 </span>
-                <span className="hz-plus text-xl font-light text-paper/60" aria-hidden>
+                <span className="hz-plus hz-faint text-xl font-light" aria-hidden>
                   +
                 </span>
               </summary>

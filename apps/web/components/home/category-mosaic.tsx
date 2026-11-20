@@ -1,6 +1,19 @@
 import Link from 'next/link';
-import { getCategoryCounts, searchEvents } from '@/lib/api';
-import { mediaSrc } from '@/lib/format';
+import { getCategoryCounts } from '@/lib/api';
+
+/**
+ * Fotos de Unsplash (Licencia Unsplash: uso gratuito, también comercial), guardadas en /public/home/categorias:
+ * música bl1_IhZL6Pc · fiestas f5AV7R4u7VA · stand-up nnqs4z82Zmk · festivales RylvLT27I5w ·
+ * teatro bvHWrljtz8U · deportes 70YxSTWa2Zw (unsplash.com/photos/<id>).
+ */
+const PHOTO: Record<string, string> = {
+  music: '/home/categorias/musica.webp',
+  party: '/home/categorias/fiestas.webp',
+  standup: '/home/categorias/standup.webp',
+  festival: '/home/categorias/festivales.webp',
+  theater: '/home/categorias/teatro.webp',
+  sports: '/home/categorias/deportes.webp',
+};
 
 const ICON: Record<string, React.ReactNode> = {
   music: <path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm11-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />,
@@ -22,11 +35,10 @@ const TILES = [
 ] as const;
 
 /**
- * "Todo se vende acá": mosaico de categorías con la portada real del próximo evento de cada una
- * y la cantidad real de eventos a la venta. Sin portada, fondo con la luz de la marca e ícono.
+ * "Todo se vende acá": mosaico de categorías con foto editorial y la cantidad real de eventos a la venta.
  */
 export async function CategoryMosaic() {
-  const [counts, ...covers] = await Promise.all([getCategoryCounts(), ...TILES.map((t) => searchEvents({ category: t.value, limit: 1 }))]);
+  const counts = await getCategoryCounts();
   const n = Object.fromEntries((counts.ok ? counts.data.items : []).map((c) => [c.category, c.count]));
   const top = Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0];
 
@@ -43,9 +55,8 @@ export async function CategoryMosaic() {
         </div>
 
         <ul className="mt-10 grid auto-rows-[11rem] grid-cols-2 gap-3 sm:auto-rows-[12.5rem] lg:grid-cols-4">
-          {TILES.map((t, i) => {
-            const ev = covers[i]?.ok ? covers[i].data.items[0] : undefined;
-            const cover = ev?.coverImage?.url ? mediaSrc(ev.coverImage.url) : null;
+          {TILES.map((t) => {
+            const cover = PHOTO[t.value] ?? null;
             const count = n[t.value] ?? 0;
             const isBig = 'big' in t && t.big;
             return (

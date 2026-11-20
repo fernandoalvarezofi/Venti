@@ -55,7 +55,7 @@ const FEATURES = [
 /** "Comprá. Mostrá. Listo." — para compradores (referencia: explicación 1). */
 export function BuyersSection() {
   return (
-    <section className="hz hz-glow overflow-hidden" aria-labelledby="compradores">
+    <section className="hz hz-light hz-glow overflow-hidden" aria-labelledby="compradores">
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         {/* Teléfono con la entrada */}
         <div className="mx-auto w-[min(78vw,300px)]">
@@ -103,9 +103,9 @@ export function BuyersSection() {
             Mostrá. <span className="hz-ghost">Listo.</span>
           </h2>
           <p className="hz-muted mt-6 max-w-md text-lg">Cuatro cosas que valen oro cuando estás haciendo la fila a las 23:50 con tu amigo apurándote.</p>
-          <ul className="mt-10 grid overflow-hidden rounded-2xl bg-paper/[0.06] shadow-[inset_0_0_0_1px_rgb(244_239_230/0.1)] backdrop-blur sm:grid-cols-2">
+          <ul className="hz-panel mt-10 grid overflow-hidden rounded-2xl sm:grid-cols-2">
             {FEATURES.map((f, i) => (
-              <li key={f.title} className={`p-6 ${i % 2 === 0 ? 'sm:border-r' : ''} ${i < 2 ? 'border-b' : i === 2 ? 'border-b sm:border-b-0' : ''} border-paper/10`}>
+              <li key={f.title} className={`p-6 ${i % 2 === 0 ? 'sm:border-r' : ''} ${i < 2 ? 'border-b' : i === 2 ? 'border-b sm:border-b-0' : ''} hz-rule`}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="size-6 text-accent" aria-hidden>
                   {f.icon}
                 </svg>
