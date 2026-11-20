@@ -74,6 +74,7 @@ const ConfigSchema = z.object({
   /**
    * Ingreso con Google (OAuth "ID de cliente web" de Google Cloud). Si falta, el botón no aparece.
    * URI de redirección autorizada: {PUBLIC_WEB_URL}/api/v1/auth/google/callback
+   * Se cargan en Vercel (proyecto de la API); los cambios se aplican al volver a publicar.
    */
   GOOGLE_CLIENT_ID: z.string().trim().optional(),
   GOOGLE_CLIENT_SECRET: z.string().trim().optional(),
