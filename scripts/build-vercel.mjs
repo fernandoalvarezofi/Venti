@@ -35,7 +35,7 @@ cpSync(join(root, 'node_modules/@fastify/swagger-ui/static'), join(fn, 'swagger-
 
 writeFileSync(
   join(fn, '.vc-config.json'),
-  JSON.stringify({ runtime: 'nodejs22.x', handler: 'index.mjs', launcherType: 'Nodejs', shouldAddHelpers: false, maxDuration: 30 }, null, 2),
+  JSON.stringify({ runtime: 'nodejs22.x', handler: 'index.mjs', launcherType: 'Nodejs', shouldAddHelpers: false, maxDuration: 30, regions: ['gru1'] }, null, 2),
 );
 writeFileSync(join(fn, 'package.json'), JSON.stringify({ type: 'module' }));
 writeFileSync(
