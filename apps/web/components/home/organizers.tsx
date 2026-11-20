@@ -33,7 +33,28 @@ export function Payouts() {
   );
 }
 
-/** "Infaltables para tu evento" (referencia: infaltables): entrada con QR real de la marca + panel de reportes. */
+function StatusBar({ dark = false }: { dark?: boolean }) {
+  return (
+    <div className={`device-status ${dark ? "text-white" : "text-ink"}`} aria-hidden>
+      <span>22:41</span>
+      <span className="flex items-center gap-1">
+        <svg viewBox="0 0 18 12" width="15" height="10" fill="currentColor">
+          <rect x="0" y="8" width="3" height="4" rx="0.8" />
+          <rect x="5" y="5.5" width="3" height="6.5" rx="0.8" />
+          <rect x="10" y="3" width="3" height="9" rx="0.8" opacity="0.35" />
+          <rect x="15" y="0" width="3" height="12" rx="0.8" opacity="0.35" />
+        </svg>
+        <svg viewBox="0 0 26 12" width="22" height="10" fill="none" stroke="currentColor">
+          <rect x="0.5" y="0.5" width="22" height="11" rx="3" opacity="0.5" />
+          <rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor" stroke="none" />
+          <path d="M24.5 4v4" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+        </svg>
+      </span>
+    </div>
+  );
+}
+
+/** "Infaltables para tu evento": demostración real (entrada del comprador → escáner de la puerta) + resumen del panel. */
 export function Essentials() {
   return (
     <section className="hz hz-light" aria-labelledby="infaltables">
@@ -44,49 +65,68 @@ export function Essentials() {
           <br />
           <span className="hz-ghost">tu evento.</span>
         </h2>
-        <div className="mt-12 grid gap-6 lg:grid-cols-2">
-          {/* 1. Entrada con QR de Lintick + escáner sin internet */}
-          <article className="ess-card flex flex-col">
+        <p className="mt-3 text-xs text-muted">Pantallas reales de Lintick, con datos de ejemplo.</p>
+        <div className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+          {/* 1. La entrada del comprador y el escáner de la puerta */}
+          <article className="ess-card flex flex-col" data-reveal>
             <div className="ess-stage">
-              <span className="ess-num">1</span>
-              <div className="ess-pass">
-                <div className="flex items-center justify-between px-5 pt-4">
-                  <span className="font-display text-lg font-extrabold tracking-[-0.04em]">
-                    Lintick<span className="text-accent">.</span>
-                  </span>
-                  <span className="rounded-full bg-ink px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.12em] text-paper">Campo</span>
+              <div className="flex items-end justify-center gap-4 sm:gap-7">
+                {/* Celular del comprador: su entrada en "Mis entradas" */}
+                <div className="device rv w-[44%] max-w-[12.5rem]" style={{ ['--d' as string]: '0ms' }}>
+                  <div className="device-screen bg-paper text-ink">
+                    <StatusBar />
+                    <p className="px-3 pt-1 font-display text-[0.95rem] font-extrabold tracking-[-0.03em]">Mis entradas</p>
+                    <div className="mx-2.5 mt-2 rounded-xl bg-surface p-2.5 shadow-[0_0_0_1px_rgb(23_20_17/0.07)]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="app-chip bg-success/10 !text-[0.52rem] text-success">Vigente</span>
+                        <span className="text-[0.5rem] font-semibold uppercase tracking-[0.12em] text-muted">Campo</span>
+                      </div>
+                      <p className="mt-1.5 text-[0.8rem] font-bold leading-tight">Noche de Otoño</p>
+                      <p className="text-[0.58rem] text-muted">Sáb 14/03 · 22:00 · Sala Norte</p>
+                      <div className="relative mx-auto mt-2 w-[86%]">
+                        <BrandedQr value="https://venti-web-eta.vercel.app" className="block h-auto w-full" />
+                      </div>
+                      <p className="mt-1.5 text-center">
+                        <span className="block text-[0.45rem] font-semibold uppercase tracking-[0.16em] text-muted">Entrada Nº</span>
+                        <span className="font-mono text-[0.72rem] font-bold tracking-[0.08em]">9F3A-2C1E</span>
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="px-5 pb-1 pt-2">
-                  <p className="font-display text-[1.05rem] font-bold leading-tight">Noche de Otoño</p>
-                  <p className="text-[0.7rem] text-muted">Sáb 14/03 · 22:00 · Sala Norte</p>
+
+                {/* Celular de la puerta: Lintick Access */}
+                <div className="device device-dark rv w-[44%] max-w-[12.5rem] translate-y-3" style={{ ['--d' as string]: '140ms' }}>
+                  <div className="device-screen bg-[#0b0a09]">
+                    <StatusBar dark />
+                    <div className="access-view">
+                      <div className="flex items-center justify-between px-3 pt-1 text-white">
+                        <span className="text-[0.62rem] font-bold">Noche de Otoño</span>
+                        <span className="text-right leading-none">
+                          <span className="block font-display text-sm font-extrabold tabular-nums">412</span>
+                          <span className="text-[0.42rem] text-white/55">de 478</span>
+                        </span>
+                      </div>
+                      <div className="access-cam">
+                        <span className="access-frame">
+                          <span className="access-line" />
+                        </span>
+                      </div>
+                      <p className="pb-3 text-center text-[0.55rem] text-white/55">Puerta Norte · sin señal</p>
+                    </div>
+                    {/* Resultado (igual al de la app): entra después del barrido */}
+                    <div className="access-ok">
+                      <span className="grid size-10 place-items-center rounded-full bg-white/20 text-xl font-bold">✓</span>
+                      <span className="mt-2 font-display text-[1.35rem] font-extrabold uppercase tracking-[-0.02em]">Adelante</span>
+                      <span className="mt-1 text-[0.55rem] opacity-90">Ingreso habilitado (validado sin señal).</span>
+                      <span className="mt-3 w-[84%] rounded-lg bg-black/15 px-2.5 py-2 text-left">
+                        <span className="block text-[0.72rem] font-bold leading-tight">Ana Pérez</span>
+                        <span className="block text-[0.55rem] opacity-90">Campo</span>
+                        <span className="mt-1 block whitespace-nowrap font-mono text-[0.48rem] opacity-90">Nº 9F3A-2C1E</span>
+                        <span className="block whitespace-nowrap font-mono text-[0.48rem] opacity-90">DNI terminado en 123</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="cut my-2" aria-hidden>
-                  <span className="opacity-60" />
-                </div>
-                <div className="relative mx-auto mb-3 mt-1 w-[68%]">
-                  <BrandedQr value="https://venti-web-eta.vercel.app" className="block h-auto w-full" />
-                  {/* Visor del escáner sobre el QR */}
-                  <span className="ess-viewfinder" aria-hidden>
-                    <span className="ess-scanline" />
-                  </span>
-                </div>
-                <div className="flex items-center justify-between px-5 pb-4 text-[0.68rem]">
-                  <span>
-                    <span className="block text-[0.55rem] font-bold uppercase tracking-[0.14em] text-muted">Entrada Nº</span>
-                    <span className="font-mono text-sm font-bold">9F3A-2C1E</span>
-                  </span>
-                  <span className="text-right">
-                    <span className="block text-[0.55rem] font-bold uppercase tracking-[0.14em] text-muted">Titular</span>
-                    <span className="font-semibold">Ana P. · DNI •••123</span>
-                  </span>
-                </div>
-              </div>
-              <div className="ess-toast">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#16a34a] text-xs font-bold text-white">✓</span>
-                <span>
-                  <span className="block text-sm font-semibold">Entrada validada</span>
-                  <span className="font-mono text-[0.62rem] text-paper/60">SIN SEÑAL · PUERTA NORTE · 22:41</span>
-                </span>
               </div>
             </div>
             <div className="px-6 pb-6 pt-5">
@@ -97,71 +137,42 @@ export function Essentials() {
             </div>
           </article>
 
-          {/* 2. Reportes en vivo */}
-          <article className="ess-card flex flex-col">
+          {/* 2. Resumen del panel */}
+          <article className="ess-card flex flex-col" data-reveal>
             <div className="ess-stage">
-              <span className="ess-num">2</span>
-              <div className="ess-dash">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-paper/70">Noche de Otoño · en vivo</p>
-                  <span className="flex items-center gap-1.5 text-[0.62rem] font-semibold text-[#7fd49b]">
-                    <span className="size-1.5 rounded-full bg-[#4ade80]" /> Actualizado
+              <div className="app-window rv w-full max-w-[24rem]" style={{ ['--d' as string]: '80ms' }}>
+                <div className="app-chrome" aria-hidden>
+                  <span className="app-dots">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span className="app-url">
+                    <b>lintick.com.ar</b>/business/eventos/noche-de-otono
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[
-                    ['Emitidas', '1.240', '+38 hoy'],
-                    ['Ingresaron', '1.198', '97%'],
-                    ['Neto', '$ 8,86 M', 'a cobrar'],
-                  ].map(([k, v, h]) => (
-                    <div key={k} className="rounded-xl bg-paper/[0.06] p-2.5">
-                      <p className="text-[0.58rem] font-semibold uppercase tracking-[0.1em] text-paper/50">{k}</p>
-                      <p className="mt-0.5 font-display text-lg font-extrabold tabular-nums leading-none">{v}</p>
-                      <p className="mt-1 text-[0.58rem] text-paper/50">{h}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 rounded-xl bg-paper/[0.04] p-3">
-                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-paper/50">Ventas por día</p>
-                  <svg viewBox="0 0 300 90" className="mt-2 h-auto w-full" aria-hidden>
-                    <defs>
-                      <linearGradient id="ess-area" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="#f8942a" stopOpacity="0.45" />
-                        <stop offset="1" stopColor="#f8942a" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    {[22, 45, 68].map((y) => (
-                      <line key={y} x1="0" x2="300" y1={y} y2={y} stroke="rgb(244 239 230 / 0.08)" />
+                <div className="app-body">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      ['Emitidas', '1.237', 'de 1.400 · 46 cortesías'],
+                      ['Ingresaron', '1.186', '96% de las emitidas'],
+                      ['Disponibles', '163', '9 en reserva ahora'],
+                      ['Neto a cobrar', '$ 25,6 M', 'bruto $ 28,4 M'],
+                    ].map(([k, v, h]) => (
+                      <div key={k} className="rounded-[10px] bg-surface p-2.5 shadow-[inset_0_0_0_1px_rgb(23_20_17/0.06)]">
+                        <p className="text-[0.6rem] text-muted">{k}</p>
+                        <p className="font-display text-lg font-extrabold tabular-nums leading-tight tracking-[-0.03em]">{v}</p>
+                        <p className="text-[0.55rem] text-muted">{h}</p>
+                      </div>
                     ))}
-                    <path d="M0 80 C 30 76, 45 70, 60 66 S 100 58, 120 50 S 160 54, 180 40 S 220 30, 240 22 S 280 12, 300 8 L 300 90 L 0 90 Z" fill="url(#ess-area)" />
-                    <path className="ess-line" d="M0 80 C 30 76, 45 70, 60 66 S 100 58, 120 50 S 160 54, 180 40 S 220 30, 240 22 S 280 12, 300 8" fill="none" stroke="#f8942a" strokeWidth="2.5" strokeLinecap="round" />
-                    <circle cx="300" cy="8" r="4" fill="#f8942a" className="ess-dot" />
-                  </svg>
+                  </div>
+                  <p className="mt-3 text-[0.62rem] font-semibold text-ink">Ventas por día</p>
+                  <div className="demo-bars mt-1.5 flex h-16 items-end gap-[3px]" aria-hidden>
+                    {[4, 7, 5, 9, 12, 8, 14, 11, 16, 13, 19, 22, 17, 24, 27, 21, 26, 31, 29, 34].map((v, i) => (
+                      <span key={i} className="demo-bar flex-1 rounded-t-[3px] bg-[#d23a1f]" style={{ height: `${v * 1.7}px`, ['--i' as string]: i }} />
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {[
-                    ['Campo', 312, 400],
-                    ['Platea', 470, 600],
-                    ['VIP', 88, 120],
-                  ].map(([t, a, b]) => (
-                    <div key={t as string} className="flex items-center gap-3 text-[0.7rem]">
-                      <span className="w-12 text-paper/65">{t}</span>
-                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper/10">
-                        <span className="ess-bar block h-full rounded-full bg-accent" style={{ width: `${Math.round(((a as number) / (b as number)) * 100)}%` }} />
-                      </span>
-                      <span className="w-14 text-right tabular-nums text-paper/55">
-                        {a}/{b}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="ess-toast ess-toast-right">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-white">↗</span>
-                <span>
-                  <span className="block font-mono text-[0.58rem] uppercase tracking-[0.12em] text-paper/55">Neto a cobrar · en vivo</span>
-                  <span className="font-display text-base font-bold tabular-nums">$ 8.861.000</span>
-                </span>
               </div>
             </div>
             <div className="px-6 pb-6 pt-5">

@@ -8,6 +8,7 @@ import { FeatureSteps } from '@/components/home/features';
 import { HowItWorks } from '@/components/home/how-it-works';
 import { Essentials, Faq, FinalCta, Payouts, Support } from '@/components/home/organizers';
 import { HeroRunner } from '@/components/hero-runner';
+import { RevealObserver } from '@/components/home/reveal';
 import { ArrowRightIcon } from '@/components/icons';
 import { SearchBar } from '@/components/search-bar';
 import { EmptyState, ErrorState } from '@/components/states';
@@ -73,6 +74,7 @@ export default async function Home() {
         <Faq />
         <FinalCta />
       </div>
+      <RevealObserver />
     </>
   );
 }

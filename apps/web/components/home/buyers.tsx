@@ -59,9 +59,8 @@ export function BuyersSection() {
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         {/* Teléfono con la entrada */}
         <div className="mx-auto w-[min(78vw,300px)]">
-          <div className="relative rounded-[2.6rem] bg-[#0e0c0b] p-2.5 shadow-[0_0_0_1.5px_rgb(244_239_230/0.12),0_40px_80px_-30px_rgb(0_0_0/0.9)]">
-            <div className="absolute left-1/2 top-4 z-10 h-6 w-24 -translate-x-1/2 rounded-full bg-black" aria-hidden />
-            <div className="relative overflow-hidden rounded-[2.1rem] bg-ink" style={{ aspectRatio: '9 / 18.5' }}>
+          <div className="device !aspect-auto !rounded-[2.6rem] !p-2">
+            <div className="device-screen !rounded-[2.15rem] bg-ink" style={{ aspectRatio: '9 / 18.5' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/banner/inicio-movil-600.webp" alt="" className="absolute inset-0 h-full w-full object-cover object-[78%_50%] opacity-80" loading="lazy" />
               <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70" />

@@ -1,12 +1,40 @@
-function Window({ children, note }: { children: React.ReactNode; note: string }) {
+/**
+ * "Todo lo que necesitás para vender más": cada paso muestra una pantalla REAL del panel de Lintick
+ * (mismos componentes visuales, con datos de ejemplo), en una ventana de navegador con su dirección.
+ */
+
+function Arrow({ flip = false }: { flip?: boolean }) {
+  // Trazo a mano alzada, levemente irregular, con punta abierta.
   return (
-    <div className="relative mx-auto w-full max-w-[25rem] pt-10">
-      <span className="hand absolute left-1/2 top-0 w-max -translate-x-1/3">
-        {note} <span aria-hidden>↓</span>
+    <svg viewBox="0 0 42 34" aria-hidden style={flip ? { transform: 'scaleX(-1)' } : undefined}>
+      <path d="M3 4 C 14 3, 27 9, 33 24" />
+      <path d="M26.5 20.5 L 33.4 25.2 L 36.2 17.4" />
+    </svg>
+  );
+}
+
+function Window({ url, children, note, noteSide = 'left' }: { url: React.ReactNode; children: React.ReactNode; note: string; noteSide?: 'left' | 'right' }) {
+  return (
+    <div className="relative mx-auto w-full max-w-[27rem] pt-12">
+      <span className={`hand-note top-0 ${noteSide === 'left' ? 'left-2' : 'right-2 flex-row-reverse'}`}>
+        <span className="hand">{note}</span>
+        <Arrow flip={noteSide === 'right'} />
       </span>
-      <div className="hz-window">
-        <div className="hz-window-bar" aria-hidden />
-        <div className="p-5 text-left">{children}</div>
+      <div className="app-window rv" style={{ ['--d' as string]: '120ms' }}>
+        <div className="app-chrome" aria-hidden>
+          <span className="app-dots">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="app-url">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden>
+              <path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" />
+            </svg>
+            {url}
+          </span>
+        </div>
+        <div className="app-body">{children}</div>
       </div>
     </div>
   );
@@ -14,14 +42,18 @@ function Window({ children, note }: { children: React.ReactNode; note: string })
 
 function Step({ n, title, body, bullets, soon, flip, children }: { n: string; title: React.ReactNode; body: string; bullets: string[]; soon?: string[]; flip?: boolean; children: React.ReactNode }) {
   return (
-    <article className="hz-rule grid items-center gap-12 border-t py-16 sm:py-20 lg:grid-cols-2 lg:gap-16">
+    <article data-reveal className="hz-rule grid items-center gap-12 border-t py-16 sm:py-20 lg:grid-cols-2 lg:gap-16">
       <div className={flip ? 'lg:order-2' : ''}>
-        <p className="hz-num" aria-hidden>
+        <p className="hz-num rv" aria-hidden>
           {n}
         </p>
-        <h3 className="hz-title mt-2 text-[clamp(1.9rem,4vw,2.7rem)]">{title}</h3>
-        <p className="hz-muted mt-4 max-w-md leading-relaxed">{body}</p>
-        <ul className="mt-6 space-y-2.5">
+        <h3 className="hz-title rv mt-2 text-[clamp(1.9rem,4vw,2.7rem)]" style={{ ['--d' as string]: '60ms' }}>
+          {title}
+        </h3>
+        <p className="hz-muted rv mt-4 max-w-md leading-relaxed" style={{ ['--d' as string]: '100ms' }}>
+          {body}
+        </p>
+        <ul className="rv mt-6 space-y-2.5" style={{ ['--d' as string]: '140ms' }}>
           {bullets.map((b) => (
             <li key={b} className="hz-check">
               {b}
@@ -40,13 +72,13 @@ function Step({ n, title, body, bullets, soon, flip, children }: { n: string; ti
   );
 }
 
-const bar = (pct: number) => (
-  <div className="mt-2 h-2 overflow-hidden rounded-full bg-paper/10">
-    <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
-  </div>
+const Url = ({ path }: { path: string }) => (
+  <>
+    <b>lintick.com.ar</b>
+    {path}
+  </>
 );
 
-/** "Todo lo que necesitás para vender online." — pasos 01 a 06 (referencias: paso 1 a paso 6). */
 export function FeatureSteps() {
   return (
     <section className="hz hz-light" aria-labelledby="vender-online">
@@ -57,8 +89,10 @@ export function FeatureSteps() {
           <br />
           <span className="hz-mark">para vender más.</span>
         </h2>
-        <p className="hz-muted mt-5 max-w-xl pb-14">Una vez publicado tu evento, estas son las herramientas para hacerlo crecer y tenerlo bajo control: desde la preventa hasta la última persona que entra.</p>
+        <p className="hz-muted mt-5 max-w-xl">Una vez publicado tu evento, estas son las herramientas para hacerlo crecer y tenerlo bajo control: desde la preventa hasta la última persona que entra.</p>
+        <p className="mt-2 pb-14 text-xs text-muted">Pantallas reales del panel, con datos de ejemplo.</p>
 
+        {/* 01 — Crear evento (asistente real: pasos, campos, entradas, Publicar) */}
         <Step
           n="01"
           title={
@@ -71,40 +105,58 @@ export function FeatureSteps() {
           body="Armá tu página de venta con toda la info: descripción, horarios, lugar con mapa, portada, galería, line-up y tipos de entrada. Sin saber programar."
           bullets={['Portada, galería y line-up sin código', 'Varios tipos de entrada y precios', 'Cobro directo con Mercado Pago']}
         >
-          <Window note="en minutos, sin programar">
-            <div className="grid grid-cols-[7.5rem_1fr] gap-4">
-              <div className="flex aspect-[3/4] flex-col justify-between overflow-hidden rounded-lg bg-[linear-gradient(160deg,#d23a1f,#5a1a10)] p-2.5 text-white">
-                <span className="text-[0.55rem] font-bold uppercase tracking-[0.14em]">Fiestas · Sáb</span>
+          <Window url={<Url path="/business/eventos/nuevo" />} note="en minutos, sin programar">
+            <ol className="mb-4 flex items-center gap-2 text-[0.68rem] font-semibold">
+              {['Datos', 'Lugar', 'Entradas'].map((s, i) => (
+                <li key={s} className={`flex items-center gap-1.5 ${i < 2 ? 'text-ink' : 'text-muted'}`}>
+                  <span className={`grid size-5 place-items-center rounded-full text-[0.6rem] ${i < 2 ? 'bg-ink text-paper' : 'shadow-[inset_0_0_0_1px_rgb(23_20_17/0.25)]'}`}>{i < 2 ? '✓' : 3}</span>
+                  {s}
+                  {i < 2 ? <span className="mx-1 h-px w-5 bg-ink/20" aria-hidden /> : null}
+                </li>
+              ))}
+            </ol>
+            <div className="grid grid-cols-[6.5rem_1fr] gap-3">
+              <div className="flex aspect-[3/4] flex-col justify-between rounded-[10px] bg-[#c4553a] p-2 text-[#fff7ef]">
+                <span className="flex justify-between text-[0.5rem] font-bold uppercase tracking-[0.12em]">
+                  <span>Fiestas</span>
+                  <span>Sáb</span>
+                </span>
                 <span className="font-display leading-none">
-                  <span className="block text-4xl font-extrabold tracking-[-0.05em]">24</span>
-                  <span className="text-sm font-bold">OCT</span>
+                  <span className="block text-[2.1rem] font-extrabold tracking-[-0.05em]">24</span>
+                  <span className="text-xs font-bold">OCT</span>
                 </span>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div>
-                  <p className="hz-label">Nombre del evento</p>
-                  <p className="hz-field mt-1">Aniversario 35 años</p>
+                  <p className="app-label">Nombre del evento</p>
+                  <p className="app-field">Aniversario 35 años</p>
                 </div>
                 <div>
-                  <p className="hz-label">Fecha</p>
-                  <p className="hz-field mt-1">Sáb 24 oct · 23:59</p>
+                  <p className="app-label">Empieza</p>
+                  <p className="app-field tabular-nums">24/10/2026 · 23:59</p>
                 </div>
               </div>
             </div>
-            <div className="mt-4 divide-y divide-paper/10 border-t border-paper/10 text-sm">
-              <p className="flex justify-between py-2.5">
-                <span>General</span>
-                <span className="font-semibold tabular-nums">$ 30.000</span>
-              </p>
-              <p className="flex justify-between py-2.5">
-                <span>VIP</span>
-                <span className="font-semibold tabular-nums">$ 45.000</span>
-              </p>
+            <div className="mt-3 rounded-[10px] bg-surface p-2.5 shadow-[inset_0_0_0_1px_rgb(23_20_17/0.08)]">
+              {[
+                ['General', '400 lugares', '$ 30.000'],
+                ['VIP', '80 lugares', '$ 45.000'],
+              ].map(([t, c, p], i) => (
+                <p key={t} className={`flex items-baseline justify-between py-1.5 ${i ? 'border-t border-ink/[0.07]' : ''}`}>
+                  <span>
+                    <span className="font-semibold">{t}</span> <span className="text-[0.68rem] text-muted">· {c}</span>
+                  </span>
+                  <span className="font-semibold tabular-nums">{p}</span>
+                </p>
+              ))}
             </div>
-            <p className="hz-btn mt-3">Publicar</p>
+            <div className="mt-3 flex justify-end">
+              <span className="btn-admit !min-h-[2.4rem] !text-[0.7rem]">Publicar ahora</span>
+            </div>
           </Window>
         </Step>
 
+        {/* 02 — Etapas de precio (tarjeta real de tipo de entrada) */}
         <Step
           flip
           n="02"
@@ -119,34 +171,51 @@ export function FeatureSteps() {
           bullets={['Etapas automáticas por fecha o cantidad', 'Cortesías con stock real', 'Sin sobreventa: el stock se cuida solo']}
           soon={['Códigos de descuento y combos']}
         >
-          <Window note="tu precio, tu ritmo">
-            <p className="hz-label">Etapas de precio · Campo</p>
-            <div className="mt-3 divide-y divide-paper/10 text-sm">
-              <p className="flex items-center justify-between gap-3 py-2.5">
-                <span className="text-paper/50">Preventa 1</span>
-                <span className="flex items-center gap-2">
-                  <span className="tabular-nums text-paper/40 line-through decoration-accent decoration-2">$ 18.000</span>
-                  <span className="rounded-full bg-paper/10 px-2 py-0.5 text-[0.65rem] font-bold">AGOTADA</span>
-                </span>
-              </p>
-              <p className="flex items-center justify-between gap-3 py-2.5">
-                <span className="font-semibold">Preventa 2</span>
-                <span className="flex items-center gap-2">
-                  <span className="font-semibold tabular-nums text-[#7fd49b]">$ 24.000</span>
-                  <span className="rounded-full bg-[#1d6b3a]/40 px-2 py-0.5 text-[0.65rem] font-bold text-[#9be3b4]">quedan 42</span>
-                </span>
-              </p>
-              <p className="flex items-center justify-between gap-3 py-2.5">
-                <span className="flex items-center gap-2">
-                  <span className="rounded-md bg-accent px-1.5 py-0.5 text-[0.6rem] font-bold text-white">DESPUÉS</span>
-                  General
-                </span>
-                <span className="font-semibold tabular-nums">$ 30.000</span>
-              </p>
+          <Window url={<Url path="/business/eventos/aniversario?tab=entradas" />} note="tu precio, tu ritmo" noteSide="right">
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-bold">Campo</p>
+              <p className="text-[0.68rem] text-muted tabular-nums">318 vendidas de 400</p>
             </div>
+            <div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-ink/[0.07]">
+              <span className="bg-ink" style={{ width: '79.5%' }} />
+              <span className="bg-ink/30" style={{ width: '3%' }} />
+            </div>
+            <table className="mt-3 w-full text-left text-[0.75rem]">
+              <thead className="text-[0.6rem] uppercase tracking-[0.08em] text-muted">
+                <tr className="border-b border-ink/10">
+                  <th className="py-1.5 font-semibold">Etapa</th>
+                  <th className="py-1.5 font-semibold">Precio</th>
+                  <th className="py-1.5 text-right font-semibold">Vendidas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink/[0.07]">
+                <tr>
+                  <td className="py-2">
+                    Preventa 1 <span className="app-chip ml-1 bg-ink/[0.07] text-muted">Agotada</span>
+                  </td>
+                  <td className="py-2 tabular-nums text-muted line-through decoration-ink/30">$ 18.000</td>
+                  <td className="py-2 text-right tabular-nums text-muted">150/150</td>
+                </tr>
+                <tr>
+                  <td className="py-2 font-semibold">
+                    Preventa 2 <span className="app-chip ml-1 bg-success/10 text-success">Vigente</span>
+                  </td>
+                  <td className="py-2 font-semibold tabular-nums">$ 24.000</td>
+                  <td className="py-2 text-right tabular-nums">168/210</td>
+                </tr>
+                <tr>
+                  <td className="py-2">
+                    General <span className="app-chip ml-1 bg-ink/[0.05] text-ink-soft">Desde el 01/10</span>
+                  </td>
+                  <td className="py-2 tabular-nums">$ 30.000</td>
+                  <td className="py-2 text-right tabular-nums text-muted">—</td>
+                </tr>
+              </tbody>
+            </table>
           </Window>
         </Step>
 
+        {/* 03 — Asistentes (tabla real + planilla) */}
         <Step
           n="03"
           title={
@@ -160,32 +229,43 @@ export function FeatureSteps() {
           bullets={['Titular por entrada', 'DNI protegido (sólo los últimos 3)', 'Planilla para Excel en un clic']}
           soon={['Preguntas personalizadas en la compra']}
         >
-          <Window note="los datos que importan">
-            <p className="font-semibold">Asistentes</p>
-            <div className="mt-3 space-y-3">
-              <div>
-                <p className="hz-label">Nombre y apellido</p>
-                <p className="hz-field mt-1">Lucía Pérez</p>
-              </div>
-              <div>
-                <p className="hz-label">DNI (protegido)</p>
-                <p className="hz-field mt-1 font-mono tracking-[0.2em]">•••••222</p>
-              </div>
-              <div>
-                <p className="hz-label">Entrada</p>
-                <div className="mt-1 flex gap-2">
-                  {['Campo', 'Platea', 'VIP'].map((t, i) => (
-                    <span key={t} className={`grid h-9 place-items-center rounded-lg px-3 text-xs font-bold ${i === 0 ? 'bg-paper text-ink' : 'shadow-[inset_0_0_0_1px_rgb(244_239_230/0.18)]'}`}>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          <Window url={<Url path="/business/eventos/aniversario?tab=asistentes" />} note="los datos que importan">
+            <div className="flex items-center gap-2">
+              <span className="app-field flex-1 text-muted">Nombre, email o DNI completo</span>
+              <span className="btn btn-ink h-[34px] px-3 text-[0.68rem]">Descargar planilla</span>
             </div>
-            <p className="hz-btn mt-5">Descargar planilla (CSV)</p>
+            <table className="mt-3 w-full text-left text-[0.72rem]">
+              <thead className="text-[0.58rem] uppercase tracking-[0.08em] text-muted">
+                <tr className="border-b border-ink/10">
+                  <th className="py-1.5 font-semibold">Titular</th>
+                  <th className="py-1.5 font-semibold">Entrada</th>
+                  <th className="py-1.5 font-semibold">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink/[0.07]">
+                {[
+                  ['Lucía Pérez', '222', 'l•••@gmail.com', 'Campo', 'Ingresó', '22:41'],
+                  ['Tomás Ruiz', '518', 't•••@hotmail.com', 'VIP', 'Vigente', ''],
+                  ['Camila Sosa', '073', 'c•••@gmail.com', 'Campo', 'Vigente', ''],
+                ].map(([n, d, e, t, s, h]) => (
+                  <tr key={n}>
+                    <td className="py-2">
+                      <span className="font-medium">{n}</span> <span className="font-mono text-[0.6rem] text-muted">DNI •••{d}</span>
+                      <span className="block text-[0.62rem] text-muted">{e}</span>
+                    </td>
+                    <td className="py-2">{t}</td>
+                    <td className="py-2">
+                      {s}
+                      {h ? <span className="block text-[0.6rem] text-muted">{h} h</span> : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Window>
         </Step>
 
+        {/* 04 — Control de ingreso (pantalla real de Lintick Access: oscura, para la noche) */}
         <Step
           flip
           n="04"
@@ -199,35 +279,43 @@ export function FeatureSteps() {
           body="Mirá cuánta gente entró, por qué puerta y a qué hora, mientras pasa. Tu equipo de acceso escanea sólo dentro de su turno y en tu evento."
           bullets={['Contador de ingresos en vivo', 'Puerta y hora de cada ingreso', 'Personal con turnos por evento']}
         >
-          <Window note="el ingreso, en vivo">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold">Ingreso por puerta</p>
-              <span className="size-2 rounded-full bg-[#4ade80] shadow-[0_0_0_4px_rgb(74_222_128/0.15)]" aria-hidden />
+          <Window url={<Url path="/acceso/aniversario" />} note="el ingreso, en vivo" noteSide="right">
+            <div className="-m-4 bg-ink p-4 text-paper">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold leading-tight">Aniversario 35 años</p>
+                  <p className="text-[0.62rem] text-paper/55">Club Paraguay · Puerta Norte</p>
+                </div>
+                <div className="text-right leading-none">
+                  <p className="font-display text-2xl font-extrabold tabular-nums">412</p>
+                  <p className="mt-1 text-[0.58rem] text-paper/55">de 478 ingresaron</p>
+                </div>
+              </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper/10">
+                <div className="h-full rounded-full bg-success" style={{ width: '86%' }} />
+              </div>
+              <ul className="mt-3 space-y-1 text-[0.7rem]">
+                {[
+                  ['Lucía Pérez', 'Campo', '22:41', 'Norte'],
+                  ['Martín Gómez', 'VIP', '22:40', 'VIP'],
+                  ['Sofía Díaz', 'Campo', '22:40', 'Norte'],
+                  ['Joaquín Ríos', 'Campo', '22:39', 'Sur'],
+                ].map(([n, t, h, g]) => (
+                  <li key={n} className="flex justify-between gap-3 rounded-lg bg-paper/5 px-2.5 py-1.5">
+                    <span className="truncate">
+                      <span className="font-semibold">{n}</span> <span className="text-paper/50">· {t}</span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-paper/60">
+                      {h} · {g}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ol className="mt-3 divide-y divide-paper/10">
-              {[
-                ['Puerta Norte', 412, 92, '+6'],
-                ['Puerta Sur', 388, 86, '+4'],
-                ['Acceso VIP', 96, 64, ''],
-                ['Puerta Este', 51, 34, '+1'],
-              ].map(([name, n, pct, plus], i) => (
-                <li key={name as string} className="flex items-center gap-3 py-2.5">
-                  <span className="w-4 font-display text-lg font-bold text-paper/40">{i + 1}</span>
-                  <span className={`grid size-7 place-items-center rounded-full text-[0.65rem] font-bold ${i === 0 ? 'bg-accent text-white' : 'bg-paper/10'}`}>{(name as string).split(' ')[1]?.[0] ?? 'P'}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold">{name}</span>
-                    {bar(pct as number)}
-                  </span>
-                  <span className="text-right text-xs">
-                    {plus ? <span className="mr-1 font-bold text-[#7fd49b]">{plus}</span> : null}
-                    <span className="font-bold tabular-nums">{n}</span> <span className="text-paper/45">ingresos</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
           </Window>
         </Step>
 
+        {/* 05 — Sectores (desglose real "Por tipo de entrada") */}
         <Step
           n="05"
           title={
@@ -240,45 +328,41 @@ export function FeatureSteps() {
           bullets={['Sectores con capacidad y precio propios', 'Ocupación por sector en tiempo real', 'Cero sobreventa, aunque compren miles a la vez']}
           soon={['Butacas numeradas: cada uno elige su lugar']}
         >
-          <Window note="cada sector con su precio">
-            <svg viewBox="0 0 200 18" className="mx-auto w-3/4 text-paper/40" aria-hidden>
-              <path d="M5 15 Q100 -3 195 15" fill="none" stroke="currentColor" strokeWidth="2" />
-            </svg>
-            <p className="-mt-1 text-center text-[0.6rem] font-bold tracking-[0.2em] text-paper/45">ESCENARIO</p>
-            <div className="relative mt-3 grid grid-cols-[repeat(15,minmax(0,1fr))] gap-1">
-              {Array.from({ length: 105 }, (_, i) => {
-                const row = Math.floor(i / 15);
-                const col = i % 15;
-                if (col === 7) return <span key={i} aria-hidden />;
-                const vip = row < 2;
-                const sold = (i * 37) % 10 < (vip ? 7 : 4);
-                const hl = i === 65;
-                return (
-                  <span
-                    key={i}
-                    className={`aspect-square rounded-[3px] ${hl ? 'bg-accent ring-2 ring-white' : sold ? (vip ? 'bg-[#f08a4b]/80' : 'bg-paper/30') : vip ? 'shadow-[inset_0_0_0_1px_rgb(240_138_75/0.8)]' : 'shadow-[inset_0_0_0_1px_rgb(244_239_230/0.3)]'}`}
-                  />
-                );
-              })}
-              <span className="absolute left-[38%] top-[44%] rounded-lg bg-paper px-2.5 py-1.5 text-[0.65rem] font-bold text-ink shadow-lg">
-                Platea · $ 45.000
-                <span className="block font-normal text-ink/60">quedan 18</span>
-              </span>
-            </div>
-            <div className="mt-3 flex justify-center gap-4 text-[0.65rem] text-paper/60">
-              <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-sm bg-[#f08a4b]/80" /> VIP
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-sm bg-paper/30" /> Vendidas
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-sm shadow-[inset_0_0_0_1px_rgb(244_239_230/0.4)]" /> Libres
-              </span>
-            </div>
+          <Window url={<Url path="/business/eventos/aniversario" />} note="cada sector con su precio">
+            <p className="text-sm font-bold">Por tipo de entrada</p>
+            <table className="mt-2 w-full text-left text-[0.72rem]">
+              <thead className="text-[0.58rem] uppercase tracking-[0.08em] text-muted">
+                <tr className="border-b border-ink/10">
+                  <th className="py-1.5 font-semibold">Tipo</th>
+                  <th className="py-1.5 font-semibold">Ocupación</th>
+                  <th className="py-1.5 text-right font-semibold">Recaudado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink/[0.07]">
+                {[
+                  ['Campo', 318, 400, '$ 7.236.000'],
+                  ['Platea alta', 211, 260, '$ 6.330.000'],
+                  ['VIP', 61, 80, '$ 2.745.000'],
+                ].map(([t, s, c, g]) => (
+                  <tr key={t as string}>
+                    <td className="py-2.5 font-medium">{t}</td>
+                    <td className="py-2.5 pr-3">
+                      <span className="block h-1.5 overflow-hidden rounded-full bg-ink/[0.07]">
+                        <span className="block h-full rounded-full bg-ink" style={{ width: `${Math.round(((s as number) / (c as number)) * 100)}%` }} />
+                      </span>
+                      <span className="mt-1 block text-[0.6rem] tabular-nums text-muted">
+                        {s}/{c} · {Math.round(((s as number) / (c as number)) * 100)}%
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums">{g}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Window>
         </Step>
 
+        {/* 06 — Resumen (tarjetas y gráfico real de ventas por día) */}
         <Step
           flip
           n="06"
@@ -293,22 +377,36 @@ export function FeatureSteps() {
           bullets={['Stock independiente por tipo de entrada', 'Ventas por día, últimos 30 días', 'Neto a cobrar siempre a la vista']}
           soon={['Varias fechas o funciones en una sola página']}
         >
-          <Window note="cada entrada, contada">
-            {[
-              ['Campo', 312, 400],
-              ['Platea', 470, 600],
-              ['VIP', 88, 120],
-            ].map(([name, sold, cap]) => (
-              <div key={name as string} className="border-b border-paper/10 py-3 last:border-0">
-                <p className="flex justify-between text-sm">
-                  <span className="font-semibold">{name}</span>
-                  <span className="text-xs tabular-nums text-paper/55">
-                    {sold} de {cap}
-                  </span>
-                </p>
-                {bar(Math.round(((sold as number) / (cap as number)) * 100))}
-              </div>
-            ))}
+          <Window url={<Url path="/business/eventos/aniversario" />} note="cada entrada, contada" noteSide="right">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ['Emitidas', '590', 'de 740'],
+                ['Disponibles', '150', '7 en reserva'],
+                ['Neto a cobrar', '$ 14,7 M', 'bruto $ 16,3 M'],
+              ].map(([k, v, h]) => (
+                <div key={k} className="rounded-[10px] bg-surface p-2.5 shadow-[inset_0_0_0_1px_rgb(23_20_17/0.06)]">
+                  <p className="text-[0.6rem] text-muted">{k}</p>
+                  <p className="font-display text-lg font-extrabold tabular-nums leading-tight tracking-[-0.03em]">{v}</p>
+                  <p className="text-[0.56rem] text-muted">{h}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 flex items-center gap-3 text-[0.62rem] text-muted">
+              <span className="flex items-center gap-1">
+                <span className="size-2 rounded-sm bg-[#d23a1f]" /> Vendidas
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-2 rounded-sm bg-[#2f6db5]" /> Cortesías
+              </span>
+            </p>
+            <div className="demo-bars mt-1.5 flex h-20 items-end gap-[3px]" aria-hidden>
+              {[6, 9, 4, 12, 15, 8, 11, 17, 14, 22, 19, 9, 25, 28, 21, 30, 24, 33, 38, 29].map((v, i) => (
+                <span key={i} className="flex flex-1 flex-col-reverse gap-[2px]">
+                  <span className="demo-bar rounded-t-[3px] bg-[#d23a1f]" style={{ height: `${v * 2}px`, ['--i' as string]: i }} />
+                  {i % 6 === 3 ? <span className="demo-bar rounded-t-[3px] bg-[#2f6db5]" style={{ height: '6px', ['--i' as string]: i }} /> : null}
+                </span>
+              ))}
+            </div>
           </Window>
         </Step>
       </div>

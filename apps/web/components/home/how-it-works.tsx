@@ -21,13 +21,14 @@ export function HowItWorks() {
         </h2>
         <p className="hz-muted mx-auto mt-5 max-w-lg">Cuatro pasos, una sola vez. Pagás sólo cuando vendés: sin abono mensual, sin contratos y sin anticipos.</p>
 
-        <ol className="relative mt-16 grid justify-items-center gap-x-6 gap-y-28 sm:grid-cols-2 sm:gap-y-24 lg:grid-cols-4">
+        <ol data-reveal className="relative mt-16 grid justify-items-center gap-x-6 gap-y-28 sm:grid-cols-2 sm:gap-y-24 lg:grid-cols-4">
           {/* Hilo punteado que une las notas (escritorio) */}
           <svg className="pointer-events-none absolute inset-x-0 top-24 hidden h-16 w-full lg:block" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden>
             <path d="M120 20 C 200 50, 300 50, 370 40 S 560 10, 630 25 S 820 55, 880 40" fill="none" stroke="rgb(244 239 230 / 0.3)" strokeWidth="1.5" strokeDasharray="3 6" />
           </svg>
           {STEPS.map((s) => (
             <li key={s.n} className={`relative w-full max-w-[15rem] ${s.tilt}`}>
+              <div className="rv" style={{ ['--d' as string]: `${Number(s.n) * 110}ms` }}>
               {s.notePos === 'top' ? <span className="hand absolute -top-11 left-1/2 w-max -translate-x-1/2">{s.note}</span> : null}
               <div className="hz-note text-left">
                 <span className={`hz-pin ${s.pin}`} aria-hidden />
@@ -37,6 +38,7 @@ export function HowItWorks() {
                 <p className="mt-2 text-[0.82rem] leading-relaxed text-ink-soft">{s.body}</p>
               </div>
               {s.notePos === 'bottom' ? <span className="hand absolute -bottom-9 left-6 w-max">{s.note}</span> : null}
+              </div>
             </li>
           ))}
         </ol>
