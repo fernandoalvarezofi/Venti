@@ -71,8 +71,8 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
           <Panel title="Cómo funciona">
             <ol className="space-y-4 text-sm">
               {[
-                ['Tu público paga', 'Con tarjeta de crédito, débito o dinero en cuenta de Mercado Pago. Paga sólo el precio de la entrada: sin cargos extra.'],
-                ['La plata va a tu cuenta', `Mercado Pago acredita cada venta directo en tu cuenta. Lintick descuenta su comisión (${rate}%) en el mismo momento: no retenemos tus fondos.`],
+                ['Tu público paga', `Con tarjeta de crédito, débito o dinero en cuenta de Mercado Pago. Paga el precio de la entrada más el cargo por servicio de Lintick (${rate}%), que ve antes de pagar.`],
+                ['La plata va a tu cuenta', 'Mercado Pago acredita cada venta directo en tu cuenta, por el precio completo de la entrada. Lintick sólo se queda con el cargo por servicio que pagó el comprador: no retenemos tus fondos.'],
                 ['Las entradas se emiten solas', 'Apenas Mercado Pago confirma el pago, la entrada con su QR aparece en la cuenta del comprador.'],
                 ['Si algo no cierra, no se emite', 'Si el monto, la moneda o la cuenta no coinciden, la entrada no se emite y queda registrado. Si se agotó el stock mientras pagaban, el pago se devuelve solo.'],
               ].map(([t, d], i) => (

@@ -373,7 +373,7 @@ export function FeatureSteps() {
               en tiempo real
             </>
           }
-          body="Cada tipo de entrada con su stock, sus ventas por día y lo que vas a cobrar ya calculado (con la comisión descontada). Sin planillas paralelas."
+          body="Cada tipo de entrada con su stock, sus ventas por día y lo que vas a cobrar ya calculado (el precio completo de cada entrada). Sin planillas paralelas."
           bullets={['Stock independiente por tipo de entrada', 'Ventas por día, últimos 30 días', 'Neto a cobrar siempre a la vista']}
           soon={['Varias fechas o funciones en una sola página']}
         >

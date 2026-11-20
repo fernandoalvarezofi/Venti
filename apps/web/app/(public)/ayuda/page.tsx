@@ -41,7 +41,7 @@ const SECTIONS: { id: string; title: string; steps: { t: string; d: React.ReactN
           ? 'En el panel, “Cobros” → “Conectar Mercado Pago”. Iniciás sesión en Mercado Pago y autorizás a Lintick: cada venta se acredita directo en tu cuenta.'
           : 'Muy pronto: desde el panel vas a conectar tu cuenta de Mercado Pago con un botón y cada venta se va a acreditar directo en tu cuenta.',
       },
-      { t: 'Comisión', d: 'El comprador paga sólo el precio de la entrada. Lintick descuenta un 10% de cada venta cobrada. Las cortesías y las entradas gratuitas no pagan comisión.' },
+      { t: 'Cargo por servicio', d: 'La productora cobra el precio completo de cada entrada. El comprador paga además un cargo por servicio del 10%, que ve antes de pagar: es el ingreso de Lintick. Las cortesías y las entradas gratuitas no tienen cargo.' },
       { t: 'Cortesías', d: 'En la pestaña “Entradas” emitís cortesías a un email: descuentan stock real y llegan con su QR.' },
     ],
   },

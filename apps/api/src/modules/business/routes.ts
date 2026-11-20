@@ -55,9 +55,9 @@ const StatsDto = z.object({
   checkedIn: z.number(),
   /** Lo que pagaron los compradores (sólo ventas cobradas). */
   grossCents: z.number(),
-  /** Comisión de Lintick sobre esas ventas (se descuenta a la productora). */
+  /** Cargos por servicio que pagaron los compradores (ingreso de Lintick; no se descuenta a la productora). */
   commissionCents: z.number(),
-  /** Lo que cobra la productora: bruto − comisión. */
+  /** Lo que cobra la productora: el precio completo de las entradas vendidas. */
   netCents: z.number(),
   /** Comisión vigente para las próximas ventas, en puntos básicos (1000 = 10%). */
   commissionBps: z.number(),
@@ -122,7 +122,7 @@ async function eventStats(tx: Tx, eventId: string, orgId: string, now: Date) {
     checkedIn: sum('checkedIn'),
     grossCents: perType.reduce((a, p) => a + p.grossCents, 0),
     commissionCents: money?.commissionCents ?? 0,
-    netCents: perType.reduce((a, p) => a + p.grossCents, 0) - (money?.commissionCents ?? 0),
+    netCents: perType.reduce((a, p) => a + p.grossCents, 0),
     commissionBps: commissionBpsFromSettings(org?.settings ?? null),
     activeHolds: holdsRow?.n ?? 0,
     byType,
@@ -209,7 +209,7 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
             checkedIn: rows.reduce((a, e) => a + e.checkedIn, 0),
             grossCents,
             commissionCents,
-            netCents: grossCents - commissionCents,
+            netCents: grossCents,
             commissionBps: commissionBpsFromSettings(org?.settings ?? null),
             events: rows.length,
             published: rows.filter((e) => e.status === 'published').length,

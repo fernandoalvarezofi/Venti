@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** Compras de ejemplo que se repiten en la animación (montos en pesos). */
+/** Compras de ejemplo que se repiten en la animación (montos en pesos): precio de las entradas. */
 const SALES = [
-  { initials: 'CS', name: 'Camila S.', paid: 120_000, tickets: 2 },
-  { initials: 'TR', name: 'Tomás R.', paid: 45_000, tickets: 1 },
-  { initials: 'LP', name: 'Lucía P.', paid: 90_000, tickets: 3 },
-  { initials: 'MG', name: 'Martín G.', paid: 60_000, tickets: 2 },
+  { initials: 'CS', name: 'Camila S.', price: 120_000, tickets: 2 },
+  { initials: 'TR', name: 'Tomás R.', price: 45_000, tickets: 1 },
+  { initials: 'LP', name: 'Lucía P.', price: 90_000, tickets: 3 },
+  { initials: 'MG', name: 'Martín G.', price: 60_000, tickets: 2 },
 ] as const;
 
-const COMMISSION = 0.1;
+/** Cargo por servicio de Lintick: lo paga el comprador, sumado al precio. */
+const SERVICE_FEE = 0.1;
 const START_BALANCE = 3_027_310;
 const START_TICKETS = 105;
 /** Pausa (ms) entre que llega la plata y arranca la próxima venta. El viaje dura 2,3 s (CSS). */
@@ -19,13 +20,13 @@ const PAUSE = 1900;
 const ars = (n: number) => `$ ${Math.round(n).toLocaleString('es-AR')}`;
 
 /**
- * Animación de la sección "Cobrá al instante": el pago sale del celular del comprador, en el camino
- * se descuenta la comisión de Lintick y el neto llega a la cuenta de la productora (el saldo cuenta
+ * Animación de la sección "Cobrá al instante": el comprador paga el precio + el cargo por servicio; en el camino
+ * Lintick se queda con su cargo y el precio completo de las entradas llega a la cuenta de la productora (el saldo cuenta
  * hacia arriba). Con "reducir movimiento" queda quieta mostrando el resultado final.
  */
 export function PayoutFlow() {
   const [i, setI] = useState(0);
-  const [balance, setBalance] = useState(START_BALANCE + SALES[0].paid * (1 - COMMISSION));
+  const [balance, setBalance] = useState(START_BALANCE + SALES[0].price);
   const [tickets, setTickets] = useState(START_TICKETS + SALES[0].tickets);
   const [arrived, setArrived] = useState(true);
   const [reduced, setReduced] = useState(false);
@@ -47,7 +48,7 @@ export function PayoutFlow() {
       const st = seq.current;
       const sale = SALES[st.idx % SALES.length]!;
       const from = st.base;
-      const to = st.base + sale.paid * (1 - COMMISSION);
+      const to = st.base + sale.price;
       setArrived(true);
       const t0 = performance.now();
       const tick = (now: number) => {
@@ -87,8 +88,9 @@ export function PayoutFlow() {
   }, [startSale]);
 
   const sale = SALES[i]!;
-  const net = sale.paid * (1 - COMMISSION);
-  const fee = sale.paid * COMMISSION;
+  const net = sale.price;
+  const fee = sale.price * SERVICE_FEE;
+  const paid = net + fee;
 
   return (
     <div className={`payflow grid items-center gap-8 md:grid-cols-[auto_1fr_auto] ${reduced ? 'payflow-still' : ''}`} key={reduced ? 'still' : 'live'}>
@@ -108,7 +110,7 @@ export function PayoutFlow() {
         </div>
         <p className="mt-4 font-semibold">Tu público</p>
         <p className="text-sm text-muted" aria-live="off">
-          paga {ars(sale.paid)}
+          paga {ars(paid)}
         </p>
       </div>
 
@@ -116,18 +118,18 @@ export function PayoutFlow() {
       <div className="relative h-24 md:h-28" aria-hidden>
         <span className="hand absolute left-1/2 top-0 w-max -translate-x-1/2 !text-accent">directo, sin escalas</span>
         <span className="absolute inset-x-2 top-[58%] border-t-2 border-dotted border-ink/25" />
-        {/* Punto donde se descuenta la comisión */}
+        {/* Punto donde Lintick se queda con su cargo por servicio */}
         <span className="absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2">
           <span className="block size-3 rounded-full bg-ink/35 ring-4 ring-ink/10" />
         </span>
         <span key={`fee-${i}-${reduced}`} className="payflow-fee absolute left-1/2 top-[58%] -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 text-[0.65rem] font-semibold text-paper">
-          Lintick 10% · {ars(fee)}
+          Cargo Lintick · {ars(fee)}
         </span>
         {/* El billete que viaja */}
         {!arrived || reduced ? (
           <span key={`bill-${i}-${reduced}`} className="payflow-bill absolute top-[58%] -translate-y-1/2" onAnimationEnd={onTravelEnd}>
             <span className="payflow-amount whitespace-nowrap rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-white shadow-[0_8px_18px_-6px_rgb(210_58_31/0.8)]">
-              <span className="payflow-gross">{ars(sale.paid)}</span>
+              <span className="payflow-gross">{ars(paid)}</span>
               <span className="payflow-net">{ars(net)}</span>
             </span>
           </span>

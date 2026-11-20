@@ -4,28 +4,28 @@ import type { AdminEvent, EventStats } from '@/lib/types';
 
 const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0);
 
-/** Plata del evento: lo que pagaron, la comisión de Lintick y lo que cobra la productora. */
+/** Plata del evento: la productora cobra el precio completo; el cargo por servicio lo pagó el comprador. */
 export function MoneyBreakdown({ s }: { s: EventStats }) {
   const rate = (s.commissionBps / 100).toLocaleString('es-AR');
   return (
     <div>
-      <p className="text-sm text-muted">Neto para tu productora</p>
+      <p className="text-sm text-muted">Para tu productora</p>
       <p className="mt-1 font-display text-[2.6rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums">{formatMoney(s.netCents)}</p>
       <dl className="mt-5 space-y-2 text-sm">
         <div className="flex justify-between gap-3">
-          <dt className="text-muted">Venta bruta (lo que pagaron)</dt>
+          <dt className="text-muted">Entradas vendidas (precio completo)</dt>
           <dd className="tabular-nums">{formatMoney(s.grossCents)}</dd>
         </div>
         <div className="flex justify-between gap-3">
-          <dt className="text-muted">Comisión Lintick ({rate}%)</dt>
-          <dd className="tabular-nums">− {formatMoney(s.commissionCents)}</dd>
+          <dt className="text-muted">Cargo por servicio ({rate}%, lo pagó el comprador)</dt>
+          <dd className="tabular-nums text-muted">{formatMoney(s.commissionCents)}</dd>
         </div>
         <div className="flex justify-between gap-3 border-t border-line pt-2 font-semibold">
-          <dt>Neto</dt>
-          <dd className="tabular-nums">{formatMoney(s.netCents)}</dd>
+          <dt>Total que pagaron los compradores</dt>
+          <dd className="tabular-nums">{formatMoney(s.grossCents + s.commissionCents)}</dd>
         </div>
       </dl>
-      <p className="mt-4 text-xs text-muted">El comprador paga sólo el precio de la entrada. La comisión se descuenta de cada venta cobrada; las cortesías no generan comisión.</p>
+      <p className="mt-4 text-xs text-muted">Cobrás el precio completo de cada entrada. El cargo por servicio lo paga el comprador y es el ingreso de Lintick; las cortesías no tienen cargo.</p>
     </div>
   );
 }

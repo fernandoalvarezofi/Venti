@@ -3,8 +3,8 @@ import { PAYMENTS_LIVE } from '@/lib/config';
 
 const STEPS = [
   { n: '01', title: 'Registrate y publicá tu evento', body: 'Creá tu cuenta de productora gratis y armá tu evento: fecha, lugar, portada, line-up y tipos de entrada.', note: 'en minutos', notePos: 'bottom', tilt: '-rotate-3', pin: '' },
-  { n: '02', title: 'Conectá tu Mercado Pago', body: 'Un botón y listo. Cada venta se acredita directo en tu cuenta; Lintick sólo descuenta su comisión.', note: 'tu plata, directo a vos', notePos: 'top', tilt: 'rotate-2 lg:translate-y-8', pin: 'hz-pin-ink' },
-  { n: '03', title: 'Vendé entradas con tu link', body: 'Compartí el link de tu evento: tu público compra en segundos, sin cargos extra, y recibe su QR al instante.', note: 'súper fácil', notePos: 'bottom', tilt: '-rotate-2', pin: '' },
+  { n: '02', title: 'Conectá tu Mercado Pago', body: 'Un botón y listo. Cada venta se acredita directo en tu cuenta, por el precio completo de la entrada.', note: 'tu plata, directo a vos', notePos: 'top', tilt: 'rotate-2 lg:translate-y-8', pin: 'hz-pin-ink' },
+  { n: '03', title: 'Vendé entradas con tu link', body: 'Compartí el link de tu evento: tu público compra en segundos, y recibe su QR al instante.', note: 'súper fácil', notePos: 'bottom', tilt: '-rotate-2', pin: '' },
   { n: '04', title: 'Validá entradas con tu celular', body: 'El día del evento escaneás los QR con cualquier celular, incluso sin internet. Cada entrada entra una sola vez.', note: 'a prueba de fallas', notePos: 'top', tilt: 'rotate-3 lg:translate-y-8', pin: 'hz-pin-ink' },
 ] as const;
 

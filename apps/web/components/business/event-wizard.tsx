@@ -458,7 +458,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
                 </li>
               ))}
             </ul>
-            <p className="text-sm text-muted">El comprador paga sólo el precio de la entrada. La comisión de Lintick (10%) se descuenta de lo que cobrás por cada venta.</p>
+            <p className="text-sm text-muted">Cobrás el precio completo de cada entrada. El comprador paga además el cargo por servicio de Lintick (10%), que ve antes de pagar.</p>
             {submitError ? (
               <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
                 {submitError}

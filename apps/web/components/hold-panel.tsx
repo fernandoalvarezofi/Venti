@@ -93,11 +93,15 @@ export function HoldPanel({ hold }: { hold: Hold }) {
               <p className="tabular-nums">{formatMoney(i.unitPriceCents * i.quantity, hold.currency)}</p>
             </li>
           ))}
+          {hold.feeCents > 0 ? (
+            <li className="flex items-baseline justify-between gap-4 py-3 text-ink-soft">
+              <p>Cargo por servicio</p>
+              <p className="tabular-nums">{formatMoney(hold.feeCents, hold.currency)}</p>
+            </li>
+          ) : null}
         </ul>
         <div className="mt-2 flex items-baseline justify-between border-t border-line pt-4">
-          <span className="font-semibold">
-            Total <span className="text-xs font-normal text-muted">· sin cargos extra</span>
-          </span>
+          <span className="font-semibold">Total</span>
           <span className="font-display text-3xl font-extrabold tabular-nums">{formatMoney(hold.totalCents, hold.currency)}</span>
         </div>
 
@@ -113,7 +117,7 @@ export function HoldPanel({ hold }: { hold: Hold }) {
               </span>
               <span className="min-w-0 text-sm">
                 <span className="block font-semibold">Pagás con Mercado Pago</span>
-                <span className="block text-xs text-muted">Tarjeta de crédito o débito, o dinero en tu cuenta. Sin cargos extra.</span>
+                <span className="block text-xs text-muted">Tarjeta de crédito o débito, o dinero en tu cuenta.</span>
               </span>
             </div>
             <div className="mt-3 flex gap-3 rounded-xl bg-ink/[0.04] p-4 text-sm">

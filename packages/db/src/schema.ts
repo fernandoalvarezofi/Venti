@@ -359,9 +359,9 @@ export const holds = pgTable(
     currency: currency('currency').notNull().default('ARS'),
     /** Montos congelados al reservar: el precio no cambia mientras dura la reserva. */
     subtotalCents: cents('subtotal_cents').notNull().default(0),
-    /** Cargo al comprador: Lintick no cobra cargos al comprador, queda en 0. */
+    /** Cargo por servicio que paga el comprador (es lo que cobra Lintick). */
     feeCents: cents('fee_cents').notNull().default(0),
-    /** Comisión de Lintick (se descuenta a la productora), congelada al reservar. */
+    /** Ingreso de Lintick (= cargo por servicio), congelado al reservar. */
     commissionBps: integer('commission_bps').notNull().default(0),
     commissionCents: cents('commission_cents').notNull().default(0),
     expiresAt: ts('expires_at').notNull(),
@@ -413,7 +413,7 @@ export const orders = pgTable(
     subtotalCents: cents('subtotal_cents').notNull(),
     feeCents: cents('fee_cents').notNull().default(0),
     totalCents: cents('total_cents').notNull(),
-    /** Comisión de Lintick sobre esta venta; la productora cobra subtotal − comisión. */
+    /** Ingreso de Lintick (= cargo por servicio al comprador); la productora cobra el subtotal completo. */
     commissionBps: integer('commission_bps').notNull().default(0),
     commissionCents: cents('commission_cents').notNull().default(0),
     idempotencyKey: text('idempotency_key').notNull(),

@@ -22,25 +22,24 @@ const twoStages = {
 };
 
 describe('cotización (fuente única de precio)', () => {
-  it('el comprador paga sólo el precio; la comisión del 10% se congela en la reserva y la paga la productora', async () => {
+  it('el comprador paga el precio + 10% de cargo por servicio (congelado en la reserva); la productora cobra el precio completo', async () => {
     const owner = await registerUser(ctx);
     const buyer = await registerUser(ctx);
     const { eventId, ticketTypeId } = await publishedEvent(ctx, owner.token, twoStages);
 
     const q = await call(ctx, 'POST', '/v1/checkout/quote', { body: { eventId, items: [{ ticketTypeId, quantity: 2 }] } });
     expect(q.status).toBe(200);
-    expect(q.body).toMatchObject({ subtotalCents: 2_000_000, totalCents: 2_000_000 });
-    expect(q.body).not.toHaveProperty('feeCents');
+    expect(q.body).toMatchObject({ subtotalCents: 2_000_000, feeBps: 1000, feeCents: 200_000, totalCents: 2_200_000 });
     expect(q.body).not.toHaveProperty('commissionCents');
     expect(q.body.lines[0]).toMatchObject({ stageName: 'Preventa', unitPriceCents: 1_000_000 });
 
     const hold = await call(ctx, 'POST', '/v1/holds', { token: buyer.token, body: { eventId, items: [{ ticketTypeId, quantity: 2 }] } });
-    expect(hold.body).toMatchObject({ subtotalCents: 2_000_000, totalCents: 2_000_000 });
+    expect(hold.body).toMatchObject({ subtotalCents: 2_000_000, feeCents: 200_000, totalCents: 2_200_000 });
     const again = await call(ctx, 'GET', `/v1/holds/${hold.body.id}`, { token: buyer.token });
-    expect(again.body).toMatchObject({ subtotalCents: 2_000_000, totalCents: 2_000_000 });
+    expect(again.body).toMatchObject({ subtotalCents: 2_000_000, feeCents: 200_000, totalCents: 2_200_000 });
     const stored = await ctx.owner.pool.query('select fee_cents, commission_bps, commission_cents from holds where id = $1', [hold.body.id]);
     const row = stored.rows[0];
-    expect([Number(row.fee_cents), Number(row.commission_bps), Number(row.commission_cents)]).toEqual([0, 1000, 200_000]);
+    expect([Number(row.fee_cents), Number(row.commission_bps), Number(row.commission_cents)]).toEqual([200_000, 1000, 200_000]);
 
     // Queda 1 de preventa: una cotización por 2 pasa entera a General.
     const q2 = await call(ctx, 'POST', '/v1/checkout/quote', { body: { eventId, items: [{ ticketTypeId, quantity: 2 }] } });

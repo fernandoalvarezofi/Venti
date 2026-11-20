@@ -321,10 +321,16 @@ function CheckoutSheet({ event, loggedIn, onClose }: { event: PublicEventDetail;
                     <dd className="tabular-nums">{formatMoney(l.lineTotalCents, q.currency)}</dd>
                   </div>
                 ))}
+                {q.feeCents > 0 ? (
+                  <div className="flex justify-between gap-3 text-ink-soft">
+                    <dt>
+                      Cargo por servicio <span className="text-muted">({(q.feeBps / 100).toLocaleString('es-AR')}%)</span>
+                    </dt>
+                    <dd className="tabular-nums">{formatMoney(q.feeCents, q.currency)}</dd>
+                  </div>
+                ) : null}
                 <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line pt-3">
-                  <dt className="font-semibold">
-                    Total <span className="text-xs font-normal text-muted">· sin cargos extra</span>
-                  </dt>
+                  <dt className="font-semibold">Total</dt>
                   <dd className="font-display text-2xl font-extrabold tabular-nums">{formatMoney(q.totalCents, q.currency)}</dd>
                 </div>
               </dl>

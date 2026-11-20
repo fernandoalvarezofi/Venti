@@ -17,7 +17,7 @@ export function Payouts() {
           <span className="hz-mark">de tus ventas, al instante</span>
         </h2>
         <p className="hz-muted mx-auto mt-5 max-w-xl">
-          Lintick no retiene ni intermedia tus fondos: <strong className="text-paper">cada venta se acredita directo en tu cuenta de Mercado Pago</strong>, con nuestra comisión ya descontada.
+          Lintick no retiene ni intermedia tus fondos: <strong className="text-paper">cada venta se acredita directo en tu cuenta de Mercado Pago</strong>, por el precio completo de la entrada. Nuestro cargo lo paga el comprador.
         </p>
 
         <div className="payout-box relative mx-auto mt-14 max-w-4xl p-6 text-left sm:p-10">
@@ -25,7 +25,7 @@ export function Payouts() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-ink/10 pt-6 text-sm text-muted">
             <span>Cobrás con</span>
             <span className="rounded-full bg-[#009ee3] px-3 py-1 font-semibold text-white">Mercado Pago</span>
-            <span className="text-xs">Ejemplo: de $ 120.000 te llegan $ 108.000 (comisión Lintick 10%). Montos ilustrativos.</span>
+            <span className="text-xs">Ejemplo: entrada de $ 120.000 → el comprador paga $ 132.000 (cargo por servicio 10%) y a vos te llegan $ 120.000. Montos ilustrativos.</span>
           </div>
         </div>
       </div>
@@ -177,7 +177,7 @@ export function Essentials() {
             </div>
             <div className="px-6 pb-6 pt-5">
               <h3 className="font-display text-2xl font-bold tracking-[-0.02em]">Reportes bien discriminados</h3>
-              <p className="mt-1.5 max-w-md text-sm text-paper/65">Ventas por día y por tipo de entrada, ingreso en la puerta y neto a cobrar con la comisión descontada. En tiempo real y con planilla para Excel.</p>
+              <p className="mt-1.5 max-w-md text-sm text-paper/65">Ventas por día y por tipo de entrada, ingreso en la puerta y lo que vas a cobrar por tus ventas. En tiempo real y con planilla para Excel.</p>
             </div>
           </article>
         </div>
@@ -282,8 +282,8 @@ export function Support() {
 }
 
 const FAQ = [
-  ['¿Cuándo cobro las ventas?', 'Al instante. Cada venta se acredita directo en tu cuenta de Mercado Pago, con la comisión de Lintick (10%) ya descontada. Lintick no retiene tu plata.'],
-  ['¿Cuánto cuesta usar Lintick?', 'Crear tu cuenta y publicar eventos es gratis: no hay abono mensual. Sólo se descuenta un 10% de cada venta cobrada. Las cortesías y las entradas gratuitas no pagan comisión, y el comprador no paga cargos extra.'],
+  ['¿Cuándo cobro las ventas?', 'Al instante. Cada venta se acredita directo en tu cuenta de Mercado Pago, por el precio completo de la entrada. Lintick no retiene tu plata.'],
+  ['¿Cuánto cuesta usar Lintick?', 'Para la productora, nada: crear tu cuenta y publicar eventos es gratis, sin abono mensual, y cobrás el precio completo de cada entrada. El comprador paga un cargo por servicio del 10% sobre el precio, que ve antes de pagar. Las cortesías y las entradas gratuitas no tienen cargo.'],
   ['¿Qué pasa con los reembolsos?', 'Cada productora define su política de devoluciones y la publica en las condiciones del evento. Los reembolsos se hacen sobre el pago original en Mercado Pago, y la entrada devuelta queda anulada: su QR deja de servir.'],
   ['¿Qué necesito para escanear entradas?', 'Sólo un celular con cámara y el navegador (Chrome o Safari). No hace falta instalar nada, y si se corta la señal el escáner sigue validando y sincroniza al volver la conexión.'],
   ['¿Puedo personalizar la página con mi marca?', 'Sí: cada evento lleva tu portada, galería, line-up, enlaces y condiciones. La página propia con tu marca y tu dominio (marca blanca) está en camino.'],

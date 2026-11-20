@@ -29,7 +29,7 @@ export default async function OrgDashboard({ params }: { params: Promise<{ orgId
       />
 
       <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Neto a cobrar" value={formatMoney(totals.netCents)} hint={`Bruto ${formatMoney(totals.grossCents)} · comisión ${(totals.commissionBps / 100).toLocaleString('es-AR')}%`} />
+        <StatCard label="Neto a cobrar" value={formatMoney(totals.netCents)} hint="Precio completo de las entradas vendidas" />
         <StatCard label="Entradas emitidas" value={totals.ticketsSold.toLocaleString('es-AR')} hint={`${occupancy}% de ${totals.capacity.toLocaleString('es-AR')} lugares`} />
         <StatCard label="Ingresaron" value={totals.checkedIn.toLocaleString('es-AR')} hint={totals.ticketsSold > 0 ? `${Math.round((totals.checkedIn / totals.ticketsSold) * 100)}% de las emitidas` : undefined} />
         <StatCard label="A la venta" value={String(totals.published)} hint={totals.drafts ? `${totals.drafts} en borrador` : 'Sin borradores'} />

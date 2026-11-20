@@ -93,6 +93,8 @@ export interface Hold {
   expiresAt: string;
   currency: string;
   subtotalCents: number;
+  /** Cargo por servicio de Lintick que paga el comprador. */
+  feeCents: number;
   totalCents: number;
   items: { ticketTypeId: string; ticketTypeName: string; stageName: string | null; quantity: number; unitPriceCents: number }[];
 }
@@ -102,6 +104,8 @@ export interface Quote {
   currency: string;
   lines: { ticketTypeId: string; ticketTypeName: string; stageId: string; stageName: string; quantity: number; unitPriceCents: number; lineTotalCents: number }[];
   subtotalCents: number;
+  feeBps: number;
+  feeCents: number;
   totalCents: number;
 }
 

@@ -47,8 +47,8 @@ const FEATURES = [
   },
   {
     icon: <path d="M12 3v18M8 7.5c0-1.7 1.8-3 4-3s4 1.3 4 3-1.8 2.6-4 3-4 1.3-4 3 1.8 3 4 3 4-1.3 4-3" />,
-    title: 'Sin cargos extra',
-    body: 'Pagás el precio de la entrada y listo. Sin “cargo por servicio” sorpresa al final.',
+    title: 'Sin sorpresas al pagar',
+    body: 'Antes de pagar ves el detalle completo: precio de la entrada, cargo por servicio y total. Lo que ves es lo que pagás.',
   },
 ];
 

@@ -34,9 +34,9 @@ export function resolveActiveStage(stages: readonly PriceStage[], now: Date, qua
 }
 
 /**
- * Comisión de Lintick por defecto: 10% (1000 puntos básicos) de cada venta.
- * El comprador paga sólo el precio de la entrada: la comisión se descuenta de lo que cobra la productora.
- * Cada productora puede tener una comisión acordada distinta.
+ * Cargo por servicio de Lintick por defecto: 10% (1000 puntos básicos) sobre el precio de las entradas.
+ * Lo paga el comprador, sumado al precio; la productora cobra el precio completo de cada entrada.
+ * Cada productora puede tener un porcentaje acordado distinto.
  */
 export const DEFAULT_COMMISSION_BPS = 1000;
 /** Tope de seguridad: ninguna comisión puede superar el 30%. */

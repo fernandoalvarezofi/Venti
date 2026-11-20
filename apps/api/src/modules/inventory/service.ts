@@ -38,11 +38,14 @@ export interface Quote {
   currency: string;
   lines: QuoteLine[];
   subtotalCents: number;
-  /** Lo que paga el comprador: el precio de las entradas, sin cargos extra. */
+  /** Cargo por servicio de Lintick (porcentaje sobre el subtotal). */
+  feeBps: number;
+  feeCents: number;
+  /** Lo que paga el comprador: entradas + cargo por servicio. */
   totalCents: number;
 }
 
-/** Comisión interna de una venta (no se muestra al comprador). */
+/** Ingreso de Lintick por la venta (igual al cargo por servicio). */
 interface Commission {
   commissionBps: number;
   commissionCents: number;
@@ -55,6 +58,7 @@ export interface HoldView {
   readonly expiresAt: Date;
   readonly currency: string;
   readonly subtotalCents: number;
+  readonly feeCents: number;
   readonly totalCents: number;
   readonly items: { ticketTypeId: string; ticketTypeName: string; stageName: string | null; quantity: number; unitPriceCents: number }[];
 }
@@ -136,14 +140,17 @@ async function priceSelection(tx: Tx, event: SaleEvent, items: readonly HoldRequ
   if (currencies.size > 1) throw new DomainError('hold.mixed_currency', 'No se pueden combinar entradas en distintas monedas.');
 
   const subtotalCents = lines.reduce((a, l) => a + l.lineTotalCents, 0);
+  const feeCents = commissionCents(subtotalCents, event.commissionBps);
   return {
     eventId: event.id,
     currency: [...currencies][0] ?? 'ARS',
     lines,
     subtotalCents,
-    totalCents: subtotalCents,
+    feeBps: event.commissionBps,
+    feeCents,
+    totalCents: subtotalCents + feeCents,
     commissionBps: event.commissionBps,
-    commissionCents: commissionCents(subtotalCents, event.commissionBps),
+    commissionCents: feeCents,
   };
 }
 
@@ -215,7 +222,7 @@ export async function createHold(
       userId: input.userId,
       currency: priced.currency as 'ARS' | 'USD',
       subtotalCents: priced.subtotalCents,
-      feeCents: 0,
+      feeCents: priced.feeCents,
       commissionBps: priced.commissionBps,
       commissionCents: priced.commissionCents,
       expiresAt,
@@ -238,6 +245,7 @@ export async function createHold(
       expiresAt,
       currency: priced.currency,
       subtotalCents: priced.subtotalCents,
+      feeCents: priced.feeCents,
       totalCents: priced.totalCents,
       items: priced.lines.map((l) => ({ ticketTypeId: l.ticketTypeId, ticketTypeName: l.ticketTypeName, stageName: l.stageName, quantity: l.quantity, unitPriceCents: l.unitPriceCents })),
     };
@@ -288,6 +296,7 @@ export async function getHold(db: Db, userId: string, holdId: string, now: Date)
       expiresAt: h.expiresAt,
       currency: h.currency,
       subtotalCents: h.subtotalCents,
+      feeCents: h.feeCents,
       totalCents: h.subtotalCents + h.feeCents,
       items: items.map((i) => ({
         ticketTypeId: i.item.ticketTypeId,

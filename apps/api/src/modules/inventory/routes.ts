@@ -16,6 +16,7 @@ const HoldDto = z.object({
   expiresAt: z.date(),
   currency: z.string(),
   subtotalCents: z.number(),
+  feeCents: z.number(),
   totalCents: z.number(),
   items: z.array(
     z.object({
@@ -43,6 +44,8 @@ const QuoteDto = z.object({
     }),
   ),
   subtotalCents: z.number(),
+  feeBps: z.number(),
+  feeCents: z.number(),
   totalCents: z.number(),
 });
 
