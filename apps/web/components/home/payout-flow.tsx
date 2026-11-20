@@ -97,7 +97,7 @@ export function PayoutFlow() {
         <div className="mx-auto grid h-44 w-24 place-items-center rounded-[1.4rem] bg-[#0e0c0b] p-1.5 shadow-[0_0_0_1.5px_rgb(244_239_230/0.15),6px_6px_0_var(--color-accent)] md:mx-0">
           <div className="grid h-full w-full place-items-center rounded-[1.1rem] bg-ink text-center">
             <span key={`ok-${i}-${reduced}`} className="payflow-ok">
-              <span className="mx-auto grid size-11 place-items-center rounded-full bg-accent text-lg font-bold text-white">✓</span>
+              <span className="mx-auto grid size-11 place-items-center rounded-full bg-[#16a34a] text-lg font-bold text-white shadow-[0_0_0_4px_rgb(22_163_74/0.2)]">✓</span>
               <span className="mt-2 block text-[0.68rem] font-bold leading-tight">
                 Pago
                 <br />
