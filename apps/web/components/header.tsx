@@ -1,7 +1,6 @@
 import Link from 'next/link';
+import { MainNav } from './main-nav';
 import { getCurrentUser } from '@/lib/api';
-import { SearchIcon, TicketIcon } from './icons';
-import { LogoutButton } from './logout-button';
 
 /** Carita de la mascota para acompañar el logo (decorativa). */
 export function MascotFace({ size = 34 }: { size?: number }) {
@@ -31,28 +30,7 @@ export async function Header() {
         <Link href="/" aria-label="Lintick, inicio" className="shrink-0">
           <Logo />
         </Link>
-        <nav aria-label="Principal" className="ml-auto flex items-center gap-1 sm:gap-2">
-          <Link href="/eventos" className="flex h-10 items-center gap-2 rounded-full px-3 text-sm font-medium text-ink-soft hover:bg-ink/5">
-            <SearchIcon className="size-[18px]" />
-            <span className="hidden sm:inline">Explorar</span>
-          </Link>
-          {user ? (
-            <>
-              <Link href="/mis-entradas" className="flex h-10 items-center gap-2 rounded-full px-3 text-sm font-medium text-ink-soft hover:bg-ink/5">
-                <TicketIcon className="size-[18px]" />
-                <span className="hidden sm:inline">Mis entradas</span>
-              </Link>
-              <span className="hidden h-10 items-center rounded-full bg-ink/5 px-3 text-sm md:flex" title={user.email}>
-                Hola, {firstName}
-              </span>
-              <LogoutButton />
-            </>
-          ) : (
-            <Link href="/ingresar" className="btn btn-ink h-10 px-4 text-sm">
-              Ingresar
-            </Link>
-          )}
-        </nav>
+        <MainNav user={user ? { firstName: firstName ?? '', email: user.email } : null} />
       </div>
     </header>
   );
