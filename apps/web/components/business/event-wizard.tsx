@@ -299,10 +299,10 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
   ];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[220px_minmax(0,1fr)_320px]">
       {/* Pasos */}
-      <nav aria-label="Pasos" className="xl:sticky xl:top-8 xl:self-start">
-        <ol className="flex gap-2 overflow-x-auto xl:flex-col xl:gap-1">
+      <nav aria-label="Pasos" className="min-w-0 lg:col-span-2 2xl:sticky 2xl:top-8 2xl:col-span-1 2xl:self-start">
+        <ol className="flex gap-2 overflow-x-auto pb-1 2xl:flex-col 2xl:gap-1 2xl:pb-0">
           {STEPS.map((label_, i) => {
             const done = i < step;
             const current = i === step;
@@ -320,14 +320,14 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
                   </span>
                   <span className="min-w-0">
                     <span className={`block text-sm font-semibold ${current || done ? 'text-ink' : 'text-muted'}`}>{label_}</span>
-                    <span className="hidden text-xs text-muted xl:block">{STEP_INFO[i]!.hint}</span>
+                    <span className="hidden text-xs text-muted 2xl:block">{STEP_INFO[i]!.hint}</span>
                   </span>
                 </button>
               </li>
             );
           })}
         </ol>
-        <p className="mt-4 hidden px-3 text-xs text-muted xl:block" aria-live="polite">
+        <p className="mt-4 hidden px-3 text-xs text-muted 2xl:block" aria-live="polite">
           {savedAt ? 'Guardado en este dispositivo.' : 'Se guarda solo mientras cargás.'}
         </p>
       </nav>
@@ -465,7 +465,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
         {step === 2 ? (
           <div className="space-y-6">
             {types.map((t, i) => (
-              <fieldset key={i} className="rounded-[14px] p-4 shadow-[inset_0_0_0_1px_var(--color-line-strong)] sm:p-5">
+              <fieldset key={i} className="min-w-0 rounded-[14px] p-4 shadow-[inset_0_0_0_1px_var(--color-line-strong)] sm:p-5">
                 <div className="flex items-center justify-between gap-3">
                   <legend className="font-semibold">Tipo de entrada {i + 1}</legend>
                   {types.length > 1 ? (
@@ -506,31 +506,31 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
                 <p className="text-xs text-muted">Se venden en orden. Cuando una llega a su cupo o a su fecha de fin, empieza la siguiente.</p>
                 <ul className="mt-3 space-y-3">
                   {t.stages.map((st, k) => (
-                    <li key={k} className="grid gap-3 rounded-xl bg-paper p-3 sm:grid-cols-[1.2fr_1fr_0.8fr_1.3fr_auto] sm:items-start">
+                    <li key={k} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-3 rounded-xl bg-paper p-3">
                       <div>
-                        <label htmlFor={`t${i}s${k}name`} className="sr-only">
-                          Nombre de la etapa
+                        <label htmlFor={`t${i}s${k}name`} className="mb-1 block text-xs font-semibold text-muted">
+                          Etapa
                         </label>
                         <input id={`t${i}s${k}name`} className="field h-11" value={st.name} onChange={(e) => updateStage(i, k, { name: e.target.value })} placeholder="Preventa" />
                         {err(`t${i}s${k}name`)}
                       </div>
                       <div>
-                        <label htmlFor={`t${i}s${k}price`} className="sr-only">
+                        <label htmlFor={`t${i}s${k}price`} className="mb-1 block text-xs font-semibold text-muted">
                           Precio
                         </label>
                         <input id={`t${i}s${k}price`} className="field h-11" inputMode="decimal" value={st.price} onChange={(e) => updateStage(i, k, { price: e.target.value })} placeholder="$ 18.000" aria-invalid={errors[`t${i}s${k}price`] ? 'true' : undefined} />
                         {err(`t${i}s${k}price`)}
                       </div>
                       <div>
-                        <label htmlFor={`t${i}s${k}limit`} className="sr-only">
-                          Cupo
+                        <label htmlFor={`t${i}s${k}limit`} className="mb-1 block text-xs font-semibold text-muted">
+                          Cupo (opcional)
                         </label>
                         <input id={`t${i}s${k}limit`} className="field h-11" inputMode="numeric" value={st.limit} onChange={(e) => updateStage(i, k, { limit: e.target.value.replace(/\D/g, '') })} placeholder="Cupo" />
                         {err(`t${i}s${k}limit`)}
                       </div>
                       <div>
-                        <label htmlFor={`t${i}s${k}ends`} className="sr-only">
-                          Termina
+                        <label htmlFor={`t${i}s${k}ends`} className="mb-1 block text-xs font-semibold text-muted">
+                          Termina (opcional)
                         </label>
                         <input id={`t${i}s${k}ends`} type="datetime-local" className="field h-11" value={st.endsAt} onChange={(e) => updateStage(i, k, { endsAt: e.target.value })} title="Fin de la etapa (opcional)" />
                       </div>
@@ -538,7 +538,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
                         type="button"
                         onClick={() => updateType(i, { stages: t.stages.filter((_, m) => m !== k) })}
                         disabled={t.stages.length === 1}
-                        className="grid size-11 place-items-center rounded-full text-muted hover:bg-ink/5 hover:text-danger disabled:opacity-30"
+                        className="col-start-3 row-start-1 mt-5 grid size-11 place-items-center rounded-full text-muted hover:bg-ink/5 hover:text-danger disabled:opacity-30"
                         aria-label="Quitar etapa"
                       >
                         <MinusIcon className="size-4" />
@@ -622,7 +622,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
       </div>
 
       {/* Vista previa: así lo va a ver el público */}
-      <aside className="space-y-4 xl:sticky xl:top-8 xl:self-start" aria-label="Vista previa">
+      <aside className="min-w-0 space-y-4 lg:sticky lg:top-8 lg:self-start" aria-label="Vista previa">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Vista previa</p>
         <div className="overflow-hidden rounded-[18px] bg-surface shadow-[inset_0_0_0_1px_var(--color-line)]">
           <div className="relative aspect-[16/10] bg-[#c4553a] text-[#fff7ef]">
