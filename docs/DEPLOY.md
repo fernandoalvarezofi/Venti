@@ -11,7 +11,7 @@
 
 ### Configuración del proyecto en Vercel
 - Framework: *Other*. Install: `npm ci`. Build: `npm run build:vercel`. Output: lo genera el build en `.vercel/output`.
-- Node.js: 24.x (el repo exige Node ≥ 24 para instalar). La función corre en `nodejs22.x`, ya empaquetada.
+- Node.js: 22.18 o superior (TypeScript nativo de Node). Desarrollo con Node 24; la función corre en `nodejs22.x`, ya empaquetada.
 - Región de funciones: `gru1` (São Paulo), al lado de la base.
 
 ### Variables de entorno (Production)
