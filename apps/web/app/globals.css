@@ -961,3 +961,18 @@
 @media (prefers-reduced-motion: reduce) {
   .banner-hotspot { transition: none; }
 }
+
+/* Entrada del menú: apenas inclinada; al pasar el mouse se endereza y sube. */
+.logo-ticket {
+  transform: rotate(-8deg);
+  transform-origin: 40% 60%;
+  filter: drop-shadow(0 3px 4px rgb(23 20 17 / 0.22));
+  transition: transform 320ms var(--ease-out-quint), filter 320ms var(--ease-out-quint);
+}
+.logo:hover .logo-ticket {
+  transform: rotate(0deg) translateY(-1px);
+  filter: drop-shadow(0 6px 8px rgb(23 20 17 / 0.25));
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-ticket { transition: none; }
+}
