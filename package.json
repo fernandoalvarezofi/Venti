@@ -17,10 +17,12 @@
     "db:migrate": "npm run migrate -w @venti/db",
     "db:generate": "npm run generate -w @venti/db",
     "dev:api": "npm run dev -w @venti/api",
-    "dev:worker": "npm run worker -w @venti/api"
+    "dev:worker": "npm run worker -w @venti/api",
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
+    "esbuild": "0.28.2",
     "typescript": "7.0.2",
     "vitest": "5.1.1"
   },

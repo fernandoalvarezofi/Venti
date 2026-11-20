@@ -77,6 +77,14 @@ describe('aislamiento multi-tenant (RLS)', () => {
     ).rejects.toMatchObject({ cause: { code: '23514', constraint: 'ticket_types_stock' } });
   });
 
+  it('todas las tablas de VENTI tienen RLS forzado (incluidas users y sessions)', async () => {
+    const r = await app.pool.query(
+      `select relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind = 'r' and not (c.relrowsecurity and c.relforcerowsecurity)`,
+    );
+    expect(r.rows).toEqual([]);
+  });
+
   it('los historiales son de solo inserción', async () => {
     await expect(withContext(app.db, { orgId: orgA }, (tx) => tx.execute(sql`delete from audit_logs`))).rejects.toMatchObject({ cause: { code: '42501' } });
   });

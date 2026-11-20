@@ -14,6 +14,10 @@ const ConfigSchema = z.object({
   /** Conexión con el rol venti_app (sujeto a RLS). Nunca usar aquí el rol dueño. */
   DATABASE_URL: z.string().url(),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(20),
+  /** `supabase`: TLS verificado contra la CA pública de Supabase. `off`: sin TLS (sólo desarrollo local). */
+  DATABASE_TLS: z.enum(['off', 'supabase']).default('off'),
+  /** Carpeta con los archivos estáticos de Swagger UI cuando la API corre empaquetada (Vercel). */
+  SWAGGER_STATIC_DIR: z.string().optional(),
   /** Firma de QR (Ed25519). Generar con: npm run keys -w @venti/api */
   QR_SIGNING_PRIVATE_KEY: base64Pem,
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(24 * 30),

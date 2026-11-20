@@ -5,7 +5,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const binDir = join(dirname(require.resolve(`@embedded-postgres/${process.platform === 'win32' ? 'windows' : process.platform}-x64/package.json`)), 'native', 'bin');
+// El paquete de binarios no exporta package.json: se parte de su entrada (dist/index.js) y se sube un nivel.
+const platformPkg = `@embedded-postgres/${process.platform === 'win32' ? 'windows' : process.platform}-x64`;
+const binDir = join(dirname(require.resolve(platformPkg)), '..', 'native', 'bin');
 const dataDir = fileURLToPath(new URL('../../../.pgdata', import.meta.url));
 
 try {

@@ -11,12 +11,16 @@ import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fast
 import type { Config } from './config.ts';
 import type { Services } from './lib/context.ts';
 import { registerErrorHandler } from './lib/errors.ts';
+import { SUPABASE_ROOT_CA_2021 } from './lib/supabase-ca.ts';
 import { authRoutes, registerAuthHook } from './modules/auth/routes.ts';
 import { eventRoutes } from './modules/events/routes.ts';
 import { healthRoutes } from './modules/health/routes.ts';
 import { inventoryRoutes } from './modules/inventory/routes.ts';
 import { organizationRoutes } from './modules/organizations/routes.ts';
 import { ticketRoutes } from './modules/tickets/routes.ts';
+
+const VENTI_LOGO_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="2">VENTI</text></svg>';
 
 export interface BuildOptions {
   readonly config: Config;
@@ -33,7 +37,12 @@ export interface VentiApp {
 
 export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
   const { config } = opts;
-  const handle = opts.db ?? createDb(config.DATABASE_URL, { max: config.DATABASE_POOL_MAX });
+  const handle =
+    opts.db ??
+    createDb(config.DATABASE_URL, {
+      max: config.DATABASE_POOL_MAX,
+      ...(config.DATABASE_TLS === 'supabase' ? { caCert: SUPABASE_ROOT_CA_2021 } : {}),
+    });
   const services: Services = {
     config,
     db: handle.db,
@@ -72,7 +81,11 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
     },
     transform: jsonSchemaTransform,
   });
-  await app.register(swaggerUi, { routePrefix: '/docs' });
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+    logo: { type: 'image/svg+xml', content: Buffer.from(VENTI_LOGO_SVG) },
+    ...(config.SWAGGER_STATIC_DIR ? { baseDir: config.SWAGGER_STATIC_DIR } : {}),
+  });
 
   registerAuthHook(app, services);
 

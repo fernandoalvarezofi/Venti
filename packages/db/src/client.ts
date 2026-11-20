@@ -13,8 +13,19 @@ export interface DbHandle {
   close(): Promise<void>;
 }
 
-export function createDb(connectionString: string, opts: { max?: number } = {}): DbHandle {
-  const pool = new pg.Pool({ connectionString, max: opts.max ?? 10, application_name: 'venti' });
+export interface CreateDbOptions {
+  readonly max?: number;
+  /** TLS verificando el certificado del servidor contra esta CA (PEM). Sin CA: conexión sin TLS (sólo local). */
+  readonly caCert?: string;
+}
+
+export function createDb(connectionString: string, opts: CreateDbOptions = {}): DbHandle {
+  const pool = new pg.Pool({
+    connectionString,
+    max: opts.max ?? 10,
+    application_name: 'venti',
+    ...(opts.caCert ? { ssl: { ca: opts.caCert, rejectUnauthorized: true } } : {}),
+  });
   const db = drizzle({ client: pool, schema, casing: 'snake_case' });
   return { db, pool, close: () => pool.end() };
 }
