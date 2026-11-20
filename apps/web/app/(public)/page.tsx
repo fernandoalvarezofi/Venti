@@ -46,7 +46,7 @@ export default async function Home() {
         ) : result.data.items.length === 0 ? (
           <EmptyState
             title="Todavía no hay eventos a la venta"
-            body="Cuando una productora publique su próximo evento en VENTI, lo vas a ver acá primero."
+            body="Cuando una productora publique su próximo evento en LinTICK, lo vas a ver acá primero."
           />
         ) : (
           <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">

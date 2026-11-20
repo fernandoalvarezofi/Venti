@@ -14,6 +14,7 @@ import { createEmailSender, type EmailSender } from './lib/email.ts';
 import { AppError, registerErrorHandler } from './lib/errors.ts';
 import { SUPABASE_ROOT_CA_2021 } from './lib/supabase-ca.ts';
 import { authRoutes, registerAuthHook } from './modules/auth/routes.ts';
+import { mediaRoutes } from './modules/events/media-routes.ts';
 import { eventRoutes } from './modules/events/routes.ts';
 import { healthRoutes } from './modules/health/routes.ts';
 import { inventoryRoutes } from './modules/inventory/routes.ts';
@@ -21,8 +22,8 @@ import { organizationRoutes } from './modules/organizations/routes.ts';
 import { ticketRoutes } from './modules/tickets/routes.ts';
 import { businessRoutes } from './modules/business/routes.ts';
 
-const VENTI_LOGO_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="2">VENTI</text></svg>';
+const LOGO_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="0.5">LinTICK</text></svg>';
 
 export interface BuildOptions {
   readonly config: Config;
@@ -89,7 +90,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
 
   await app.register(swagger, {
     openapi: {
-      info: { title: 'VENTI API', version: '0.1.0', description: 'Núcleo de VENTI, VENTI BUSINESS, VENTI ACCESS y White Label.' },
+      info: { title: 'LinTICK API', version: '0.1.0', description: 'Núcleo de LinTICK, LinTICK Business, LinTICK Access y White Label.' },
       components: {
         securitySchemes: {
           bearer: { type: 'http', scheme: 'bearer' },
@@ -102,7 +103,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
   });
   await app.register(swaggerUi, {
     routePrefix: '/docs',
-    logo: { type: 'image/svg+xml', content: Buffer.from(VENTI_LOGO_SVG) },
+    logo: { type: 'image/svg+xml', content: Buffer.from(LOGO_SVG) },
     ...(config.SWAGGER_STATIC_DIR ? { baseDir: config.SWAGGER_STATIC_DIR } : {}),
   });
 
@@ -112,6 +113,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
   await authRoutes(app, services);
   await organizationRoutes(app, services);
   await eventRoutes(app, services);
+  await mediaRoutes(app, services);
   await inventoryRoutes(app, services);
   await ticketRoutes(app, services);
   await businessRoutes(app, services);

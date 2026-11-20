@@ -3,6 +3,8 @@ import {
   bigint,
   boolean,
   check,
+  customType,
+  smallint,
   index,
   integer,
   jsonb,
@@ -27,6 +29,24 @@ const ts = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' 
 const createdAt = () => ts('created_at').notNull().defaultNow();
 const updatedAt = () => ts('updated_at').notNull().defaultNow();
 const cents = (name: string) => bigint(name, { mode: 'number' });
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
+
+/** Contenido del evento (lo que se muestra al público además de fecha y lugar). */
+export type LineupRole = 'headliner' | 'guest' | 'support' | 'resident' | 'dj' | 'host';
+export interface LineupItem {
+  name: string;
+  role: LineupRole;
+  /** Hora de presentación (ISO) si se conoce. */
+  startsAt: string | null;
+  stage: string | null;
+}
+export interface EventLinks {
+  instagram?: string;
+  tiktok?: string;
+  spotify?: string;
+  youtube?: string;
+  website?: string;
+}
 
 export const orgRole = pgEnum('org_role', ORG_ROLES);
 export const ticketKind = pgEnum('ticket_kind', TICKET_KINDS);
@@ -200,6 +220,17 @@ export const events = pgTable(
     publishedAt: ts('published_at'),
     cancelledAt: ts('cancelled_at'),
     cancellationReason: text('cancellation_reason'),
+    doorsOpenAt: ts('doors_open_at'),
+    minAge: smallint('min_age'),
+    dressCode: text('dress_code'),
+    lineup: jsonb('lineup').$type<LineupItem[]>().notNull().default([]),
+    /** Códigos del catálogo de servicios (bar, food, cloakroom…). */
+    amenities: jsonb('amenities').$type<string[]>().notNull().default([]),
+    /** Servicios propios que no están en el catálogo (texto corto). */
+    extraAmenities: jsonb('extra_amenities').$type<string[]>().notNull().default([]),
+    links: jsonb('links').$type<EventLinks>().notNull().default({}),
+    policies: text('policies').notNull().default(''),
+    coverMediaId: uuid('cover_media_id'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -207,6 +238,7 @@ export const events = pgTable(
     uniqueIndex('events_org_slug_uq').on(t.organizationId, t.slug),
     index('events_public_idx').on(t.status, t.startsAt),
     check('events_dates', sql`${t.endsAt} > ${t.startsAt}`),
+    check('events_min_age', sql`${t.minAge} IS NULL OR ${t.minAge} BETWEEN 0 AND 25`),
   ],
 );
 
@@ -548,5 +580,38 @@ export const staffAssignments = pgTable(
     uniqueIndex('staff_assignments_uq').on(t.eventId, t.userId),
     index('staff_assignments_user_idx').on(t.userId),
     check('staff_assignments_window', sql`${t.validUntil} > ${t.validFrom}`),
+  ],
+);
+
+// ───────────────────────────── Imágenes de eventos ─────────────────────────────
+
+/**
+ * Imágenes del evento guardadas en la base (re-codificadas en el navegador, sin metadatos).
+ * Se sirven con caché larga e inmutable: una imagen nunca cambia; reemplazarla crea otra fila.
+ */
+export const eventMedia = pgTable(
+  'event_media',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['cover', 'gallery'] }).notNull(),
+    position: integer('position').notNull().default(0),
+    contentType: text('content_type', { enum: ['image/jpeg', 'image/png', 'image/webp'] }).notNull(),
+    bytes: bytea('bytes').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    sha256: text('sha256').notNull(),
+    createdBy: uuid('created_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('event_media_event_idx').on(t.eventId, t.kind, t.position),
+    check('event_media_size', sql`${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 3145728`),
   ],
 );

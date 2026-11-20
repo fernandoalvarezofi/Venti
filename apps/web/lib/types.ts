@@ -9,6 +9,37 @@ export interface Venue {
   capacity: number | null;
 }
 
+export interface Media {
+  id: string;
+  /** Relativa a la API: la web la sirve bajo /api (ver mediaSrc). */
+  url: string;
+  width: number;
+  height: number;
+}
+
+export type LineupRole = 'headliner' | 'guest' | 'support' | 'resident' | 'dj' | 'host';
+
+export interface LineupItem {
+  name: string;
+  role: LineupRole;
+  startsAt: string | null;
+  stage: string | null;
+}
+
+/** Contenido del evento además de fecha y lugar. */
+export interface EventContent {
+  doorsOpenAt: string | null;
+  minAge: number | null;
+  dressCode: string | null;
+  lineup: LineupItem[];
+  amenities: string[];
+  extraAmenities: string[];
+  links: Partial<Record<'instagram' | 'tiktok' | 'spotify' | 'youtube' | 'website', string>>;
+  policies: string;
+  coverImage: Media | null;
+  gallery: Media[];
+}
+
 export interface PublicEvent {
   id: string;
   organizationId: string;
@@ -24,6 +55,7 @@ export interface PublicEvent {
   organization: { id: string; slug: string; name: string };
   venue: Venue | null;
   fromPriceCents?: number | null;
+  coverImage?: Media | null;
 }
 
 export type SaleState = 'on_sale' | 'sold_out' | 'not_started' | 'ended' | 'unavailable';
@@ -42,7 +74,7 @@ export interface PublicTicketType {
   currentStage: { id: string; name: string; priceCents: number; endsAt: string | null } | null;
 }
 
-export interface PublicEventDetail extends PublicEvent {
+export interface PublicEventDetail extends Omit<PublicEvent, 'coverImage'>, EventContent {
   ticketTypes: PublicTicketType[];
 }
 
@@ -93,7 +125,7 @@ export interface ApiErrorBody {
   error: { code: string; message: string; details?: Record<string, unknown> };
 }
 
-// ─── VENTI BUSINESS ───
+// ─── LinTICK Business ───
 
 export type OrgRole = 'owner' | 'admin' | 'manager' | 'finance' | 'sales' | 'access_staff' | 'viewer';
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'finished';
@@ -156,7 +188,7 @@ export interface AdminTicketType {
   stages: Stage[];
 }
 
-export interface AdminEvent {
+export interface AdminEvent extends EventContent {
   id: string;
   organizationId: string;
   slug: string;

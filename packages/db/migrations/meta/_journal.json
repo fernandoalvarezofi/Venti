@@ -57,6 +57,20 @@
       "when": 1795158206758,
       "tag": "0007_verification_pending_password",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795159937739,
+      "tag": "0008_event_content_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795159939349,
+      "tag": "0009_event_media_rls",
+      "breakpoints": true
     }
   ]
 }

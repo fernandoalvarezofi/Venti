@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { formatMoney } from '@/lib/format';
 import type { Hold } from '@/lib/types';
 import { ClockIcon, LockIcon } from './icons';
+import { TicketButton } from './ticket-button';
 
 function useRemaining(expiresAt: string) {
   const target = new Date(expiresAt).getTime();
@@ -114,9 +115,9 @@ export function HoldPanel({ hold }: { hold: Hold }) {
                 <span className="font-semibold text-ink">Todavía no cobramos online.</span> Estamos conectando Mercado Pago y transferencias. No se te cobra nada: la reserva se libera sola cuando termina el tiempo.
               </p>
             </div>
-            <button type="button" disabled className="btn btn-primary mt-4 w-full" aria-describedby="pago-nota">
-              Pagar {formatMoney(hold.totalCents, hold.currency)}
-            </button>
+            <TicketButton type="button" disabled className="mt-4 w-full" aria-describedby="pago-nota" stub={formatMoney(hold.totalCents, hold.currency)}>
+              Pagar
+            </TicketButton>
             <p id="pago-nota" className="sr-only">
               Botón deshabilitado: el pago online todavía no está disponible.
             </p>

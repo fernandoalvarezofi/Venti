@@ -20,7 +20,7 @@ export function AddMemberForm({ orgId, roles }: { orgId: string; roles: { value:
         start(async () => {
           const r = await send('PUT', `/v1/organizations/${orgId}/members`, { email: email.trim(), role });
           if (!r.ok) {
-            setMsg({ ok: false, text: r.status === 404 ? 'No hay ninguna cuenta de VENTI con ese email. Pedile que se registre primero.' : r.message });
+            setMsg({ ok: false, text: r.status === 404 ? 'No hay ninguna cuenta de LinTICK con ese email. Pedile que se registre primero.' : r.message });
             return;
           }
           setMsg({ ok: true, text: `${email.trim()} ya forma parte del equipo.` });

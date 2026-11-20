@@ -57,3 +57,51 @@ export function posterColors(id: string) {
   for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
   return POSTERS[h % POSTERS.length]!;
 }
+
+/** URL de una imagen servida por la API a través del mismo dominio. Para borradores, la productora pasa su id. */
+export function mediaSrc(url: string, orgId?: string): string {
+  return `/api${url}${orgId ? `?org=${orgId}` : ''}`;
+}
+
+export const AMENITY_LABELS: Record<string, string> = {
+  bar: 'Barra',
+  food: 'Comida',
+  food_trucks: 'Food trucks',
+  cloakroom: 'Guardarropa',
+  lockers: 'Lockers',
+  parking: 'Estacionamiento',
+  bike_parking: 'Bicicletero',
+  vip_area: 'Zona VIP',
+  smoking_area: 'Zona de fumadores',
+  chill_zone: 'Zona chill',
+  free_water: 'Agua gratis',
+  atm: 'Cajero automático',
+  card_payments: 'Pago con tarjeta',
+  cashless: 'Pulsera cashless',
+  merch: 'Merch oficial',
+  camping: 'Camping',
+  showers: 'Duchas',
+  accessible: 'Accesible',
+  first_aid: 'Primeros auxilios',
+  security: 'Seguridad',
+  transport: 'Transporte',
+};
+
+export const LINEUP_ROLE_LABELS: Record<string, string> = {
+  headliner: 'Principal',
+  guest: 'Artista invitado',
+  support: 'Soporte',
+  resident: 'DJ residente',
+  dj: 'DJ',
+  host: 'Conducción',
+};
+
+/** Plurales explícitos para los títulos del line-up. */
+export const LINEUP_ROLE_PLURALS: Record<string, string> = {
+  headliner: 'Principales',
+  guest: 'Artistas invitados',
+  support: 'Soporte',
+  resident: 'DJs residentes',
+  dj: 'DJs',
+  host: 'Conducción',
+};

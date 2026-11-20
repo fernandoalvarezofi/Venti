@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /*
- * Sistema visual de VENTI — "entrada de papel".
+ * Sistema visual de LinTICK — "entrada de papel".
  * Neutros cálidos (cartulina + tinta), un único acento bermellón para la acción principal.
  * Regla: el acento aparece como máximo dos veces por pantalla.
  */
@@ -201,6 +201,136 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-muted);
+  }
+}
+
+/*
+ * Botones con forma de entrada. La forma se recorta en una capa de fondo (::before), no en el botón:
+ * así el anillo de foco del teclado nunca queda cortado.
+ *
+ * .btn-ticket — muescas semicirculares a los lados + talón separado por una línea punteada.
+ * .btn-admit  — bordes dentados tipo "ADMIT ONE" + marco interior.
+ */
+@layer components {
+  .btn-ticket,
+  .btn-admit {
+    --tk-bg: var(--color-accent);
+    --tk-bg-hover: var(--color-accent-ink);
+    --tk-fg: #fff8f4;
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    align-items: stretch;
+    justify-content: space-between;
+    min-height: 3.25rem;
+    color: var(--tk-fg);
+    font-weight: 700;
+    font-size: 0.97rem;
+    border-radius: 6px;
+    transition: transform 180ms var(--ease-out-quint);
+    user-select: none;
+  }
+  .btn-ticket::before,
+  .btn-admit::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--tk-bg);
+    transition: background-color 160ms;
+  }
+  .btn-ticket:hover:not(:disabled)::before,
+  .btn-admit:hover:not(:disabled)::before {
+    background: var(--tk-bg-hover);
+  }
+  .btn-ticket:hover:not(:disabled),
+  .btn-admit:hover:not(:disabled) {
+    transform: translateY(-1px) rotate(-0.4deg);
+  }
+  .btn-ticket:active:not(:disabled),
+  .btn-admit:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99);
+  }
+  .btn-ticket:disabled,
+  .btn-admit:disabled,
+  .btn-ticket[aria-disabled='true'] {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  /* Muescas: dos círculos transparentes a mitad de altura. */
+  .btn-ticket::before {
+    border-radius: 6px;
+    mask:
+      radial-gradient(circle 9px at 0 50%, #0000 97%, #000) ,
+      radial-gradient(circle 9px at 100% 50%, #0000 97%, #000);
+    mask-composite: intersect;
+    -webkit-mask-composite: source-in;
+  }
+  .btn-ticket > .tk-main {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0 1.25rem 0 1.5rem;
+    text-align: center;
+  }
+  .btn-ticket > .tk-stub {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 3.25rem;
+    padding: 0 1rem 0 0.85rem;
+    border-left: 1.5px dashed rgb(255 255 255 / 0.55);
+    margin: 0.55rem 0;
+    font-variant-numeric: tabular-nums;
+    transition: transform 220ms var(--ease-out-quint);
+  }
+  /* Microinteracción: el talón "se despega" un poco al pasar el mouse. */
+  .btn-ticket:hover:not(:disabled) > .tk-stub {
+    transform: translateX(2px);
+  }
+
+  /* Bordes dentados (zig-zag) a izquierda y derecha. */
+  .btn-admit {
+    --zig: 7px;
+    padding: 0 1.6rem;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.82rem;
+  }
+  .btn-admit::before {
+    border-radius: 0;
+    mask:
+      /* Cuña de 90° apuntando hacia adentro desde cada borde (0° = arriba): derecha → 225°, izquierda → 45°. */
+      conic-gradient(from 225deg at right, #0000, #000 1deg 89deg, #0000 90deg) right / 51% var(--zig) repeat-y,
+      conic-gradient(from 45deg at left, #0000, #000 1deg 89deg, #0000 90deg) left / 51% var(--zig) repeat-y;
+  }
+  /* Marco interior tipo entrada impresa. */
+  .btn-admit::after {
+    content: '';
+    position: absolute;
+    inset: 6px 10px;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .btn-admit.btn-admit-ink,
+  .btn-ticket.btn-ticket-ink {
+    --tk-bg: var(--color-ink);
+    --tk-bg-hover: var(--color-ink-soft);
+    --tk-fg: var(--color-paper);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-ticket:hover:not(:disabled),
+  .btn-admit:hover:not(:disabled) {
+    transform: none;
   }
 }
 

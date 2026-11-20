@@ -63,7 +63,7 @@ export class OutboxSender implements EmailSender {
 class DisabledSender implements EmailSender {
   readonly enabled = false;
   async send(): Promise<void> {
-    throw new AppError(503, 'email_unavailable', 'El envío de emails todavía no está configurado en VENTI. Probá más tarde.');
+    throw new AppError(503, 'email_unavailable', 'El envío de emails todavía no está configurado en LinTICK. Probá más tarde.');
   }
 }
 

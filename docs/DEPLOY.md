@@ -27,7 +27,7 @@ Las siguientes se aplican **antes** del push que las necesita:
 `DATABASE_OWNER_URL=<postgres del proyecto> npm run db:migrate`, o con el conector de Supabase.
 
 ### Seguridad específica de Supabase
-La migración `0002_hardening` quita todo privilegio a `anon` y `authenticated`, porque VENTI no usa la API REST de Supabase.
+La migración `0002_hardening` quita todo privilegio a `anon` y `authenticated`, porque LinTICK no usa la API REST de Supabase.
 También fuerza RLS en `users` y `sessions`. Verificación: `information_schema.role_table_grants` sin filas para esos roles.
 
 ### Limitaciones conocidas

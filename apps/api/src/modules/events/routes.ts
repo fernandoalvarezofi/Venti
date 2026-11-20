@@ -22,6 +22,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit } from '../../lib/audit.ts';
 import { inOrg, requireOrgPermission, type Services } from '../../lib/context.ts';
+import { EventContentDto, EventContentFields, MediaDto, contentView, loadEventMedia } from './content.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
 
 // ───────────── DTOs ─────────────
@@ -55,6 +56,7 @@ const EventBody = z
     endsAt: z.coerce.date(),
     timezone: z.string().default('America/Argentina/Buenos_Aires'),
     coverImageUrl: z.string().url().max(2048).nullable().optional(),
+    ...Object.fromEntries(Object.entries(EventContentFields).map(([k, v]) => [k, v.optional()])) as { [K in keyof typeof EventContentFields]: z.ZodOptional<(typeof EventContentFields)[K]> },
   })
   .refine((e) => e.endsAt > e.startsAt, { message: 'El evento debe terminar después de empezar.', path: ['endsAt'] });
 
@@ -128,7 +130,7 @@ const EventDto = z.object({
   publishedAt: z.date().nullable(),
 });
 
-const EventDetailDto = EventDto.extend({ venue: VenueDto.nullable(), ticketTypes: z.array(TicketTypeDto) });
+const EventDetailDto = EventDto.extend({ venue: VenueDto.nullable(), ticketTypes: z.array(TicketTypeDto) }).merge(EventContentDto);
 
 const PublicTicketTypeDto = TicketTypeDto.omit({ sold: true, held: true, capacity: true, hidden: true, stages: true }).extend({
   currentStage: StageDto.pick({ id: true, name: true, priceCents: true, endsAt: true }).nullable(),
@@ -137,6 +139,7 @@ const PublicEventDto = EventDto.omit({ status: true, publishedAt: true, venueId:
   status: z.enum(['published', 'cancelled', 'finished']),
   organization: z.object({ id: z.string().uuid(), slug: z.string(), name: z.string() }),
   venue: VenueDto.nullable(),
+  coverImage: MediaDto.nullable(),
 });
 
 const OrgParams = z.object({ orgId: z.string().uuid() });
@@ -280,6 +283,14 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
             endsAt: b.endsAt,
             timezone: b.timezone,
             coverImageUrl: b.coverImageUrl ?? null,
+            doorsOpenAt: b.doorsOpenAt ?? null,
+            minAge: b.minAge ?? null,
+            dressCode: b.dressCode ?? null,
+            lineup: b.lineup ?? [],
+            amenities: b.amenities ?? [],
+            extraAmenities: b.extraAmenities ?? [],
+            links: b.links ?? {},
+            policies: b.policies ?? '',
           })
           .returning();
         await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'event.created', entityType: 'event', entityId: e!.id, ip: req.ip });
@@ -312,7 +323,8 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
           .from(events)
           .where(and(eq(events.id, req.params.eventId), eq(events.organizationId, access.orgId)));
         if (!e) throw notFound('Evento');
-        return { ...e, venue: await loadVenue(tx, e.venueId), ticketTypes: await loadTicketTypes(tx, e.id, s.now()) };
+        const media = await loadEventMedia(tx, [e.id]);
+        return { ...e, venue: await loadVenue(tx, e.venueId), ticketTypes: await loadTicketTypes(tx, e.id, s.now()), ...contentView(e, media.get(e.id)) };
       });
     },
   );
@@ -451,7 +463,7 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
     },
   );
 
-  // Catálogo público (VENTI y white label)
+  // Catálogo público (LinTICK y white label)
   r.get(
     '/v1/public/events',
     {
@@ -511,6 +523,7 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
           .limit(qy.limit + 1);
         const page = rows.slice(0, qy.limit);
         const last = page.at(-1);
+        const media = await loadEventMedia(tx, page.map((p) => p.event.id));
         return {
           items: page.map(({ event: e, org, venue, fromPriceCents }) => ({
             id: e.id,
@@ -527,6 +540,7 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
             organization: org,
             venue: venue ? { id: venue.id, name: venue.name, address: venue.address, city: venue.city, province: venue.province, capacity: venue.capacity } : null,
             fromPriceCents: fromPriceCents ?? null,
+            coverImage: media.get(e.id)?.cover ?? null,
           })),
           nextCursor: rows.length > qy.limit && last ? `${last.event.startsAt.toISOString()}_${last.event.id}` : null,
         };
@@ -541,7 +555,7 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
         tags: ['catalog'],
         summary: 'Detalle público de un evento con entradas disponibles',
         params: z.object({ eventId: z.string().uuid() }),
-        response: { 200: PublicEventDto.extend({ ticketTypes: z.array(PublicTicketTypeDto) }) },
+        response: { 200: PublicEventDto.extend({ ticketTypes: z.array(PublicTicketTypeDto) }).merge(EventContentDto) },
       },
     },
     async (req) =>
@@ -554,7 +568,9 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
         if (!row) throw notFound('Evento');
         const e = row.event;
         const types = (await loadTicketTypes(tx, e.id, s.now())).filter((t) => !t.hidden);
+        const media = await loadEventMedia(tx, [e.id]);
         return {
+          ...contentView(e, media.get(e.id)),
           id: e.id,
           organizationId: e.organizationId,
           slug: e.slug,

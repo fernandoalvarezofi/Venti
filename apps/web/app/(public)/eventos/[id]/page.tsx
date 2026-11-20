@@ -5,6 +5,7 @@ import { EventPoster } from '@/components/event-card';
 import { ArrowLeftIcon, CalendarIcon, PinIcon } from '@/components/icons';
 import { ErrorState } from '@/components/states';
 import { BuyPanel } from '@/components/checkout';
+import { Amenities, Gallery, Lineup, LinksAndMap, Policies, QuickFacts } from '@/components/event-content';
 import { getCurrentUser, getEvent } from '@/lib/api';
 import { categoryLabel, dateParts } from '@/lib/format';
 
@@ -43,13 +44,15 @@ export default async function EventPage({ params }: { params: Params }) {
       <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-14">
         <div className="min-w-0">
           <div className="aspect-[16/10] overflow-hidden rounded-[var(--radius-ticket)]">
-            <EventPoster event={e} size="lg" />
+            <EventPoster event={e} size="lg" priority />
           </div>
 
           <p className="eyebrow mt-8">
             {categoryLabel(e.category)} · {e.organization.name}
           </p>
           <h1 className="mt-3 text-[clamp(2.2rem,5.5vw,4rem)] font-extrabold leading-[0.95]">{e.title}</h1>
+
+          <QuickFacts c={e} />
 
           {e.status === 'cancelled' ? (
             <p role="status" className="mt-6 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
@@ -90,6 +93,12 @@ export default async function EventPage({ params }: { params: Params }) {
               <div className="mt-3 max-w-[65ch] whitespace-pre-line leading-relaxed text-ink-soft">{e.description}</div>
             </section>
           ) : null}
+
+          <Lineup items={e.lineup} />
+          <Amenities codes={e.amenities} extra={e.extraAmenities} />
+          <Gallery images={e.gallery} title={e.title} />
+          <Policies text={e.policies} />
+          <LinksAndMap links={e.links} venue={e.venue} />
         </div>
 
         <aside className="lg:sticky lg:top-24 lg:self-start" aria-label="Entradas">

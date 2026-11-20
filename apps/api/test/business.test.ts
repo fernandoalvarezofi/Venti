@@ -51,7 +51,7 @@ describe('cotización (fuente única de precio)', () => {
   });
 });
 
-describe('gestión de eventos (VENTI BUSINESS)', () => {
+describe('gestión de eventos (LinTICK Business)', () => {
   it('edita datos, valida fechas y deja auditoría', async () => {
     const owner = await registerUser(ctx);
     const { orgId, eventId } = await publishedEvent(ctx, owner.token);

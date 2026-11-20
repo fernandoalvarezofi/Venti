@@ -1,30 +1,48 @@
 import Link from 'next/link';
-import { categoryLabel, dateParts, formatMoney, posterColors } from '@/lib/format';
+import { categoryLabel, dateParts, formatMoney, mediaSrc, posterColors } from '@/lib/format';
 import type { PublicEvent } from '@/lib/types';
 
-/** Afiche tipográfico: reemplaza la foto mientras el evento no tenga una propia. */
-export function EventPoster({ event, size = 'md' }: { event: PublicEvent; size?: 'md' | 'lg' }) {
+/**
+ * Afiche del evento. Con imagen: la foto de la productora de fondo, con la categoría, el día y la fecha
+ * encima sobre un degradado de tinta para que se lean sobre cualquier foto.
+ * Sin imagen: afiche tipográfico de color.
+ */
+export function EventPoster({ event, size = 'md', orgId, priority = false }: { event: PublicEvent; size?: 'md' | 'lg'; orgId?: string; priority?: boolean }) {
   const d = dateParts(event.startsAt);
   const c = posterColors(event.id);
-  if (event.coverImageUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={event.coverImageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-    );
-  }
+  const cover = event.coverImage ? mediaSrc(event.coverImage.url, orgId) : event.coverImageUrl;
   return (
-    <div className="relative flex h-full w-full flex-col justify-between overflow-hidden p-5" style={{ background: c.bg, color: c.fg }} aria-hidden>
-      <div className="flex items-start justify-between text-[0.7rem] font-semibold uppercase tracking-[0.16em] opacity-80">
+    <div
+      className="relative flex h-full w-full flex-col justify-between overflow-hidden p-5"
+      style={cover ? { background: '#171411', color: '#fbf8f2' } : { background: c.bg, color: c.fg }}
+      aria-hidden
+    >
+      {cover ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={cover}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-[var(--ease-out-quint)] group-hover:scale-[1.03]"
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+          />
+          <span className="absolute inset-0 bg-[linear-gradient(180deg,rgb(23_20_17/0.55)_0%,rgb(23_20_17/0.05)_38%,rgb(23_20_17/0.15)_55%,rgb(23_20_17/0.78)_100%)]" />
+        </>
+      ) : null}
+      <div className="relative flex items-start justify-between text-[0.7rem] font-semibold uppercase tracking-[0.16em] opacity-90 [text-shadow:0_1px_8px_rgb(0_0_0/0.25)]">
         <span>{categoryLabel(event.category)}</span>
         <span>{d.weekdayShort}</span>
       </div>
-      <div className="leading-[0.82]">
+      <div className="relative leading-[0.82] [text-shadow:0_2px_18px_rgb(0_0_0/0.25)]">
         <span className={`block font-display font-extrabold tracking-[-0.06em] ${size === 'lg' ? 'text-[clamp(6rem,18vw,11rem)]' : 'text-[5.5rem]'}`}>{d.day}</span>
         <span className={`block font-display font-bold tracking-[-0.03em] ${size === 'lg' ? 'text-5xl' : 'text-3xl'}`}>{d.month}</span>
       </div>
-      <span className="pointer-events-none absolute -bottom-6 -right-3 font-display text-[7rem] font-extrabold leading-none tracking-[-0.06em] opacity-[0.07]">
-        {event.title.slice(0, 2).toUpperCase()}
-      </span>
+      {cover ? null : (
+        <span className="pointer-events-none absolute -bottom-6 -right-3 font-display text-[7rem] font-extrabold leading-none tracking-[-0.06em] opacity-[0.07]">
+          {event.title.slice(0, 2).toUpperCase()}
+        </span>
+      )}
     </div>
   );
 }

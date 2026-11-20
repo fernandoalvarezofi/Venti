@@ -6,7 +6,7 @@ import { LogoutButton } from './logout-button';
 export function Logo() {
   return (
     <span className="font-display text-[1.45rem] font-extrabold tracking-[-0.04em]">
-      venti<span className="text-accent">.</span>
+      LinTICK<span className="text-accent">.</span>
     </span>
   );
 }
@@ -17,7 +17,7 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-        <Link href="/" aria-label="VENTI, inicio" className="shrink-0">
+        <Link href="/" aria-label="LinTICK, inicio" className="shrink-0">
           <Logo />
         </Link>
         <nav aria-label="Principal" className="ml-auto flex items-center gap-1 sm:gap-2">

@@ -1,7 +1,7 @@
-# VENTI
+# LinTICK
 
 Plataforma de ticketing para productoras de Argentina y Latinoamérica. Un solo núcleo para cuatro productos:
-**VENTI** (marketplace y compra), **VENTI BUSINESS** (panel de productoras), **VENTI ACCESS** (control de accesos)
+**LinTICK** (marketplace y compra), **LinTICK Business** (panel de productoras), **LinTICK Access** (control de accesos)
 y **White Label** (ticketera propia con la marca de cada productora).
 
 - Arquitectura: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)

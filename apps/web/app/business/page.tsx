@@ -22,7 +22,7 @@ export default async function BusinessHome({ searchParams }: { searchParams: Pro
     <div className="mx-auto grid max-w-5xl gap-10 px-4 pb-20 pt-12 sm:px-6 md:grid-cols-[1fr_440px] md:pt-20">
       <div>
         <Link href="/" className="font-display text-[1.45rem] font-extrabold tracking-[-0.04em]">
-          venti<span className="text-accent">.</span> <span className="text-base font-semibold tracking-normal text-muted">business</span>
+          LinTICK<span className="text-accent">.</span> <span className="text-base font-semibold tracking-normal text-muted">business</span>
         </Link>
         <h1 className="mt-10 text-[clamp(2.6rem,6vw,4.4rem)] font-extrabold leading-[0.92]">
           Vendé tus eventos
@@ -30,7 +30,7 @@ export default async function BusinessHome({ searchParams }: { searchParams: Pro
           con tu propia marca.
         </h1>
         <p className="mt-6 max-w-md text-muted">
-          Creá tu productora, cargá el evento con sus entradas y etapas de precio, y publicalo. VENTI se encarga del stock, las reservas, los QR y el control de acceso.
+          Creá tu productora, cargá el evento con sus entradas y etapas de precio, y publicalo. LinTICK se encarga del stock, las reservas, los QR y el control de acceso.
         </p>
         {orgs.length > 0 ? (
           <div className="mt-10">

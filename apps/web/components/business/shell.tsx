@@ -13,7 +13,7 @@ const ROLE_LABEL: Record<Org['role'], string> = {
   viewer: 'Lectura',
 };
 
-/** Marco de VENTI BUSINESS: menú lateral en escritorio, barra superior con pestañas en el celular. */
+/** Marco de LinTICK Business: menú lateral en escritorio, barra superior con pestañas en el celular. */
 export function BusinessShell({ org, orgs, userName, children }: { org: Org; orgs: Org[]; userName: string; children: React.ReactNode }) {
   const base = `/business/${org.id}`;
   const links = [
@@ -27,7 +27,7 @@ export function BusinessShell({ org, orgs, userName, children }: { org: Org; org
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4 lg:block lg:pb-6 lg:pt-6">
             <Link href="/business" className="font-display text-[1.35rem] font-extrabold tracking-[-0.04em]">
-              venti<span className="text-accent">.</span> <span className="text-sm font-semibold tracking-normal text-muted">business</span>
+              LinTICK<span className="text-accent">.</span> <span className="text-sm font-semibold tracking-normal text-muted">business</span>
             </Link>
             <div className="lg:mt-6">
               <p className="hidden text-xs text-muted lg:block">Productora</p>
@@ -60,7 +60,7 @@ export function BusinessShell({ org, orgs, userName, children }: { org: Org; org
             <p className="truncate font-semibold">{userName}</p>
             <div className="mt-2 flex items-center gap-3">
               <Link href="/" className="text-muted hover:text-ink">
-                Ver VENTI
+                Ver LinTICK
               </Link>
               <LogoutButton />
             </div>

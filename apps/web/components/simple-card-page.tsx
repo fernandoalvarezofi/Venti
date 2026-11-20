@@ -1,4 +1,4 @@
-/** Página centrada con la tarjeta de VENTI (corte de entrada) para flujos de cuenta. */
+/** Página centrada con la tarjeta de LinTICK (corte de entrada) para flujos de cuenta. */
 export function SimpleCardPage({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-md px-4 pt-12 sm:pt-20">

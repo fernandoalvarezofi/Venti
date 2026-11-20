@@ -3,4 +3,4 @@ import { generateQrKeyPair } from '@venti/domain';
 
 const { privateKeyPem, publicKeyPem } = generateQrKeyPair();
 console.log(`QR_SIGNING_PRIVATE_KEY=${Buffer.from(privateKeyPem).toString('base64')}`);
-console.log(`\n# Clave pública (para dispositivos de VENTI ACCESS):\n${publicKeyPem}`);
+console.log(`\n# Clave pública (para dispositivos de LinTICK Access):\n${publicKeyPem}`);

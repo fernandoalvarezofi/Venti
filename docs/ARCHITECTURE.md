@@ -1,14 +1,14 @@
-# VENTI — Arquitectura
+# LinTICK — Arquitectura
 
 Documento vivo. Las decisiones puntuales con sus alternativas están en `docs/adr/`.
 
 ## 1. Arquitectura general
 
-VENTI es **un solo núcleo (core) con cuatro productos encima**:
+LinTICK es **un solo núcleo (core) con cuatro productos encima**:
 
 ```
                ┌───────────────┐ ┌────────────────┐ ┌──────────────┐ ┌──────────────────┐
-  Productos    │ VENTI (web)   │ │ VENTI BUSINESS │ │ VENTI ACCESS │ │ WHITE LABEL      │
+  Productos    │ LinTICK (web)   │ │ LinTICK Business │ │ LinTICK Access │ │ WHITE LABEL      │
                │ marketplace   │ │ panel admin    │ │ PWA offline  │ │ = apps/web por   │
                │ + checkout    │ │                │ │ escaneo/sync │ │   dominio/brand  │
                └──────┬────────┘ └───────┬────────┘ └──────┬───────┘ └────────┬─────────┘
@@ -61,7 +61,7 @@ precios dinámicos y segmentación se resuelven con reglas deterministas y estad
 ## 3. Estructura de carpetas
 
 ```
-VENTI/
+LinTICK/
 ├─ apps/
 │  ├─ api/                 Core HTTP API + worker (entrypoints separados)
 │  │  └─ src/

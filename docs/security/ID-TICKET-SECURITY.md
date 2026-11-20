@@ -1,4 +1,4 @@
-# VENTI ID & TICKET SECURITY — Auditoría y diseño
+# LinTICK ID & TICKET SECURITY — Auditoría y diseño
 
 Estado: **diseño propuesto, sin implementar**. Fecha: 2026-11-20. Base auditada: commit `59410c7`.
 
@@ -242,7 +242,7 @@ Una clave comprometida se revoca y se fuerza nueva época a los tickets firmados
   transacción: ticket viejo `void`, ticket nuevo al comprador, listing `sold`, liquidación pendiente al vendedor.
 - El vendedor cobra **después** del evento o tras la ventana de contracargo (configurable): así se evita revender y
   después anular el pago original.
-- La reventa fuera de VENTI no se puede impedir, pero no sirve: las capturas vencen (§4.3) y la transferencia exige
+- La reventa fuera de LinTICK no se puede impedir, pero no sirve: las capturas vencen (§4.3) y la transferencia exige
   cuenta verificada.
 
 ### 4.6 Control de acceso: online, offline y concurrencia
@@ -515,7 +515,7 @@ Todas contra PostgreSQL real, como la suite actual. Un control no se marca hecho
 3. **Titulares:** asignación por entrada, entradas nominativas, límite por titular.
 4. **Credencial V2:** QR dinámico ligado al dispositivo, `kid`, rotación de claves, fallback estático con documento.
 5. **Transferencias atómicas.**
-6. **VENTI ACCESS:** PWA, dispositivos enrolados, manifiestos firmados, offline y conciliación, reingresos.
+6. **LinTICK Access:** PWA, dispositivos enrolados, manifiestos firmados, offline y conciliación, reingresos.
 7. **Reventa oficial** (requiere pagos reales).
 8. **Anclaje externo de auditoría** y verificador periódico.
 

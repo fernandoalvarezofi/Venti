@@ -56,11 +56,11 @@ export function EventActions({ orgId, event }: { orgId: string; event: AdminEven
       <div className="flex flex-wrap gap-2">
         {event.status === 'published' ? (
           <a href={`/eventos/${event.id}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
-            Ver en VENTI ↗
+            Ver en LinTICK ↗
           </a>
         ) : null}
         {event.status === 'draft' ? (
-          <button type="button" disabled={a.pending} onClick={() => a.run(() => send('POST', `${base}/publish`), 'Evento publicado: ya está a la venta.')} className="btn btn-primary">
+          <button type="button" disabled={a.pending} onClick={() => a.run(() => send('POST', `${base}/publish`), 'Evento publicado: ya está a la venta.')} className="btn-admit">
             {a.pending ? 'Publicando…' : 'Publicar'}
           </button>
         ) : null}

@@ -126,7 +126,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
         </p>
       ) : null}
       <p className="text-center text-sm text-muted">
-        {mode === 'register' ? '¿Ya tenés cuenta? ' : '¿Primera vez en VENTI? '}
+        {mode === 'register' ? '¿Ya tenés cuenta? ' : '¿Primera vez en LinTICK? '}
         <Link href={`${mode === 'register' ? '/ingresar' : '/registrarse'}?next=${encodeURIComponent(next)}`} className="font-semibold text-ink underline underline-offset-2">
           {mode === 'register' ? 'Ingresá' : 'Creá tu cuenta'}
         </Link>

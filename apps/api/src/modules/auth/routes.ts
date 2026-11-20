@@ -103,15 +103,15 @@ async function sendVerification(s: Services, user: Pick<UserRow, 'id' | 'email'>
   await s.email.send({
     to: user.email.toLowerCase(),
     kind: 'verify_email',
-    subject: 'Confirmá tu email en VENTI',
-    text: `Hola ${pending.fullName.split(' ')[0]}:\n\nConfirmá tu email para activar tu cuenta y recibir tus entradas:\n${url}\n\nVas a necesitar la contraseña que elegiste al registrarte. El enlace vence en 24 horas.\nSi no creaste una cuenta en VENTI, ignorá este mensaje.`,
+    subject: 'Confirmá tu email en LinTICK',
+    text: `Hola ${pending.fullName.split(' ')[0]}:\n\nConfirmá tu email para activar tu cuenta y recibir tus entradas:\n${url}\n\nVas a necesitar la contraseña que elegiste al registrarte. El enlace vence en 24 horas.\nSi no creaste una cuenta en LinTICK, ignorá este mensaje.`,
     meta: { url, token },
   });
 }
 
 /** Antes de crear o tocar cuentas, confirmamos que se pueda avisar por email (sin emails, no hay verificación). */
 function requireEmail(s: Services) {
-  if (!s.email.enabled) throw new AppError(503, 'email_unavailable', 'El envío de emails todavía no está configurado en VENTI, así que no podemos crear cuentas nuevas. Probá más tarde.');
+  if (!s.email.enabled) throw new AppError(503, 'email_unavailable', 'El envío de emails todavía no está configurado en LinTICK, así que no podemos crear cuentas nuevas. Probá más tarde.');
 }
 
 export async function authRoutes(app: FastifyInstance, s: Services): Promise<void> {
@@ -147,7 +147,7 @@ export async function authRoutes(app: FastifyInstance, s: Services): Promise<voi
           await s.email.send({
             to: email,
             kind: 'account_exists',
-            subject: 'Ya tenés una cuenta en VENTI',
+            subject: 'Ya tenés una cuenta en LinTICK',
             text: `Alguien (quizás vos) intentó crear una cuenta con este email, pero ya existe.\n\nIngresá: ${s.config.PUBLIC_WEB_URL}/ingresar\n¿No recordás la contraseña? ${s.config.PUBLIC_WEB_URL}/recuperar\n\nSi no fuiste vos, no tenés que hacer nada.`,
           });
         }
@@ -266,7 +266,7 @@ export async function authRoutes(app: FastifyInstance, s: Services): Promise<voi
         await s.email.send({
           to: u.email.toLowerCase(),
           kind: 'password_reset',
-          subject: 'Cambiá tu contraseña de VENTI',
+          subject: 'Cambiá tu contraseña de LinTICK',
           text: `Para elegir una contraseña nueva entrá acá:\n${url}\n\nEl enlace vence en 30 minutos y sirve una sola vez. Si no lo pediste, ignorá este mensaje: tu contraseña sigue igual.`,
           meta: { url, token },
         });

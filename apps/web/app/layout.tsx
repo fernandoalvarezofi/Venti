@@ -6,8 +6,8 @@ const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-br
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'VENTI — Entradas para lo que pasa', template: '%s · VENTI' },
-  description: 'Descubrí recitales, fiestas, festivales y obras en Argentina. Comprá tus entradas en VENTI.',
+  title: { default: 'LinTICK — Entradas para lo que pasa', template: '%s · LinTICK' },
+  description: 'Descubrí recitales, fiestas, festivales y obras en Argentina. Comprá tus entradas en LinTICK.',
   robots: { index: false, follow: false },
 };
 

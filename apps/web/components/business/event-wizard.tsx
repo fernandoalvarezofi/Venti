@@ -4,8 +4,10 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { fromLocalInput, parseMoneyToCents, send } from '@/lib/client-api';
 import { CATEGORY_LABELS, formatMoney } from '@/lib/format';
+import { prepareImage, uploadEventImage } from '@/lib/image-prep';
 import type { Venue } from '@/lib/types';
 import { MinusIcon, PlusIcon } from '../icons';
+import { AdmitButton } from '../ticket-button';
 
 export const KIND_LABELS: Record<string, string> = {
   general: 'General',
@@ -51,6 +53,20 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
   const [venueId, setVenueId] = useState(venues[0]?.id ?? '');
   const [venue, setVenue] = useState({ name: '', address: '', city: '', province: '', capacity: '' });
   const [types, setTypes] = useState<TypeDraft[]>([emptyType()]);
+  const [cover, setCover] = useState<{ blob: Blob; preview: string } | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
+
+  async function pickCover(file: File | undefined) {
+    setCoverError(null);
+    if (!file) return;
+    try {
+      const blob = await prepareImage(file);
+      if (cover) URL.revokeObjectURL(cover.preview);
+      setCover({ blob, preview: URL.createObjectURL(blob) });
+    } catch (err) {
+      setCoverError(err instanceof Error ? err.message : 'No se pudo usar esa imagen.');
+    }
+  }
 
   const updateType = (i: number, patch: Partial<TypeDraft>) => setTypes((ts) => ts.map((t, j) => (j === i ? { ...t, ...patch } : t)));
   const updateStage = (i: number, k: number, patch: Partial<StageDraft>) =>
@@ -136,6 +152,13 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
       });
       if (!ev.ok) return setSubmitError(ev.code === 'slug_taken' ? 'Ya tenés un evento con ese nombre en esa fecha.' : `No se pudo crear el evento: ${ev.message}`);
       const eventUrl = `/business/${orgId}/eventos/${ev.data.id}`;
+      if (cover) {
+        const up = await uploadEventImage(orgId, ev.data.id, cover.blob, 'cover');
+        if (!up.ok) {
+          router.push(`${eventUrl}?aviso=${encodeURIComponent(`El evento se creó, pero la portada no se pudo subir: ${up.message}`)}`);
+          return;
+        }
+      }
       for (const t of types) {
         const r = await send('POST', `/v1/organizations/${orgId}/events/${ev.data.id}/ticket-types`, {
           name: t.name.trim(),
@@ -231,6 +254,24 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
             <div>
               {label('description', 'Descripción (opcional)')}
               <textarea id="description" className="field h-36 py-3" value={info.description} onChange={(e) => setInfo({ ...info, description: e.target.value })} maxLength={20000} placeholder="Line-up, apertura de puertas, edad mínima, qué llevar…" />
+            </div>
+            <div>
+              <p className="mb-1.5 text-sm font-semibold">Portada (opcional)</p>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div className="aspect-[16/10] overflow-hidden rounded-[var(--radius-ticket)] bg-ink/[0.06]">
+                  {cover ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cover.preview} alt="Vista previa de la portada" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="grid h-full place-items-center px-4 text-center text-sm text-muted">Va de fondo en la tarjeta del evento. Si no subís una, usamos un afiche de color.</div>
+                  )}
+                </div>
+                <label className="btn btn-ghost h-10 cursor-pointer text-sm">
+                  {cover ? 'Cambiar' : 'Elegir imagen'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/heic" className="sr-only" onChange={(e) => pickCover(e.target.files?.[0])} />
+                </label>
+              </div>
+              {coverError ? <p className="mt-1.5 text-sm text-danger">{coverError}</p> : null}
             </div>
           </div>
         ) : null}
@@ -417,7 +458,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
                 </li>
               ))}
             </ul>
-            <p className="text-sm text-muted">Al comprador se le suma el cargo por servicio de VENTI sobre el total de su compra. Lo ve desglosado antes de pagar.</p>
+            <p className="text-sm text-muted">Al comprador se le suma el cargo por servicio de LinTICK sobre el total de su compra. Lo ve desglosado antes de pagar.</p>
             {submitError ? (
               <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
                 {submitError}
@@ -440,9 +481,9 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
             <button type="button" onClick={() => submit(false)} disabled={pending} className="btn btn-ghost">
               {pending ? 'Guardando…' : 'Guardar borrador'}
             </button>
-            <button type="button" onClick={() => submit(true)} disabled={pending} className="btn btn-primary">
+            <AdmitButton type="button" onClick={() => submit(true)} disabled={pending}>
               {pending ? 'Publicando…' : 'Publicar ahora'}
-            </button>
+            </AdmitButton>
           </div>
         )}
       </div>

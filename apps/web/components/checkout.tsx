@@ -2,10 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { dateParts, formatMoney, posterColors } from '@/lib/format';
+import { dateParts, formatMoney, mediaSrc, posterColors } from '@/lib/format';
 import type { ApiErrorBody, Hold, PublicEventDetail, PublicTicketType, Quote, SaleState } from '@/lib/types';
 import { CalendarIcon, MinusIcon, PinIcon, PlusIcon, TicketIcon, UserIcon } from './icons';
 import { Sheet } from './sheet';
+import { TicketButton } from './ticket-button';
 
 const STATE_LABEL: Record<Exclude<SaleState, 'on_sale'>, string> = {
   sold_out: 'Agotada',
@@ -72,9 +73,9 @@ export function BuyPanel({ event, loggedIn }: { event: PublicEventDetail; logged
           <span />
         </div>
         <div className="p-6 pt-3">
-          <button type="button" onClick={() => setOpen(true)} disabled={!buyable} className="btn btn-primary w-full">
+          <TicketButton type="button" onClick={() => setOpen(true)} disabled={!buyable} className="w-full">
             {buyable ? 'Comprar entradas' : closedText}
-          </button>
+          </TicketButton>
           {buyable ? <p className="mt-3 text-center text-xs text-muted">{availabilityText(event.ticketTypes)} · El precio final lo ves antes de confirmar</p> : null}
         </div>
       </div>
@@ -92,9 +93,9 @@ export function BuyPanel({ event, loggedIn }: { event: PublicEventDetail; logged
               <p className="font-semibold">{closedText}</p>
             )}
           </div>
-          <button type="button" onClick={() => setOpen(true)} disabled={!buyable} className="btn btn-primary px-6">
+          <TicketButton type="button" onClick={() => setOpen(true)} disabled={!buyable}>
             Comprar
-          </button>
+          </TicketButton>
         </div>
       </div>
 
@@ -202,9 +203,20 @@ function CheckoutSheet({ event, loggedIn, onClose }: { event: PublicEventDetail;
     <>
       {/* Encabezado: mini afiche + datos del evento */}
       <div className="flex items-start gap-4 px-5 pb-4 pt-3 sm:px-6 sm:pt-6">
-        <div className="grid size-16 shrink-0 place-content-center rounded-xl text-center leading-none" style={{ background: c.bg, color: c.fg }} aria-hidden>
-          <span className="font-display text-2xl font-extrabold tracking-[-0.05em]">{d.day}</span>
-          <span className="text-[0.65rem] font-bold tracking-[0.1em]">{d.month}</span>
+        <div
+          className="relative grid size-16 shrink-0 place-content-center overflow-hidden rounded-xl text-center leading-none"
+          style={event.coverImage ? { background: '#171411', color: '#fbf8f2' } : { background: c.bg, color: c.fg }}
+          aria-hidden
+        >
+          {event.coverImage ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mediaSrc(event.coverImage.url)} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <span className="absolute inset-0 bg-ink/45" />
+            </>
+          ) : null}
+          <span className="relative font-display text-2xl font-extrabold tracking-[-0.05em]">{d.day}</span>
+          <span className="relative text-[0.65rem] font-bold tracking-[0.1em]">{d.month}</span>
         </div>
         <div className="min-w-0 flex-1">
           <p className="eyebrow truncate">{event.organization.name}</p>
@@ -329,9 +341,9 @@ function CheckoutSheet({ event, loggedIn, onClose }: { event: PublicEventDetail;
             {error}
           </p>
         ) : null}
-        <button type="button" onClick={reserve} disabled={loggedIn ? !canReserve : false} className="btn btn-primary w-full">
+        <TicketButton type="button" onClick={reserve} disabled={loggedIn ? !canReserve : false} className="w-full">
           {cta}
-        </button>
+        </TicketButton>
         <p className="mt-2.5 text-center text-xs text-muted">Apartamos tus entradas 10 minutos para que completes el pago.</p>
       </div>
     </>

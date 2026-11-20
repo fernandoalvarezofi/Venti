@@ -4,6 +4,7 @@ import { PageTitle, StatCard, StatusBadge, StockBar } from '@/components/busines
 import { EmptyState, ErrorState } from '@/components/states';
 import { getOverview } from '@/lib/api';
 import { dateParts } from '@/lib/format';
+import { AdmitLink } from '@/components/ticket-button';
 
 export const metadata: Metadata = { title: 'Resumen' };
 
@@ -23,9 +24,7 @@ export default async function OrgDashboard({ params }: { params: Promise<{ orgId
         eyebrow="Resumen"
         title="Tus eventos"
         actions={
-          <Link href={`/business/${orgId}/eventos/nuevo`} className="btn btn-primary">
-            Crear evento
-          </Link>
+          <AdmitLink href={`/business/${orgId}/eventos/nuevo`}>Crear evento</AdmitLink>
         }
       />
 

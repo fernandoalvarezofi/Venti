@@ -39,7 +39,7 @@ const SCAN_MESSAGES: Record<ScanResultCode, string> = {
   admitted: 'Ingreso habilitado.',
   already_used: 'Esta entrada ya ingresó.',
   invalid_signature: 'QR falsificado o alterado.',
-  malformed: 'El código no es una entrada VENTI.',
+  malformed: 'El código no es una entrada LinTICK.',
   wrong_event: 'La entrada es de otro evento.',
   not_found: 'Entrada inexistente.',
   outdated_qr: 'QR desactualizado: el titular regeneró su entrada. Pedí el QR vigente.',
@@ -180,7 +180,7 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
             subject: `Tenés ${b.quantity === 1 ? 'una entrada' : `${b.quantity} entradas`} para ${ticketIds.eventTitle}`,
             text: owner
               ? `Ya están en "Mis entradas": ${s.config.PUBLIC_WEB_URL}/mis-entradas`
-              : `Para recibirlas, creá tu cuenta en VENTI con este mismo email y confirmalo: ${s.config.PUBLIC_WEB_URL}/registrarse?next=/mis-entradas
+              : `Para recibirlas, creá tu cuenta en LinTICK con este mismo email y confirmalo: ${s.config.PUBLIC_WEB_URL}/registrarse?next=/mis-entradas
 Si ya tenés cuenta, ingresá y confirmá tu email.`,
           })
           .catch((err) => req.log.warn({ err }, 'No se pudo avisar por email de una cortesía'));
@@ -266,7 +266,7 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
     },
   );
 
-  // ─── Control de acceso online (base de VENTI ACCESS) ───
+  // ─── Control de acceso online (base de LinTICK Access) ───
   r.post(
     '/v1/organizations/:orgId/events/:eventId/check-in',
     {

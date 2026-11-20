@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AddTicketTypeForm, CourtesyForm, EditEventForm, EventActions, TicketTypeCard } from '@/components/business/event-manage';
+import { ContentEditor, MediaEditor } from '@/components/business/content-editor';
 import { StaffManager } from '@/components/business/staff-manager';
 import { PageTitle, Panel, StatCard, StatusBadge } from '@/components/business/ui';
 import { ErrorState } from '@/components/states';
@@ -72,6 +73,15 @@ export default async function ManageEventPage({
           <StatCard label="Ingresaron" value={s.checkedIn.toLocaleString('es-AR')} hint={`Venta: ${formatMoney(s.grossCents)}`} />
         </div>
       ) : null}
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <Panel title="Imágenes" description="La portada aparece de fondo en la tarjeta del evento.">
+          <MediaEditor orgId={orgId} event={e} />
+        </Panel>
+        <Panel title="Contenido" description="Line-up, qué hay en el evento, datos útiles y enlaces.">
+          <ContentEditor orgId={orgId} event={e} />
+        </Panel>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <Panel title="Entradas y precios" description="Stock en tiempo real. Las etapas se venden en orden.">

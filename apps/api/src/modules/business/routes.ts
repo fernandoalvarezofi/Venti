@@ -26,6 +26,7 @@ import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireOrgPermission, type OrgAccess, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
 import { maskEmail, protectDocument } from '../../lib/identity.ts';
+import { EventContentFields } from '../events/content.ts';
 import { releaseEventHoldsTx } from '../inventory/service.ts';
 
 const OrgParams = z.object({ orgId: z.string().uuid() });
@@ -175,6 +176,7 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
             startsAt: z.coerce.date(),
             endsAt: z.coerce.date(),
             coverImageUrl: z.string().url().max(2048).nullable(),
+            ...EventContentFields,
           })
           .partial()
           .refine((b) => Object.keys(b).length > 0, 'Indicá al menos un dato para cambiar.'),
