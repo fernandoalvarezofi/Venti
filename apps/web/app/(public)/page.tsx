@@ -27,9 +27,9 @@ export default async function Home() {
           <Mascot pose="jump" size={80} className="-mt-2 shrink-0 lg:hidden" priority />
         </div>
         <h1 className="mt-4 max-w-4xl text-[clamp(2.8rem,8vw,6.2rem)] font-extrabold leading-[0.92] tracking-[-0.045em]">
-          Lo que pasa,
+          Tu próximo <span className="text-highlight">gran momento</span>
           <br />
-          <span className="text-highlight">con tu entrada</span> en el bolsillo.
+          empieza acá.
         </h1>
         <div className="relative isolate mt-10 max-w-4xl">
           <div aria-hidden className="search-aura" />
