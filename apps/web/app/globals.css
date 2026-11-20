@@ -15,6 +15,8 @@
   --color-line-strong: rgb(23 20 17 / 0.22);
   --color-accent: #d23a1f;
   --color-accent-ink: #a82c15;
+  /* Naranja claro del banner ("lugar."): para palabras destacadas en los títulos. */
+  --color-highlight: #f8942a;
   --color-success: #1d6b3a;
   --color-warn: #8a5a00;
   --color-danger: #b42318;
@@ -987,7 +989,7 @@
   color: var(--hz-text);
 }
 .hz-muted { color: var(--hz-muted); }
-.hz-ghost { color: var(--color-accent); }
+.hz-ghost { color: var(--color-highlight); }
 /* Cuadrícula fina (como un cuaderno técnico) */
 .hz-grid {
   background-image:
@@ -1221,7 +1223,7 @@
   --hz-text: var(--color-ink);
   --hz-muted: rgb(23 20 17 / 0.64);
 }
-.hz-light .hz-ghost { color: var(--color-accent); }
+.hz-light .hz-ghost { color: var(--color-highlight); }
 .hz-light .hz-num { -webkit-text-stroke-color: rgb(23 20 17 / 0.3); }
 .hz-light .hand { color: var(--color-accent); }
 .hz-light .hz-mark { background: linear-gradient(transparent 55%, rgb(210 58 31 / 0.28) 55%, rgb(210 58 31 / 0.28) 92%, transparent 92%); }

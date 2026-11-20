@@ -29,7 +29,7 @@ export default async function Home() {
         <h1 className="mt-4 max-w-4xl text-[clamp(2.8rem,8vw,6.2rem)] font-extrabold leading-[0.92] tracking-[-0.045em]">
           Lo que pasa,
           <br />
-          <span className="text-accent">con tu entrada</span> en el bolsillo.
+          <span className="text-highlight">con tu entrada</span> en el bolsillo.
         </h1>
         <div className="relative isolate mt-10 max-w-4xl">
           <div aria-hidden className="search-aura" />
