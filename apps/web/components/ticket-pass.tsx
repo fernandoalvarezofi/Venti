@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { dateParts, formatMoney } from '@/lib/format';
+import { dateParts, formatMoney, ticketCode } from '@/lib/format';
 import type { Ticket } from '@/lib/types';
 import { RefreshIcon } from './icons';
 
@@ -63,13 +63,16 @@ export function TicketPass({ ticket, qrSvg }: { ticket: Ticket; qrSvg: string | 
             <dd className="font-semibold tabular-nums">{ticket.priceCents === 0 ? 'Cortesía' : formatMoney(ticket.priceCents, ticket.currency)}</dd>
           </div>
         </dl>
-        <p className="mt-5 font-mono text-[0.7rem] text-muted">#{ticket.id.slice(0, 8).toUpperCase()}</p>
       </div>
 
       <div className="vcut border-t border-dashed border-line-strong p-6 sm:border-l sm:border-t-0 sm:p-7">
         {qrSvg && ticket.status === 'valid' ? (
           <div className="flex flex-col items-center">
             <div className="size-44 rounded-xl bg-white p-3" role="img" aria-label="Código QR de la entrada" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+            <p className="mt-3 text-center">
+              <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted">Entrada Nº</span>
+              <span className="font-mono text-lg font-bold tracking-[0.08em]">{ticketCode(ticket.id)}</span>
+            </p>
             {confirming ? (
               <div className="mt-4 w-44 text-center text-xs">
                 <p className="text-muted">El QR actual deja de servir. ¿Seguro?</p>
@@ -94,7 +97,12 @@ export function TicketPass({ ticket, qrSvg }: { ticket: Ticket; qrSvg: string | 
             ) : null}
           </div>
         ) : (
-          <div className="grid size-44 place-items-center rounded-xl bg-ink/5 p-4 text-center text-sm text-muted">Esta entrada ya no habilita el ingreso.</div>
+          <div className="flex flex-col items-center">
+            <div className="grid size-44 place-items-center rounded-xl bg-ink/5 p-4 text-center text-sm text-muted">
+              {ticket.status === 'used' && ticket.usedAt ? `Ingresó el ${dateParts(ticket.usedAt).long} a las ${dateParts(ticket.usedAt).time} h.` : 'Esta entrada ya no habilita el ingreso.'}
+            </div>
+            <p className="mt-3 font-mono text-sm font-bold tracking-[0.08em] text-muted">Nº {ticketCode(ticket.id)}</p>
+          </div>
         )}
       </div>
     </article>

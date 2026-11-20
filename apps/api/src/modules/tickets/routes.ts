@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
+import { assertCanScanEvent } from '../../lib/access.ts';
 import { protectDocument } from '../../lib/identity.ts';
 
 const TicketDto = z.object({
@@ -282,24 +283,7 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
     },
     async (req) => {
       const access = await requireOrgPermission(s.db, req, req.params.orgId, 'access.scan');
-      // H4: el personal de acceso sólo escanea eventos donde tiene una asignación vigente (evento + turno).
-      if (access.role === 'access_staff') {
-        const now = s.now();
-        const [assignment] = await inOrg(s.db, access, (tx) =>
-          tx
-            .select({ id: staffAssignments.id })
-            .from(staffAssignments)
-            .where(
-              and(
-                eq(staffAssignments.eventId, req.params.eventId),
-                eq(staffAssignments.userId, access.userId),
-                lte(staffAssignments.validFrom, now),
-                gt(staffAssignments.validUntil, now),
-              ),
-            ),
-        );
-        if (!assignment) throw new AppError(403, 'not_assigned', 'No tenés un turno asignado en este evento ahora.');
-      }
+      await assertCanScanEvent(s.db, access, req.params.eventId, s.now());
       const verdict = verifyTicketQr(req.body.qr, publicKey);
       if (!verdict.ok) {
         const result: ScanResultCode = verdict.reason === 'bad_signature' ? 'invalid_signature' : 'malformed';

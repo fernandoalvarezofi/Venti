@@ -27,8 +27,11 @@ export default async function Home() {
           <div aria-hidden className="search-aura" />
           <SearchBar />
         </div>
-        <CategoryCarousel />
       </section>
+
+      <div className="cat-ribbon-wrap">
+        <CategoryCarousel />
+      </div>
 
       <section className="mx-auto max-w-6xl px-4 sm:px-6" aria-labelledby="proximos">
         <div className="mb-6 flex items-end justify-between gap-4 border-t border-line pt-8">

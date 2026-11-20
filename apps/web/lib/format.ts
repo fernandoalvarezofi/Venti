@@ -105,3 +105,9 @@ export const LINEUP_ROLE_PLURALS: Record<string, string> = {
   dj: 'DJs',
   host: 'Conducción',
 };
+
+/** Número de entrada legible (primeros 8 caracteres del identificador): "A1B2-C3D4". */
+export function ticketCode(id: string): string {
+  const h = id.replace(/-/g, '').slice(0, 8).toUpperCase();
+  return `${h.slice(0, 4)}-${h.slice(4)}`;
+}

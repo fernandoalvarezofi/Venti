@@ -20,6 +20,7 @@ import { healthRoutes } from './modules/health/routes.ts';
 import { inventoryRoutes } from './modules/inventory/routes.ts';
 import { organizationRoutes } from './modules/organizations/routes.ts';
 import { ticketRoutes } from './modules/tickets/routes.ts';
+import { accessRoutes } from './modules/access/routes.ts';
 import { businessRoutes } from './modules/business/routes.ts';
 
 const LOGO_SVG =
@@ -116,6 +117,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
   await mediaRoutes(app, services);
   await inventoryRoutes(app, services);
   await ticketRoutes(app, services);
+  await accessRoutes(app, services);
   await businessRoutes(app, services);
 
   return {

@@ -245,3 +245,28 @@ export interface StaffShift {
   validFrom: string;
   validUntil: string;
 }
+
+export interface AccessEvent {
+  orgId: string;
+  orgName: string;
+  eventId: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  venueName: string | null;
+  shift: { from: string; until: string } | null;
+}
+
+export interface CheckinSummary {
+  admitted: number;
+  expected: number;
+  recent: { ticketId: string; holderName: string; ticketTypeName: string; at: string; gate: string | null }[];
+}
+
+export type ScanResultCode = 'admitted' | 'already_used' | 'invalid_signature' | 'malformed' | 'wrong_event' | 'not_found' | 'outdated_qr' | 'not_valid';
+
+export interface ScanResponse {
+  result: ScanResultCode;
+  message: string;
+  ticket: { id: string; holderName: string; holderDocLast3: string | null; ticketTypeName: string; status: string; usedAt: string | null } | null;
+}

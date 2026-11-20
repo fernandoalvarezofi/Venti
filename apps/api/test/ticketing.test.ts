@@ -206,6 +206,37 @@ describe('cortesías, mis entradas y control de acceso', () => {
     const detail = await call(ctx, 'GET', `/v1/me/tickets/${t2.id}`, { token: guest.token });
     expect(detail.body.history.map((h: { type: string }) => h.type)).toEqual(['issued', 'qr_rotated', 'checked_in']);
     expect(detail.body.qr).toBeNull(); // ya usada: no expone QR
+
+    // Pantalla de control: contador y últimos ingresos.
+    const summary = await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/check-in/summary`, { token: owner.token });
+    expect(summary.status).toBe(200);
+    expect(summary.body).toMatchObject({ admitted: 2, expected: 2 });
+    expect(summary.body.recent).toHaveLength(2);
+    expect(summary.body.recent[1]).toMatchObject({ ticketId: t1.id, gate: 'Puerta 1' });
+    expect((await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/check-in/summary`, { token: guest.token })).status).toBe(404);
+
+    // Lista de eventos para controlar: el dueño la ve; un invitado sin rol, no.
+    const accessList = await call(ctx, 'GET', '/v1/me/access-events', { token: owner.token });
+    expect(accessList.body.items.map((e: { eventId: string }) => e.eventId)).toContain(eventId);
+    expect((await call(ctx, 'GET', '/v1/me/access-events', { token: guest.token })).body.items).toEqual([]);
+  });
+
+  it('dos escaneos simultáneos del mismo QR: sólo uno entra', async () => {
+    const owner = await registerUser(ctx);
+    const guest = await registerUser(ctx);
+    const { orgId, eventId, ticketTypeId } = await publishedEvent(ctx, owner.token);
+    const issued = await call(ctx, 'POST', `/v1/organizations/${orgId}/events/${eventId}/courtesies`, {
+      token: owner.token,
+      body: { ticketTypeId, quantity: 1, holderName: 'Ana Pérez', holderEmail: guest.email },
+    });
+    expect(issued.status).toBe(201);
+    const t = (await call(ctx, 'GET', '/v1/me/tickets', { token: guest.token })).body.items[0];
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, i) => call(ctx, 'POST', `/v1/organizations/${orgId}/events/${eventId}/check-in`, { token: owner.token, body: { qr: t.qr, gate: `Puerta ${i}` } })),
+    );
+    const codes = results.map((r) => r.body.result).sort();
+    expect(codes.filter((c) => c === 'admitted')).toHaveLength(1);
+    expect(codes.filter((c) => c === 'already_used')).toHaveLength(7);
   });
 
   it('nadie más ve las entradas de otro comprador', async () => {

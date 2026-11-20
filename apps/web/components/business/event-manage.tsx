@@ -55,9 +55,14 @@ export function EventActions({ orgId, event }: { orgId: string; event: AdminEven
     <div>
       <div className="flex flex-wrap gap-2">
         {event.status === 'published' ? (
-          <a href={`/eventos/${event.id}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
-            Ver en Lintick ↗
-          </a>
+          <>
+            <a href={`/acceso/${orgId}/${event.id}`} className="btn btn-ink">
+              Control de ingreso
+            </a>
+            <a href={`/eventos/${event.id}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
+              Ver en Lintick ↗
+            </a>
+          </>
         ) : null}
         {event.status === 'draft' ? (
           <button type="button" disabled={a.pending} onClick={() => a.run(() => send('POST', `${base}/publish`), 'Evento publicado: ya está a la venta.')} className="btn-admit">
