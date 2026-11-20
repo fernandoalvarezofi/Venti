@@ -7,7 +7,7 @@ import { CategoryMosaic } from '@/components/home/category-mosaic';
 import { FeatureSteps } from '@/components/home/features';
 import { HowItWorks } from '@/components/home/how-it-works';
 import { Essentials, Faq, FinalCta, Payouts, Support } from '@/components/home/organizers';
-import { Mascot } from '@/components/mascot';
+import { HeroRunner } from '@/components/hero-runner';
 import { ArrowRightIcon } from '@/components/icons';
 import { SearchBar } from '@/components/search-bar';
 import { EmptyState, ErrorState } from '@/components/states';
@@ -20,19 +20,11 @@ export default async function Home() {
     <>
       <HomeBanner />
 
-      <section className="relative mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6 sm:pt-14">
-        <Mascot pose="jump" size={210} className="pointer-events-none absolute right-6 top-28 hidden lg:block xl:right-2" priority />
-        <div className="flex items-start justify-between gap-4">
-          <p className="eyebrow">Recitales · fiestas · festivales · teatro</p>
-          <Mascot pose="jump" size={80} className="-mt-2 shrink-0 lg:hidden" priority />
-        </div>
-        <h1 className="mt-4 max-w-4xl text-[clamp(2.8rem,8vw,6.2rem)] font-extrabold leading-[0.92] tracking-[-0.045em]">
-          Tu próximo <span className="text-highlight">gran momento</span>
-          <br />
-          empieza con nosotros.
-        </h1>
-        <div className="relative isolate mt-10 max-w-4xl">
+      <section className="relative mx-auto max-w-6xl px-4 pb-14 pt-40 sm:px-6 sm:pt-52">
+        <h1 className="sr-only">Lintick: entradas para recitales, fiestas, festivales y teatro</h1>
+        <div className="relative isolate max-w-4xl">
           <div aria-hidden className="search-aura" />
+          <HeroRunner />
           <SearchBar />
         </div>
       </section>
