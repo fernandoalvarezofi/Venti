@@ -1,0 +1,21 @@
+# Alternativa a `npm run db:start` cuando Docker esté disponible (requiere WSL2 en Windows).
+# Las migraciones se aplican con: DATABASE_OWNER_URL=postgres://postgres:venti_dev_owner@localhost:54320/venti npm run db:migrate
+# y luego: ALTER ROLE venti_app LOGIN PASSWORD '...';
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_PASSWORD: venti_dev_owner
+      POSTGRES_DB: venti
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+    ports:
+      - '54320:5432'
+    volumes:
+      - venti-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      retries: 10
+
+volumes:
+  venti-pg:

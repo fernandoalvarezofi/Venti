@@ -1,0 +1,8 @@
+{
+  "name": "@venti/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "description": "Reglas de negocio puras de VENTI (sin I/O)."
+}

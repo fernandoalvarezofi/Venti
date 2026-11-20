@@ -1,0 +1,443 @@
+import { sql } from 'drizzle-orm';
+import {
+  bigint,
+  boolean,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
+import { CURRENCIES, ORG_ROLES, TICKET_KINDS, TICKET_STATUSES } from '@venti/domain';
+
+/*
+ * Convenciones:
+ * - ids UUID generados por la aplicación (permiten fijar el contexto RLS antes del INSERT).
+ * - dinero en centavos (bigint, modo number: los importes reales caben en 2^53).
+ * - toda tabla tenant tiene organization_id NOT NULL y RLS forzado (ver migración de RLS).
+ */
+
+const ts = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
+const createdAt = () => ts('created_at').notNull().defaultNow();
+const updatedAt = () => ts('updated_at').notNull().defaultNow();
+const cents = (name: string) => bigint(name, { mode: 'number' });
+
+export const orgRole = pgEnum('org_role', ORG_ROLES);
+export const ticketKind = pgEnum('ticket_kind', TICKET_KINDS);
+export const ticketStatus = pgEnum('ticket_status', TICKET_STATUSES);
+export const currency = pgEnum('currency', CURRENCIES);
+export const eventStatus = pgEnum('event_status', ['draft', 'published', 'cancelled', 'finished']);
+export const holdStatus = pgEnum('hold_status', ['active', 'converted', 'expired', 'released']);
+export const orderStatus = pgEnum('order_status', [
+  'pending_payment',
+  'paid',
+  'cancelled',
+  'expired',
+  'refunded',
+  'partially_refunded',
+]);
+export const userStatus = pgEnum('user_status', ['active', 'suspended']);
+
+// ───────────────────────────── Identidad (global, sin RLS) ─────────────────────────────
+
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey(),
+    email: text('email').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    fullName: text('full_name').notNull(),
+    phone: text('phone'),
+    status: userStatus('status').notNull().default('active'),
+    emailVerifiedAt: ts('email_verified_at'),
+    mfaSecretEnc: text('mfa_secret_enc'),
+    mfaEnabledAt: ts('mfa_enabled_at'),
+    mfaLastCounter: bigint('mfa_last_counter', { mode: 'number' }),
+    failedLoginCount: integer('failed_login_count').notNull().default(0),
+    lockedUntil: ts('locked_until'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('users_email_lower_uq').on(sql`lower(${t.email})`),
+    check('users_email_format', sql`${t.email} ~ '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'`),
+  ],
+);
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    mfaVerified: boolean('mfa_verified').notNull().default(false),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    createdAt: createdAt(),
+    lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
+    expiresAt: ts('expires_at').notNull(),
+    revokedAt: ts('revoked_at'),
+  },
+  (t) => [uniqueIndex('sessions_token_hash_uq').on(t.tokenHash), index('sessions_user_idx').on(t.userId)],
+);
+
+// ───────────────────────────── Organizaciones y white label ─────────────────────────────
+
+export const organizations = pgTable(
+  'organizations',
+  {
+    id: uuid('id').primaryKey(),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    legalName: text('legal_name'),
+    taxId: text('tax_id'), // CUIT
+    status: text('status', { enum: ['active', 'suspended'] }).notNull().default('active'),
+    settings: jsonb('settings').notNull().default({}),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex('organizations_slug_uq').on(t.slug)],
+);
+
+export const memberships = pgTable(
+  'memberships',
+  {
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: orgRole('role').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.userId] }), index('memberships_user_idx').on(t.userId)],
+);
+
+export const brands = pgTable(
+  'brands',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    theme: jsonb('theme').notNull().default({}),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex('brands_org_slug_uq').on(t.organizationId, t.slug)],
+);
+
+export const domains = pgTable(
+  'domains',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    brandId: uuid('brand_id')
+      .notNull()
+      .references(() => brands.id, { onDelete: 'cascade' }),
+    hostname: text('hostname').notNull(),
+    verificationToken: text('verification_token').notNull(),
+    verifiedAt: ts('verified_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('domains_hostname_uq').on(sql`lower(${t.hostname})`)],
+);
+
+// ───────────────────────────── Eventos ─────────────────────────────
+
+export const venues = pgTable(
+  'venues',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    address: text('address').notNull(),
+    city: text('city').notNull(),
+    province: text('province').notNull(),
+    country: text('country').notNull().default('AR'),
+    latitude: text('latitude'),
+    longitude: text('longitude'),
+    capacity: integer('capacity'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('venues_org_idx').on(t.organizationId)],
+);
+
+export const events = pgTable(
+  'events',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    brandId: uuid('brand_id').references(() => brands.id, { onDelete: 'set null' }),
+    venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'restrict' }),
+    slug: text('slug').notNull(),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    category: text('category').notNull(),
+    status: eventStatus('status').notNull().default('draft'),
+    startsAt: ts('starts_at').notNull(),
+    endsAt: ts('ends_at').notNull(),
+    timezone: text('timezone').notNull().default('America/Argentina/Buenos_Aires'),
+    coverImageUrl: text('cover_image_url'),
+    publishedAt: ts('published_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('events_org_slug_uq').on(t.organizationId, t.slug),
+    index('events_public_idx').on(t.status, t.startsAt),
+    check('events_dates', sql`${t.endsAt} > ${t.startsAt}`),
+  ],
+);
+
+export const sectors = pgTable(
+  'sectors',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    capacity: integer('capacity').notNull(),
+    seated: boolean('seated').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('sectors_event_name_uq').on(t.eventId, t.name), check('sectors_capacity', sql`${t.capacity} > 0`)],
+);
+
+export const ticketTypes = pgTable(
+  'ticket_types',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    sectorId: uuid('sector_id').references(() => sectors.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    kind: ticketKind('kind').notNull(),
+    currency: currency('currency').notNull().default('ARS'),
+    capacity: integer('capacity').notNull(),
+    sold: integer('sold').notNull().default(0),
+    held: integer('held').notNull().default(0),
+    maxPerOrder: integer('max_per_order').notNull().default(10),
+    salesStartAt: ts('sales_start_at'),
+    salesEndAt: ts('sales_end_at'),
+    /** Oculto del catálogo: sólo se vende con link o código (preventas exclusivas, corporativas). */
+    hidden: boolean('hidden').notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('ticket_types_event_idx').on(t.eventId),
+    // Invariante de stock garantizada por la base: nunca se vende ni reserva de más.
+    check('ticket_types_stock', sql`${t.sold} >= 0 AND ${t.held} >= 0 AND ${t.sold} + ${t.held} <= ${t.capacity}`),
+    check('ticket_types_max_per_order', sql`${t.maxPerOrder} BETWEEN 1 AND 100`),
+  ],
+);
+
+export const priceStages = pgTable(
+  'price_stages',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    ticketTypeId: uuid('ticket_type_id')
+      .notNull()
+      .references(() => ticketTypes.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    position: integer('position').notNull(),
+    priceCents: cents('price_cents').notNull(),
+    startsAt: ts('starts_at'),
+    endsAt: ts('ends_at'),
+    quantityLimit: integer('quantity_limit'),
+    soldCount: integer('sold_count').notNull().default(0),
+    heldCount: integer('held_count').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('price_stages_position_uq').on(t.ticketTypeId, t.position),
+    check('price_stages_price', sql`${t.priceCents} >= 0`),
+    check(
+      'price_stages_limit',
+      sql`${t.soldCount} >= 0 AND ${t.heldCount} >= 0 AND (${t.quantityLimit} IS NULL OR ${t.soldCount} + ${t.heldCount} <= ${t.quantityLimit})`,
+    ),
+  ],
+);
+
+// ───────────────────────────── Reservas, órdenes, tickets ─────────────────────────────
+
+export const holds = pgTable(
+  'holds',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: holdStatus('status').notNull().default('active'),
+    expiresAt: ts('expires_at').notNull(),
+    createdAt: createdAt(),
+    closedAt: ts('closed_at'),
+  },
+  (t) => [
+    index('holds_expiry_idx').on(t.expiresAt).where(sql`${t.status} = 'active'`),
+    index('holds_user_idx').on(t.userId),
+  ],
+);
+
+export const holdItems = pgTable(
+  'hold_items',
+  {
+    holdId: uuid('hold_id')
+      .notNull()
+      .references(() => holds.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    ticketTypeId: uuid('ticket_type_id')
+      .notNull()
+      .references(() => ticketTypes.id, { onDelete: 'restrict' }),
+    priceStageId: uuid('price_stage_id').references(() => priceStages.id, { onDelete: 'restrict' }),
+    quantity: integer('quantity').notNull(),
+    unitPriceCents: cents('unit_price_cents').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.holdId, t.ticketTypeId] }), check('hold_items_qty', sql`${t.quantity} > 0`)],
+);
+
+export const orders = pgTable(
+  'orders',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'restrict' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'restrict' }),
+    buyerUserId: uuid('buyer_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    holdId: uuid('hold_id').references(() => holds.id, { onDelete: 'set null' }),
+    status: orderStatus('status').notNull().default('pending_payment'),
+    currency: currency('currency').notNull(),
+    subtotalCents: cents('subtotal_cents').notNull(),
+    feeCents: cents('fee_cents').notNull().default(0),
+    totalCents: cents('total_cents').notNull(),
+    idempotencyKey: text('idempotency_key').notNull(),
+    paidAt: ts('paid_at'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('orders_idempotency_uq').on(t.buyerUserId, t.idempotencyKey),
+    index('orders_org_idx').on(t.organizationId, t.createdAt),
+    check('orders_total', sql`${t.totalCents} = ${t.subtotalCents} + ${t.feeCents} AND ${t.totalCents} >= 0`),
+  ],
+);
+
+export const tickets = pgTable(
+  'tickets',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'restrict' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'restrict' }),
+    ticketTypeId: uuid('ticket_type_id')
+      .notNull()
+      .references(() => ticketTypes.id, { onDelete: 'restrict' }),
+    orderId: uuid('order_id').references(() => orders.id, { onDelete: 'restrict' }),
+    ownerUserId: uuid('owner_user_id').references(() => users.id, { onDelete: 'restrict' }),
+    /** Titular nominal (puede no tener cuenta todavía, p. ej. cortesía enviada por email). */
+    holderName: text('holder_name').notNull(),
+    holderEmail: text('holder_email').notNull(),
+    holderDocument: text('holder_document'),
+    status: ticketStatus('status').notNull().default('valid'),
+    /** Versión del QR: se incrementa al regenerar el QR; el anterior deja de validar. */
+    qrVersion: integer('qr_version').notNull().default(1),
+    previousTicketId: uuid('previous_ticket_id'),
+    priceCents: cents('price_cents').notNull(),
+    currency: currency('currency').notNull(),
+    issuedAt: ts('issued_at').notNull().defaultNow(),
+    usedAt: ts('used_at'),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index('tickets_owner_idx').on(t.ownerUserId),
+    index('tickets_event_idx').on(t.eventId, t.status),
+    index('tickets_holder_email_idx').on(sql`lower(${t.holderEmail})`),
+    // Un ticket anulado tiene, como mucho, un sucesor.
+    uniqueIndex('tickets_previous_uq').on(t.previousTicketId),
+  ],
+);
+
+/** Historial inmutable de cada ticket (emisión, check-in, transferencia, anulación…). */
+export const ticketEvents = pgTable(
+  'ticket_events',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'restrict' }),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => tickets.id, { onDelete: 'restrict' }),
+    type: text('type').notNull(),
+    actorUserId: uuid('actor_user_id'),
+    data: jsonb('data').notNull().default({}),
+    occurredAt: ts('occurred_at').notNull().defaultNow(),
+  },
+  (t) => [index('ticket_events_ticket_idx').on(t.ticketId, t.occurredAt)],
+);
+
+/** Auditoría de acciones administrativas y financieras. Solo inserción. */
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'restrict' }),
+    actorUserId: uuid('actor_user_id'),
+    action: text('action').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    data: jsonb('data').notNull().default({}),
+    ip: text('ip'),
+    occurredAt: ts('occurred_at').notNull().defaultNow(),
+  },
+  (t) => [index('audit_logs_org_idx').on(t.organizationId, t.occurredAt)],
+);
