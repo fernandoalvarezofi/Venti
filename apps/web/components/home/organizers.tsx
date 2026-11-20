@@ -141,7 +141,7 @@ export function Support() {
               <br />
               personalizada
             </h3>
-            <div className="relative mt-6 -rotate-2 rounded-xl bg-paper p-4 text-ink">
+            <div className="relative mt-6 -rotate-2 rounded-xl bg-white p-4 text-ink shadow-[0_10px_24px_-14px_rgb(23_20_17/0.45)]">
               <span className="absolute -right-2 -top-3 rotate-6 rounded-md bg-accent px-2 py-0.5 text-[0.6rem] font-extrabold uppercase tracking-[0.1em] text-white">Próximamente</span>
               <p className="flex items-center gap-2 text-sm font-semibold">
                 <span className="grid size-7 place-items-center rounded-md bg-ink text-paper">◷</span> Reunión de arranque
@@ -150,12 +150,12 @@ export function Support() {
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               {['Primeros pasos', 'Crear evento', 'Cobros', 'Equipo de acceso'].map((t) => (
-                <span key={t} className="rounded-full px-2.5 py-1 text-[0.7rem] font-semibold shadow-[inset_0_0_0_1px_rgb(244_239_230/0.25)]">
+                <span key={t} className="rounded-full px-2.5 py-1 text-[0.7rem] font-semibold shadow-[inset_0_0_0_1px_rgb(23_20_17/0.2)]">
                   {t}
                 </span>
               ))}
             </div>
-            <p className="mt-auto border-t border-dashed border-paper/20 pt-4 text-sm text-paper/55">Muy pronto vas a poder coordinarla desde tu panel.</p>
+            <p className="mt-auto border-t border-dashed border-ink/15 pt-4 text-sm text-muted">Muy pronto vas a poder coordinarla desde tu panel.</p>
           </article>
 
           {/* Soporte */}
@@ -167,12 +167,12 @@ export function Support() {
             </h3>
             <div className="mt-6 space-y-2.5 text-[0.8rem]">
               <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-white">¿Puedo cobrar con Mercado Pago?</p>
-              <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-sm bg-paper px-3 py-2 text-ink">Sí: conectás tu cuenta y cada venta se acredita directo ✓</p>
+              <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-sm bg-ink/[0.06] px-3 py-2 text-ink">Sí: conectás tu cuenta y cada venta se acredita directo ✓</p>
               <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm bg-accent px-3 py-2 text-white">¿Y si no hay señal en la puerta?</p>
-              <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-sm bg-paper px-3 py-2 text-ink">El escáner valida igual y sincroniza después ✓</p>
+              <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-sm bg-ink/[0.06] px-3 py-2 text-ink">El escáner valida igual y sincroniza después ✓</p>
             </div>
-            <a href="#preguntas" className="mt-auto flex items-center justify-between border-t border-dashed border-paper/20 pt-4 text-sm font-semibold">
-              Ver preguntas frecuentes <span className="grid size-8 place-items-center rounded-lg bg-paper text-ink">→</span>
+            <a href="#preguntas" className="mt-auto flex items-center justify-between border-t border-dashed border-ink/15 pt-4 text-sm font-semibold">
+              Ver preguntas frecuentes <span className="grid size-8 place-items-center rounded-lg bg-ink text-paper">→</span>
             </a>
           </article>
 
@@ -183,7 +183,7 @@ export function Support() {
               <br />
               en nuestra guía
             </h3>
-            <div className="mt-6 overflow-hidden rounded-xl bg-[#14110f] text-[0.72rem] shadow-[0_0_0_1px_rgb(244_239_230/0.12)]">
+            <div className="mt-6 overflow-hidden rounded-xl bg-[#14110f] text-[0.72rem] text-paper shadow-[0_0_0_1px_rgb(244_239_230/0.12)]">
               <p className="border-b border-paper/10 px-3 py-1.5 font-mono text-[0.62rem] text-paper/45">lintick / ayuda</p>
               <div className="grid grid-cols-[5.5rem_1fr]">
                 <ul className="space-y-1 border-r border-paper/10 p-2 text-paper/55">
@@ -204,8 +204,8 @@ export function Support() {
                 </div>
               </div>
             </div>
-            <Link href="/ayuda" className="mt-auto flex items-center justify-between border-t border-dashed border-paper/20 pt-4 text-sm font-semibold">
-              Ir a la guía <span className="grid size-8 place-items-center rounded-lg bg-paper text-ink">→</span>
+            <Link href="/ayuda" className="mt-auto flex items-center justify-between border-t border-dashed border-ink/15 pt-4 text-sm font-semibold">
+              Ir a la guía <span className="grid size-8 place-items-center rounded-lg bg-ink text-paper">→</span>
             </Link>
           </article>
         </div>

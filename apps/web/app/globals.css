@@ -1124,12 +1124,14 @@
 .hz-pin-ink { background: radial-gradient(circle at 35% 30%, #6e655b, var(--color-ink) 60%); }
 /* Tarjetas con borde punteado (Te acompañamos) */
 .hz-dashed {
+  /* Tarjetas claras sobre la sección oscura (contraste), con borde punteado interior. */
   border-radius: 14px;
+  color: var(--color-ink);
   background:
-    radial-gradient(70% 50% at 30% 0%, rgb(210 58 31 / 0.22), transparent 70%),
-    #1f1b18;
-  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.08);
-  outline: 1.5px dashed rgb(244 239 230 / 0.22);
+    radial-gradient(70% 45% at 25% 0%, rgb(248 148 42 / 0.16), transparent 70%),
+    var(--color-surface);
+  box-shadow: 0 24px 50px -28px rgb(0 0 0 / 0.75);
+  outline: 1.5px dashed rgb(23 20 17 / 0.2);
   outline-offset: -8px;
 }
 /* Preguntas frecuentes (acordeón nativo) */
