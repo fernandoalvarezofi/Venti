@@ -55,9 +55,10 @@ export function EventCard({ event }: { event: PublicEvent }) {
       className="group block rounded-[var(--radius-ticket)] focus-visible:outline-offset-4"
       aria-label={`${event.title}, ${d.long} ${d.time} h${event.venue ? `, ${event.venue.name}` : ''}`}
     >
-      <article className="rounded-[var(--radius-ticket)] bg-surface transition-transform duration-300 ease-[var(--ease-out-quint)] group-hover:-translate-y-1">
-        <div className="aspect-[4/3.4] overflow-hidden rounded-t-[var(--radius-ticket)]">
+      <article className="card-glass rounded-[var(--radius-ticket)] group-hover:-translate-y-1">
+        <div className="relative aspect-[4/3.4] overflow-hidden rounded-t-[calc(var(--radius-ticket)-1.5px)]">
           <EventPoster event={event} />
+          <span className="glass-sheen" aria-hidden />
         </div>
         <div className="cut -mt-[11px]" aria-hidden><span className="opacity-0" /></div>
         <div className="space-y-1.5 px-5 pb-5 pt-1">
