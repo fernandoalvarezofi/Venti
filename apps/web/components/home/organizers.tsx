@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PAYMENTS_LIVE } from '@/lib/config';
+import { PayoutFlow } from './payout-flow';
 
 const Soon = () => (PAYMENTS_LIVE ? null : <span className="hz-soon ml-2 align-middle">Muy pronto</span>);
 
@@ -19,50 +20,11 @@ export function Payouts() {
         </p>
 
         <div className="relative mx-auto mt-14 max-w-4xl rounded-[22px] bg-[radial-gradient(80%_120%_at_50%_0%,rgb(210_58_31/0.35),transparent_70%),#1f1b18] p-6 text-left shadow-[0_0_0_1px_rgb(244_239_230/0.1)] outline-dashed outline-[1.5px] outline-offset-[-10px] outline-paper/20 sm:p-10">
-          <div className="grid items-center gap-8 md:grid-cols-[auto_1fr_auto]">
-            {/* Teléfono del comprador */}
-            <div className="text-center md:text-left">
-              <div className="mx-auto grid h-44 w-24 place-items-center rounded-[1.4rem] bg-[#0e0c0b] p-1.5 shadow-[0_0_0_1.5px_rgb(244_239_230/0.15),6px_6px_0_var(--color-accent)] md:mx-0">
-                <div className="grid h-full w-full place-items-center rounded-[1.1rem] bg-ink text-center">
-                  <span>
-                    <span className="mx-auto grid size-11 place-items-center rounded-full bg-accent text-lg font-bold text-white">✓</span>
-                    <span className="mt-2 block text-[0.68rem] font-bold leading-tight">
-                      Pago
-                      <br />
-                      aprobado
-                    </span>
-                  </span>
-                </div>
-              </div>
-              <p className="mt-4 font-semibold">Tu público</p>
-              <p className="text-sm text-paper/55">paga $ 120.000</p>
-            </div>
-
-            <div className="relative hidden h-10 md:block" aria-hidden>
-              <span className="hand absolute -top-8 left-1/2 w-max -translate-x-1/2">directo, sin escalas</span>
-              <span className="absolute inset-x-4 top-1/2 border-t-2 border-dotted border-paper/35" />
-            </div>
-
-            {/* Cuenta de la productora */}
-            <div className="mx-auto w-full max-w-[17rem] rotate-2 rounded-2xl bg-paper p-5 text-ink shadow-[0_24px_40px_-18px_rgb(0_0_0/0.7)]">
-              <p className="flex items-center gap-2 text-xs font-semibold text-muted">
-                <span className="grid size-5 place-items-center rounded bg-ink text-[0.6rem] text-paper">MP</span> Tu cuenta
-              </p>
-              <p className="mt-2 font-display text-[2.3rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums">$ 3.135.310</p>
-              <p className="mt-1 text-xs text-muted">107 entradas vendidas</p>
-              <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="flex items-center gap-2 text-muted">
-                  <span className="grid size-7 place-items-center rounded-full bg-ink/10 text-[0.65rem] font-bold">CS</span>
-                  Camila S.
-                </span>
-                <span className="rounded-md bg-accent/15 px-1.5 font-semibold text-accent-ink">+ $ 108.000</span>
-              </div>
-            </div>
-          </div>
+          <PayoutFlow />
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-paper/10 pt-6 text-sm text-paper/60">
             <span>Cobrás con</span>
             <span className="rounded-full bg-paper/10 px-3 py-1 font-semibold text-paper">Mercado Pago</span>
-            <span className="text-xs">Ejemplo: de $ 120.000 te llegan $ 108.000 (comisión Lintick 10%).</span>
+            <span className="text-xs">Ejemplo: de $ 120.000 te llegan $ 108.000 (comisión Lintick 10%). Montos ilustrativos.</span>
           </div>
         </div>
       </div>

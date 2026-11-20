@@ -1240,3 +1240,54 @@
 .hz-light .hz-panel { background: var(--color-surface); box-shadow: 0 0 0 1px var(--color-line), 0 18px 40px -28px rgb(23 20 17 / 0.35); }
 /* Las ventanas de la app siempre son oscuras (como capturas de pantalla), también sobre papel. */
 .hz-window { color: var(--color-paper); }
+
+/* Animación "Cobrá al instante": una vuelta = 2,3 s de viaje (sincronizado con ARRIVE en payout-flow.tsx). */
+.payflow-ok { display: block; animation: payflow-pop 520ms var(--ease-out-quint) both; }
+@keyframes payflow-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.payflow-bill {
+  left: 0%;
+  transform: translate(-10%, -50%);
+  animation: payflow-move 2300ms cubic-bezier(0.45, 0, 0.25, 1) 1 both;
+}
+@keyframes payflow-move {
+  0%, 12% { left: 0%; opacity: 0; transform: translate(0, -50%) scale(0.8); }
+  20% { opacity: 1; transform: translate(0, -50%) scale(1); }
+  92% { left: 100%; opacity: 1; transform: translate(-100%, -50%) scale(1); }
+  100% { left: 100%; opacity: 0; transform: translate(-100%, -50%) scale(0.85); }
+}
+/* El monto cambia de bruto a neto al pasar por el punto de la comisión (mitad del recorrido). */
+.payflow-amount { display: inline-grid; }
+.payflow-gross, .payflow-net { grid-area: 1 / 1; text-align: center; }
+.payflow-gross { animation: payflow-gross 2300ms linear 1 both; }
+.payflow-net { animation: payflow-net 2300ms linear 1 both; }
+@keyframes payflow-gross { 0%, 53% { opacity: 1; } 58%, 100% { opacity: 0; } }
+@keyframes payflow-net { 0%, 53% { opacity: 0; } 58%, 100% { opacity: 1; } }
+.payflow-still .payflow-gross { opacity: 0; animation: none; }
+.payflow-still .payflow-net { opacity: 1; animation: none; }
+.payflow-fee {
+  top: 58%;
+  opacity: 0;
+  animation: payflow-fee 2300ms ease-out 1 both;
+}
+@keyframes payflow-fee {
+  0%, 52% { opacity: 0; transform: translate(-50%, 0); }
+  60% { opacity: 1; transform: translate(-50%, -26px); }
+  88% { opacity: 1; transform: translate(-50%, -38px); }
+  100% { opacity: 0; transform: translate(-50%, -46px); }
+}
+.payflow-bump { animation: payflow-bump 420ms var(--ease-out-quint); }
+@keyframes payflow-bump {
+  0% { transform: rotate(2deg) scale(1); }
+  40% { transform: rotate(1deg) scale(1.04); }
+  100% { transform: rotate(2deg) scale(1); }
+}
+.payflow-row { animation: payflow-row 380ms var(--ease-out-quint) both; }
+@keyframes payflow-row { from { opacity: 0; transform: translateY(6px); } }
+/* Quieta: se ve el resultado (comisión visible, sin billete viajando). */
+.payflow-still .payflow-bill { display: none; }
+.payflow-still .payflow-fee { animation: none; opacity: 1; transform: translate(-50%, -30px); }
+.payflow-still .payflow-ok, .payflow-still .payflow-row, .payflow-still .payflow-bump { animation: none; }
