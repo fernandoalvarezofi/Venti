@@ -5,7 +5,7 @@ import { TicketButton } from './ticket-button';
 /** Formulario GET: funciona sin JavaScript y deja la búsqueda en la URL (se puede compartir). */
 export function SearchBar({ q = '', city = '', category = '' }: { q?: string; city?: string; category?: string }) {
   return (
-    <form action="/eventos" method="get" role="search" className="grid gap-2 rounded-[22px] bg-surface p-2 shadow-[0_1px_0_rgb(23_20_17/0.06),0_12px_32px_-18px_rgb(23_20_17/0.35)] sm:grid-cols-[1.6fr_1fr_1fr_auto]">
+    <form action="/eventos" method="get" role="search" className="search-glass grid gap-2 rounded-[22px] p-2 sm:grid-cols-[1.6fr_1fr_1fr_auto]">
       <label className="relative block">
         <span className="sr-only">Artista, evento o productora</span>
         <SearchIcon className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-muted" />

@@ -23,7 +23,8 @@ export default async function Home() {
           <br />
           <span className="text-ink-soft/70">con tu entrada</span> en el bolsillo.
         </h1>
-        <div className="mt-10 max-w-4xl">
+        <div className="relative isolate mt-10 max-w-4xl">
+          <div aria-hidden className="search-aura" />
           <SearchBar />
         </div>
         <ul className="mt-5 flex flex-wrap gap-2" aria-label="Categorías">
