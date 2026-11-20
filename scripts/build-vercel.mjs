@@ -8,7 +8,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const out = join(root, '.vercel', 'output');
+// --out <ruta relativa a la raíz>: Vercel espera la salida dentro de su "Root Directory".
+const outArg = process.argv.indexOf('--out');
+const out = outArg > -1 ? join(root, process.argv[outArg + 1]) : join(root, '.vercel', 'output');
 const fn = join(out, 'functions', 'api.func');
 
 rmSync(out, { recursive: true, force: true });
@@ -42,4 +44,4 @@ writeFileSync(
   join(out, 'config.json'),
   JSON.stringify({ version: 3, routes: [{ src: '/(.*)', dest: '/api' }] }, null, 2),
 );
-console.log('Salida de Vercel lista en .vercel/output');
+console.log(`Salida de Vercel lista en ${out}`);

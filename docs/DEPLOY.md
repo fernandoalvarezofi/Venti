@@ -10,7 +10,7 @@
 | Expiración de reservas | `pg_cron` en Supabase: job `venti-expire-holds`, cada minuto, ejecuta `venti_expire_holds(500)`. No hace falta correr el worker. |
 
 ### Configuración del proyecto en Vercel
-- Framework: *Other*. Install: `npm ci`. Build: `npm run build:vercel`. Output: lo genera el build en `.vercel/output`.
+- Root Directory en Vercel: `apps/api` (lo eligió la importación). `apps/api/vercel.json` instala y construye desde la raíz del monorepo y deja la salida en `apps/api/.vercel/output`. Si el Root Directory se cambia a la raíz, `vercel.json` de la raíz también funciona.
 - Node.js: 22.18 o superior (TypeScript nativo de Node). Desarrollo con Node 24; la función corre en `nodejs22.x`, ya empaquetada.
 - Región de funciones: `gru1` (São Paulo), al lado de la base.
 

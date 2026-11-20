@@ -7,7 +7,8 @@
     "dev": "node --watch --env-file-if-exists=../../.env src/main.ts",
     "start": "node src/main.ts",
     "worker": "node --env-file-if-exists=../../.env src/worker.ts",
-    "keys": "node src/keys.ts"
+    "keys": "node src/keys.ts",
+    "build:vercel": "cd ../.. && node scripts/build-vercel.mjs --out apps/api/.vercel/output"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.5",
