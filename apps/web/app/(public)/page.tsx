@@ -2,6 +2,11 @@ import Link from 'next/link';
 import { CategoryCarousel } from '@/components/category-carousel';
 import { EventCard } from '@/components/event-card';
 import { HomeBanner } from '@/components/home-banner';
+import { BuyersSection } from '@/components/home/buyers';
+import { CategoryMosaic } from '@/components/home/category-mosaic';
+import { FeatureSteps } from '@/components/home/features';
+import { HowItWorks } from '@/components/home/how-it-works';
+import { Essentials, Faq, FinalCta, Payouts, Support } from '@/components/home/organizers';
 import { Mascot } from '@/components/mascot';
 import { ArrowRightIcon } from '@/components/icons';
 import { SearchBar } from '@/components/search-bar';
@@ -62,6 +67,20 @@ export default async function Home() {
           </ul>
         )}
       </section>
+
+      {/* Complementos (referencias de "ejemplos lintick"), en el orden de un recorrido natural:
+          categorías → compradores → productoras (cómo funciona, herramientas, cobros, infaltables, soporte) → preguntas → cierre. */}
+      <div className="-mb-24 mt-20">
+        <CategoryMosaic />
+        <BuyersSection />
+        <HowItWorks />
+        <FeatureSteps />
+        <Payouts />
+        <Essentials />
+        <Support />
+        <Faq />
+        <FinalCta />
+      </div>
     </>
   );
 }

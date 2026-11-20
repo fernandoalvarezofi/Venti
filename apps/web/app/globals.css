@@ -976,3 +976,239 @@
 @media (prefers-reduced-motion: reduce) {
   .logo-ticket { transition: none; }
 }
+
+/* ───────────── Inicio: secciones complementarias (oscuras, con la tinta de Lintick) ───────────── */
+.hz {
+  --hz-bg: var(--color-ink);
+  --hz-line: rgb(244 239 230 / 0.1);
+  --hz-text: var(--color-paper);
+  --hz-muted: rgb(244 239 230 / 0.62);
+  background: var(--hz-bg);
+  color: var(--hz-text);
+}
+.hz-muted { color: var(--hz-muted); }
+.hz-ghost { color: rgb(244 239 230 / 0.42); }
+/* Cuadrícula fina (como un cuaderno técnico) */
+.hz-grid {
+  background-image:
+    linear-gradient(rgb(244 239 230 / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(244 239 230 / 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+/* Luz cálida de fondo, con el naranja de la marca */
+.hz-glow {
+  background:
+    radial-gradient(60% 70% at 18% 20%, rgb(210 58 31 / 0.22), transparent 70%),
+    radial-gradient(50% 60% at 85% 90%, rgb(210 58 31 / 0.14), transparent 70%),
+    var(--color-ink);
+}
+.hz-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.hz-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+/* Resaltado tipo marcador (reemplaza la franja violeta de las referencias) */
+.hz-mark {
+  background: linear-gradient(transparent 52%, rgb(210 58 31 / 0.55) 52%, rgb(210 58 31 / 0.55) 92%, transparent 92%);
+  padding-inline: 0.1em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+/* Nota al margen, escrita a mano */
+.hand {
+  font-family: var(--font-caveat), 'Comic Sans MS', cursive;
+  font-weight: 600;
+  color: #f08a4b;
+  font-size: 1.35rem;
+  line-height: 1;
+  transform: rotate(-4deg);
+  display: inline-block;
+}
+/* Número grande en contorno (01, 02…) */
+.hz-num {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(4.5rem, 10vw, 7rem);
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1.2px rgb(244 239 230 / 0.32);
+}
+/* Ventana tipo navegador para las maquetas de la app */
+.hz-window {
+  border-radius: 14px;
+  background: #1f1b18;
+  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.1), 0 30px 60px -30px rgb(0 0 0 / 0.8);
+  overflow: hidden;
+}
+.hz-window-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 26px;
+  padding: 0 10px;
+  border-bottom: 1px solid rgb(244 239 230 / 0.08);
+  background:
+    linear-gradient(rgb(244 239 230 / 0.12), rgb(244 239 230 / 0.12)) 10px 9px / calc(100% - 52px) 1px no-repeat,
+    linear-gradient(rgb(244 239 230 / 0.12), rgb(244 239 230 / 0.12)) 10px 15px / calc(100% - 52px) 1px no-repeat;
+}
+.hz-window-bar::after {
+  content: '';
+  margin-left: auto;
+  width: 22px;
+  height: 7px;
+  background:
+    linear-gradient(var(--color-accent), var(--color-accent)) 0 0 / 7px 7px no-repeat,
+    linear-gradient(rgb(244 239 230 / 0.5), rgb(244 239 230 / 0.5)) 11px 0 / 7px 7px no-repeat;
+  border-radius: 1px;
+}
+.hz-field {
+  display: flex;
+  align-items: center;
+  height: 2.4rem;
+  padding: 0 0.85rem;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  background: rgb(244 239 230 / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(244 239 230 / 0.12);
+}
+.hz-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(244 239 230 / 0.45);
+}
+.hz-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-accent);
+}
+.hz-check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+}
+.hz-check::before {
+  content: '✓';
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fff;
+  background: var(--color-accent);
+}
+.hz-soon {
+  display: inline-flex;
+  align-items: center;
+  height: 1.4rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  background: #f2c879;
+}
+/* Notas de papel con chinche (Cómo funciona) */
+.hz-note {
+  position: relative;
+  width: 100%;
+  max-width: 15rem;
+  padding: 1.6rem 1.2rem 1.3rem;
+  border-radius: 3px;
+  color: var(--color-ink);
+  background: linear-gradient(180deg, #fbf8f2, #efe8dc);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.1), 0 18px 30px -16px rgb(0 0 0 / 0.75);
+}
+.hz-pin {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f6a37c, var(--color-accent) 55%, var(--color-accent-ink));
+  box-shadow: 0 3px 4px rgb(0 0 0 / 0.45);
+}
+.hz-pin::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 15px;
+  width: 2px;
+  height: 7px;
+  margin-left: -1px;
+  background: rgb(0 0 0 / 0.35);
+}
+.hz-pin-ink { background: radial-gradient(circle at 35% 30%, #6e655b, var(--color-ink) 60%); }
+/* Tarjetas con borde punteado (Te acompañamos) */
+.hz-dashed {
+  border-radius: 14px;
+  background:
+    radial-gradient(70% 50% at 30% 0%, rgb(210 58 31 / 0.22), transparent 70%),
+    #1f1b18;
+  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.08);
+  outline: 1.5px dashed rgb(244 239 230 / 0.22);
+  outline-offset: -8px;
+}
+/* Preguntas frecuentes (acordeón nativo) */
+.hz-faq summary {
+  list-style: none;
+  cursor: pointer;
+}
+.hz-faq summary::-webkit-details-marker { display: none; }
+.hz-faq .hz-plus { transition: transform 220ms var(--ease-out-quint); }
+.hz-faq details[open] .hz-plus { transform: rotate(45deg); }
+.hz-faq summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: 10px; }
+/* Mosaico de categorías */
+.hz-tile {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 16px;
+  isolation: isolate;
+  background: #1f1b18;
+}
+.hz-tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+  transition: transform 900ms var(--ease-out-quint);
+}
+.hz-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, transparent 35%, rgb(23 20 17 / 0.85));
+}
+.hz-tile:hover img { transform: scale(1.04); }
+.hz-tile:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .hz-tile img, .hz-faq .hz-plus { transition: none; }
+}
