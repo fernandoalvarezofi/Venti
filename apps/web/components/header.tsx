@@ -3,10 +3,21 @@ import { getCurrentUser } from '@/lib/api';
 import { SearchIcon, TicketIcon } from './icons';
 import { LogoutButton } from './logout-button';
 
+/** Carita de la mascota para acompañar el logo (decorativa). */
+export function MascotFace({ size = 34 }: { size?: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/mascota/lintick-cara-128.webp" alt="" aria-hidden width={Math.round(size * 1.1)} height={size} className="logo-face shrink-0" draggable={false} />
+  );
+}
+
 export function Logo() {
   return (
-    <span className="font-display text-[1.45rem] font-extrabold tracking-[-0.04em]">
-      Lintick<span className="text-accent">.</span>
+    <span className="logo inline-flex items-center gap-1.5">
+      <MascotFace />
+      <span className="font-display text-[1.45rem] font-extrabold tracking-[-0.04em]">
+        Lintick<span className="text-accent">.</span>
+      </span>
     </span>
   );
 }

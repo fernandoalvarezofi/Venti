@@ -513,3 +513,15 @@
     transform: translateY(10%);
   }
 }
+
+/* Carita del logo: al pasar el mouse, guiña con un pequeño saltito. */
+.logo-face {
+  transform-origin: 50% 90%;
+  transition: transform 260ms var(--ease-out-quint);
+}
+.logo:hover .logo-face {
+  transform: translateY(-2px) rotate(-8deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo:hover .logo-face { transform: none; }
+}

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MascotFace } from '../header';
 import type { Org } from '@/lib/types';
 import { LogoutButton } from '../logout-button';
 import { NavLinks } from './nav-links';
@@ -26,8 +27,11 @@ export function BusinessShell({ org, orgs, userName, children }: { org: Org; org
       <aside className="border-b border-line bg-surface lg:sticky lg:top-0 lg:h-dvh lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-4 lg:block lg:pb-6 lg:pt-6">
-            <Link href="/business" className="font-display text-[1.35rem] font-extrabold tracking-[-0.04em]">
-              Lintick<span className="text-accent">.</span> <span className="text-sm font-semibold tracking-normal text-muted">business</span>
+            <Link href="/business" className="logo inline-flex items-center gap-1.5 font-display text-[1.35rem] font-extrabold tracking-[-0.04em]">
+              <MascotFace size={30} />
+              <span>
+                Lintick<span className="text-accent">.</span> <span className="text-sm font-semibold tracking-normal text-muted">business</span>
+              </span>
             </Link>
             <div className="lg:mt-6">
               <p className="hidden text-xs text-muted lg:block">Productora</p>
