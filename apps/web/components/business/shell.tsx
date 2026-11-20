@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { MascotFace } from '../header';
 import type { Org } from '@/lib/types';
 import { LogoutButton } from '../logout-button';
-import { NavLinks } from './nav-links';
+import { NavLinks, type NavGroup } from './nav-links';
+import { PanelIcon } from './panel-icons';
 
 const ROLE_LABEL: Record<Org['role'], string> = {
   owner: 'Dueño',
@@ -17,13 +18,27 @@ const ROLE_LABEL: Record<Org['role'], string> = {
 /** Marco de Lintick Business: menú lateral en escritorio, barra superior con pestañas en el celular. */
 export function BusinessShell({ org, orgs, userName, children }: { org: Org; orgs: Org[]; userName: string; children: React.ReactNode }) {
   const base = `/business/${org.id}`;
-  const links = [
-    { href: base, label: 'Resumen', exact: true },
-    { href: `${base}/eventos/nuevo`, label: 'Nuevo evento' },
-    { href: `${base}/equipo`, label: 'Equipo' },
-    { href: `${base}/cobros`, label: 'Cobros' },
-    { href: '/acceso', label: 'Control de ingreso' },
+  const can = (p: Org['permissions'][number]) => org.permissions?.includes(p) ?? false;
+  // Sólo secciones que existen y que este rol puede usar (la API igual valida cada pedido).
+  const allGroups: NavGroup[] = [
+    {
+      title: 'General',
+      items: [
+        { href: base, label: 'Inicio', icon: 'home', exact: true },
+        { href: `${base}/eventos`, label: 'Mis eventos', icon: 'events', exact: true },
+        { href: `${base}/calendario`, label: 'Calendario', icon: 'calendar' },
+      ],
+    },
+    { title: 'Ventas y operaciones', items: can('access.scan') ? [{ href: '/acceso', label: 'Check-in', icon: 'scan' as const }] : [] },
+    {
+      title: 'Administración',
+      items: [
+        ...(can('finance.read') ? [{ href: `${base}/cobros`, label: 'Finanzas', icon: 'money' as const }] : []),
+        ...(can('members.manage') ? [{ href: `${base}/equipo`, label: 'Equipo', icon: 'team' as const }] : []),
+      ],
+    },
   ];
+  const groups = allGroups.filter((g) => g.items.length > 0);
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[260px_1fr]">
       <aside className="border-b border-line bg-surface lg:sticky lg:top-0 lg:h-dvh lg:border-b-0 lg:border-r">
@@ -61,7 +76,14 @@ export function BusinessShell({ org, orgs, userName, children }: { org: Org; org
               <p className="hidden text-xs text-muted lg:block">{ROLE_LABEL[org.role]}</p>
             </div>
           </div>
-          <NavLinks links={links} />
+          {can('events.write') ? (
+            <div className="hidden px-6 pb-5 lg:block">
+              <Link href={`${base}/eventos/nuevo`} className="flex h-10 items-center justify-center gap-2 rounded-full bg-ink text-sm font-semibold text-paper transition-colors hover:bg-ink/85">
+                <PanelIcon name="plus" className="size-4" /> Crear evento
+              </Link>
+            </div>
+          ) : null}
+          <NavLinks groups={groups} />
           <div className="mt-auto hidden border-t border-line p-5 text-sm lg:block">
             <p className="truncate font-semibold">{userName}</p>
             <div className="mt-2 flex items-center gap-3">

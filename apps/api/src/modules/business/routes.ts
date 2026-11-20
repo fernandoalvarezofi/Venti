@@ -154,11 +154,30 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
               commissionCents: z.number(),
               netCents: z.number(),
               commissionBps: z.number(),
+              /** Personas distintas que compraron al menos una entrada pagada. */
+              buyers: z.number(),
             }),
+            /** Ventas pagadas por mes (hora de Argentina), últimos 6 meses incluido el actual. */
+            monthly: z.array(z.object({ month: z.string(), grossCents: z.number(), tickets: z.number() })),
+            /** Últimas compras pagadas (sólo nombre de pila del comprador). */
+            recent: z.array(
+              z.object({
+                orderId: z.string().uuid(),
+                eventId: z.string().uuid(),
+                eventTitle: z.string(),
+                buyerFirstName: z.string(),
+                tickets: z.number(),
+                subtotalCents: z.number(),
+                paidAt: z.date(),
+              }),
+            ),
             events: z.array(
               z.object({
                 id: z.string().uuid(),
                 title: z.string(),
+                category: z.string(),
+                /** Portada: ruta de la API (/v1/media/…) o URL externa; null si no tiene. */
+                coverUrl: z.string().nullable(),
                 status: z.enum(['draft', 'published', 'cancelled', 'finished']),
                 startsAt: z.date(),
                 endsAt: z.date(),
@@ -182,6 +201,9 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
           .select({
             id: events.id,
             title: events.title,
+            category: events.category,
+            coverMediaId: events.coverMediaId,
+            coverImageUrl: events.coverImageUrl,
             status: events.status,
             startsAt: events.startsAt,
             endsAt: events.endsAt,
@@ -204,6 +226,64 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
         const [org] = await tx.select({ settings: organizations.settings }).from(organizations).where(eq(organizations.id, access.orgId));
         const grossCents = rows.reduce((a, e) => a + e.grossCents, 0);
         const commissionCents = money?.commissionCents ?? 0;
+
+        const [buyersRow] = await tx
+          .select({ n: sql<number>`count(distinct ${orders.buyerUserId})`.mapWith(Number) })
+          .from(orders)
+          .where(and(eq(orders.organizationId, access.orgId), eq(orders.status, 'paid')));
+
+        // Ventas por mes: entradas pagadas vigentes (mismo criterio que la recaudación por evento).
+        const now = s.now();
+        const monthExpr = sql<string>`to_char(date_trunc('month', ${tickets.issuedAt} at time zone 'America/Argentina/Buenos_Aires'), 'YYYY-MM')`;
+        const sinceMonth = new Date(now.getTime() - 200 * 86_400_000);
+        const monthRows = await tx
+          .select({
+            month: monthExpr,
+            grossCents: sql<number>`coalesce(sum(${tickets.priceCents}), 0)`.mapWith(Number),
+            tickets: sql<number>`count(*)`.mapWith(Number),
+          })
+          .from(tickets)
+          .where(
+            and(
+              eq(tickets.organizationId, access.orgId),
+              sql`${tickets.orderId} is not null and ${tickets.status} in ('valid','used','locked') and ${tickets.issuedAt} >= ${sinceMonth}`,
+            ),
+          )
+          .groupBy(monthExpr);
+        const monthly: { month: string; grossCents: number; tickets: number }[] = [];
+        const [y, m] = now.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).split('-').map(Number) as [number, number];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(Date.UTC(y, m - 1 - i, 1));
+          const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+          const row = monthRows.find((r) => r.month === key);
+          monthly.push({ month: key, grossCents: row?.grossCents ?? 0, tickets: row?.tickets ?? 0 });
+        }
+
+        const recentRows = await tx
+          .select({
+            orderId: orders.id,
+            eventId: orders.eventId,
+            eventTitle: events.title,
+            buyerName: users.fullName,
+            subtotalCents: orders.subtotalCents,
+            paidAt: orders.paidAt,
+            tickets: sql<number>`(select count(*) from tickets t where t.order_id = ${orders.id})`.mapWith(Number),
+          })
+          .from(orders)
+          .innerJoin(events, eq(events.id, orders.eventId))
+          .innerJoin(users, eq(users.id, orders.buyerUserId))
+          .where(and(eq(orders.organizationId, access.orgId), eq(orders.status, 'paid')))
+          .orderBy(desc(orders.paidAt))
+          .limit(6);
+        const recent = recentRows.map((r) => ({
+          orderId: r.orderId,
+          eventId: r.eventId,
+          eventTitle: r.eventTitle,
+          buyerFirstName: r.buyerName.trim().split(/\s+/)[0] ?? '',
+          tickets: r.tickets,
+          subtotalCents: r.subtotalCents,
+          paidAt: r.paidAt ?? now,
+        }));
         return {
           totals: {
             checkedIn: rows.reduce((a, e) => a + e.checkedIn, 0),
@@ -216,8 +296,11 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
             drafts: rows.filter((e) => e.status === 'draft').length,
             ticketsSold: rows.reduce((a, e) => a + e.sold, 0),
             capacity: rows.reduce((a, e) => a + e.capacity, 0),
+            buyers: buyersRow?.n ?? 0,
           },
-          events: rows,
+          monthly,
+          recent,
+          events: rows.map(({ coverMediaId, coverImageUrl, ...e }) => ({ ...e, coverUrl: coverMediaId ? `/v1/media/${coverMediaId}` : coverImageUrl })),
         };
       });
     },

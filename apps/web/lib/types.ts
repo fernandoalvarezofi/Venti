@@ -131,6 +131,8 @@ export interface ApiErrorBody {
 export type OrgRole = 'owner' | 'admin' | 'manager' | 'finance' | 'sales' | 'access_staff' | 'viewer';
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'finished';
 
+export type Permission = 'org.manage' | 'members.manage' | 'events.read' | 'events.write' | 'events.publish' | 'inventory.write' | 'tickets.courtesy' | 'tickets.read' | 'finance.read' | 'finance.write' | 'access.scan' | 'audit.read';
+
 export interface Org {
   id: string;
   slug: string;
@@ -138,11 +140,16 @@ export interface Org {
   legalName: string | null;
   taxId: string | null;
   role: OrgRole;
+  /** Permisos del rol (vienen de la API). */
+  permissions: Permission[];
 }
 
 export interface OverviewEvent {
   id: string;
   title: string;
+  category: string;
+  /** Ruta de la API (/v1/media/…) o URL externa. */
+  coverUrl: string | null;
   status: EventStatus;
   startsAt: string;
   endsAt: string;
@@ -167,7 +174,10 @@ export interface Overview {
     commissionCents: number;
     netCents: number;
     commissionBps: number;
+    buyers: number;
   };
+  monthly: { month: string; grossCents: number; tickets: number }[];
+  recent: { orderId: string; eventId: string; eventTitle: string; buyerFirstName: string; tickets: number; subtotalCents: number; paidAt: string }[];
   events: OverviewEvent[];
 }
 

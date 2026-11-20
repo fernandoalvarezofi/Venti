@@ -168,6 +168,15 @@ describe('Mercado Pago: compra', () => {
     // El stock pasó de reservado a vendido y la productora ve la plata con la comisión.
     const stats = await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/stats`, { token: owner.token });
     expect(stats.body).toMatchObject({ sold: 2, held: 0, grossCents: 3_000_000, commissionCents: 300_000, netCents: 3_000_000 });
+
+    // Tablero de la productora: compradores, ventas del mes y actividad reciente (sólo nombre de pila).
+    const ov = await call(ctx, 'GET', `/v1/organizations/${orgId}/overview`, { token: owner.token });
+    expect(ov.body.totals.buyers).toBe(1);
+    expect(ov.body.monthly).toHaveLength(6);
+    expect(ov.body.monthly.at(-1)).toMatchObject({ grossCents: 3_000_000, tickets: 2 });
+    expect(ov.body.recent[0]).toMatchObject({ orderId: co.body.orderId, buyerFirstName: 'Ana', tickets: 2, subtotalCents: 3_000_000 });
+    expect(ov.body.recent[0]).not.toHaveProperty('buyerEmail');
+    expect(ov.body.events[0]).toHaveProperty('coverUrl');
   });
 
   it('rechaza firmas falsas y no emite nada si el monto no coincide', async () => {

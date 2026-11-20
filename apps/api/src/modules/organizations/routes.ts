@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ORG_ROLES, SLUG_PATTERN, slugify } from '@venti/domain';
+import { ORG_ROLES, PERMISSIONS, SLUG_PATTERN, permissionsOf, slugify } from '@venti/domain';
 import { and, asc, brands, eq, memberships, organizations, sql, users, withContext } from '@venti/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -15,6 +15,8 @@ const OrgDto = z.object({
   legalName: z.string().nullable(),
   taxId: z.string().nullable(),
   role: z.enum(ORG_ROLES),
+  /** Lo que el rol permite hacer: la web arma el menú con esto (la API igual valida cada pedido). */
+  permissions: z.array(z.enum(PERMISSIONS)),
 });
 
 const MemberDto = z.object({ userId: z.string().uuid(), email: z.string(), fullName: z.string(), role: z.enum(ORG_ROLES), createdAt: z.date() });
@@ -74,7 +76,7 @@ export async function organizationRoutes(app: FastifyInstance, s: Services): Pro
         await audit(tx, { orgId: id, actorUserId: userId, action: 'organization.created', entityType: 'organization', entityId: id, ip: req.ip });
         return created!;
       });
-      return reply.status(201).send({ ...org, role: 'owner' as const });
+      return reply.status(201).send({ ...org, role: 'owner' as const, permissions: [...permissionsOf('owner')] });
     },
   );
 
@@ -98,7 +100,7 @@ export async function organizationRoutes(app: FastifyInstance, s: Services): Pro
           .where(eq(memberships.userId, userId))
           .orderBy(asc(organizations.name)),
       );
-      return { items };
+      return { items: items.map((o) => ({ ...o, permissions: [...permissionsOf(o.role)] })) };
     },
   );
 
