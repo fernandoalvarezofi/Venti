@@ -1,13 +1,12 @@
 import Link from 'next/link';
-import { TicketIcon } from './icons';
+import { Mascot } from './mascot';
 
 /** Estado vacío: dice qué pasa y qué hacer, con una acción concreta. */
-export function EmptyState({ title, body, action }: { title: string; body: string; action?: { href: string; label: string } }) {
+export function EmptyState({ title, body, action, mascot = true }: { title: string; body: string; action?: { href: string; label: string }; mascot?: boolean }) {
   return (
-    <div className="ticket mx-auto max-w-xl bg-surface px-8 py-12 text-center">
-      <div className="mx-auto mb-5 grid size-12 place-items-center rounded-full bg-ink/5 text-ink-soft">
-        <TicketIcon className="size-6" />
-      </div>
+    <div className={`relative mx-auto max-w-xl ${mascot ? 'mt-24' : ''}`}>
+      {mascot ? <Mascot pose="peek" size={150} className="absolute bottom-full right-10" /> : null}
+    <div className="ticket bg-surface px-8 py-12 text-center">
       <h2 className="text-2xl font-bold">{title}</h2>
       <p className="mx-auto mt-2 max-w-sm text-muted">{body}</p>
       {action ? (
@@ -15,6 +14,7 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
           {action.label}
         </Link>
       ) : null}
+    </div>
     </div>
   );
 }

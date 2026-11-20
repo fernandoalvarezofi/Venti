@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { EventCard } from '@/components/event-card';
+import { Mascot } from '@/components/mascot';
 import { ArrowRightIcon } from '@/components/icons';
 import { SearchBar } from '@/components/search-bar';
 import { EmptyState, ErrorState } from '@/components/states';
@@ -11,8 +12,12 @@ export default async function Home() {
 
   return (
     <>
-      <section className="mx-auto max-w-6xl px-4 pb-14 pt-12 sm:px-6 sm:pt-20">
-        <p className="eyebrow">Recitales · fiestas · festivales · teatro</p>
+      <section className="relative mx-auto max-w-6xl px-4 pb-14 pt-12 sm:px-6 sm:pt-20">
+        <Mascot pose="jump" size={260} className="pointer-events-none absolute right-0 top-6 hidden lg:block xl:-right-6" priority />
+        <div className="flex items-start justify-between gap-4">
+          <p className="eyebrow">Recitales · fiestas · festivales · teatro</p>
+          <Mascot pose="jump" size={96} className="-mt-6 shrink-0 lg:hidden" priority />
+        </div>
         <h1 className="mt-4 max-w-4xl text-[clamp(2.8rem,8vw,6.2rem)] font-extrabold leading-[0.92] tracking-[-0.045em]">
           Lo que pasa,
           <br />

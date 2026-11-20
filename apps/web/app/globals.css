@@ -427,3 +427,89 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Mascota. Las animaciones mueven sólo transform/opacity (no hacen recalcular la página).
+ */
+.mascot-img {
+  filter: drop-shadow(0 14px 18px rgb(23 20 17 / 0.16));
+}
+
+/* Salto: se agacha, sube, cae con un pequeño aplastamiento y descansa. */
+.mascot-jump .mascot-body {
+  transform-origin: 50% 100%;
+  animation: mascot-jump 3.2s cubic-bezier(0.33, 0, 0.25, 1) infinite;
+}
+.mascot-jump .mascot-shadow {
+  margin: -6% auto 0;
+  height: 14px;
+  width: 52%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(23 20 17 / 0.28), transparent);
+  animation: mascot-shadow 3.2s cubic-bezier(0.33, 0, 0.25, 1) infinite;
+}
+@keyframes mascot-jump {
+  0%, 52%, 100% { transform: translateY(0) scale(1, 1); }
+  58% { transform: translateY(0) scale(1.05, 0.93); }
+  70% { transform: translateY(-16%) scale(0.97, 1.04) rotate(-3deg); }
+  80% { transform: translateY(-16%) scale(0.98, 1.02) rotate(2deg); }
+  90% { transform: translateY(0) scale(1.06, 0.92); }
+  95% { transform: translateY(0) scale(0.99, 1.01); }
+}
+@keyframes mascot-shadow {
+  0%, 52%, 100% { transform: scale(1); opacity: 1; }
+  58% { transform: scale(1.08); opacity: 1; }
+  70%, 80% { transform: scale(0.6); opacity: 0.45; }
+  90% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Asomarse: sube desde atrás del borde, mira, y vuelve a bajar. El recorte lo da el contenedor. */
+.mascot-peek {
+  overflow: hidden;
+  pointer-events: none;
+}
+.mascot-peek .mascot-img {
+  transform: translateY(70%) rotate(6deg);
+  transform-origin: 50% 100%;
+  animation: mascot-peek 7s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes mascot-peek {
+  0%, 8% { transform: translateY(70%) rotate(6deg); }
+  22%, 34% { transform: translateY(8%) rotate(-4deg); }
+  42%, 58% { transform: translateY(12%) rotate(5deg); }
+  72%, 100% { transform: translateY(70%) rotate(6deg); }
+}
+
+/* Saludo: se balancea sobre los pies (tres vaivenes y una pausa) y aparece el globo. */
+.mascot-wave .mascot-body {
+  transform-origin: 50% 95%;
+  animation: mascot-wave 3.6s ease-in-out infinite;
+}
+.mascot-wave .mascot-bubble {
+  animation: mascot-bubble 3.6s ease-out infinite;
+}
+@keyframes mascot-wave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(-7deg); }
+  22% { transform: rotate(6deg); }
+  34% { transform: rotate(-5deg); }
+  46% { transform: rotate(3deg); }
+}
+@keyframes mascot-bubble {
+  0% { opacity: 0; transform: translateY(6px) scale(0.9); }
+  8%, 80% { opacity: 1; transform: none; }
+  92%, 100% { opacity: 0; transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot-jump .mascot-body,
+  .mascot-jump .mascot-shadow,
+  .mascot-wave .mascot-body,
+  .mascot-wave .mascot-bubble {
+    animation: none;
+  }
+  .mascot-peek .mascot-img {
+    animation: none;
+    transform: translateY(10%);
+  }
+}
