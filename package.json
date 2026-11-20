@@ -10,7 +10,7 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && npm run typecheck -w @venti/web",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:start": "npm run start -w @venti/db",
@@ -18,7 +18,8 @@
     "db:generate": "npm run generate -w @venti/db",
     "dev:api": "npm run dev -w @venti/api",
     "dev:worker": "npm run worker -w @venti/api",
-    "build:vercel": "node scripts/build-vercel.mjs"
+    "build:vercel": "node scripts/build-vercel.mjs",
+    "dev:web": "npm run dev -w @venti/web"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

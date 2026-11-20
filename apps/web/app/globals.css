@@ -1,0 +1,214 @@
+@import 'tailwindcss';
+
+/*
+ * Sistema visual de VENTI — "entrada de papel".
+ * Neutros cálidos (cartulina + tinta), un único acento bermellón para la acción principal.
+ * Regla: el acento aparece como máximo dos veces por pantalla.
+ */
+@theme {
+  --color-paper: #f4efe6;
+  --color-surface: #fbf8f2;
+  --color-ink: #171411;
+  --color-ink-soft: #3a342d;
+  --color-muted: #6b6359;
+  --color-line: rgb(23 20 17 / 0.12);
+  --color-line-strong: rgb(23 20 17 / 0.22);
+  --color-accent: #d23a1f;
+  --color-accent-ink: #a82c15;
+  --color-success: #1d6b3a;
+  --color-warn: #8a5a00;
+  --color-danger: #b42318;
+
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --radius-ticket: 14px;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv11';
+    min-height: 100dvh;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+}
+
+@layer components {
+  /* Troquel de entrada: dos muescas semicirculares en los laterales. */
+  .ticket {
+    --notch: 11px;
+    --notch-y: 50%;
+    border-radius: var(--radius-ticket);
+    mask:
+      radial-gradient(circle at 0 var(--notch-y), transparent var(--notch), #000 calc(var(--notch) + 0.5px)) left / 51% 100% no-repeat,
+      radial-gradient(circle at 100% var(--notch-y), transparent var(--notch), #000 calc(var(--notch) + 0.5px)) right / 51% 100% no-repeat;
+  }
+  /* Línea de corte punteada. */
+  .perforation {
+    background-image: radial-gradient(circle, var(--color-line-strong) 1.2px, transparent 1.6px);
+    background-size: 9px 9px;
+    background-repeat: repeat-x;
+    background-position: center;
+    height: 9px;
+  }
+  /*
+   * Corte de entrada: línea punteada con una muesca en cada borde, siempre alineadas.
+   * Debe ocupar todo el ancho de la tarjeta (sin padding horizontal en el padre).
+   * Las muescas son círculos del color del fondo de página.
+   */
+  .cut {
+    position: relative;
+    height: 22px;
+  }
+  .cut::before,
+  .cut::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--color-paper);
+  }
+  .cut::before {
+    left: -11px;
+  }
+  .cut::after {
+    right: -11px;
+  }
+  .cut > span {
+    position: absolute;
+    inset: 0 22px;
+    background-image: radial-gradient(circle, var(--color-line-strong) 1.2px, transparent 1.6px);
+    background-size: 9px 9px;
+    background-repeat: repeat-x;
+    background-position: center;
+  }
+  /* Corte vertical (entrada apaisada): muescas arriba y abajo del talón. */
+  .vcut {
+    position: relative;
+  }
+  @media (min-width: 640px) {
+    .vcut::before,
+    .vcut::after {
+      content: '';
+      position: absolute;
+      left: -11px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--color-paper);
+    }
+    .vcut::before {
+      top: -11px;
+    }
+    .vcut::after {
+      bottom: -11px;
+    }
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition:
+      transform 160ms var(--ease-out-quint),
+      background-color 160ms,
+      opacity 160ms;
+    user-select: none;
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px) scale(0.99);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+  .btn-primary {
+    background: var(--color-accent);
+    color: #fff8f4;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-accent-ink);
+  }
+  .btn-ink {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+  .btn-ink:hover:not(:disabled) {
+    background: var(--color-ink-soft);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1px var(--color-line-strong);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgb(23 20 17 / 0.05);
+  }
+  .field {
+    width: 100%;
+    height: 3rem;
+    padding: 0 1rem;
+    border-radius: 12px;
+    background: var(--color-surface);
+    box-shadow: inset 0 0 0 1px var(--color-line-strong);
+    font-size: 1rem;
+    transition: box-shadow 120ms;
+  }
+  .field:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-ink);
+  }
+  .field[aria-invalid='true'] {
+    box-shadow: inset 0 0 0 2px var(--color-danger);
+  }
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -236,6 +236,41 @@ describe('cortesías, mis entradas y control de acceso', () => {
   });
 });
 
+describe('cuerpo JSON', () => {
+  it('acepta acciones sin cuerpo aunque declaren content-type JSON, y rechaza JSON roto', async () => {
+    const owner = await registerUser(ctx);
+    const { orgId } = await publishedEvent(ctx, owner.token);
+    const venue = await call(ctx, 'POST', `/v1/organizations/${orgId}/venues`, {
+      token: owner.token,
+      body: { name: 'Sala', address: 'Calle 1', city: 'Salta', province: 'Salta' },
+    });
+    const ev = await call(ctx, 'POST', `/v1/organizations/${orgId}/events`, {
+      token: owner.token,
+      body: { title: 'Evento sin cuerpo', category: 'music', venueId: venue.body.id, startsAt: inDays(40), endsAt: inDays(41) },
+    });
+    await call(ctx, 'POST', `/v1/organizations/${orgId}/events/${ev.body.id}/ticket-types`, {
+      token: owner.token,
+      body: { name: 'General', kind: 'general', capacity: 10, stages: [{ name: 'Única', priceCents: 100000 }] },
+    });
+    const publish = await ctx.venti.app.inject({
+      method: 'POST',
+      url: `/v1/organizations/${orgId}/events/${ev.body.id}/publish`,
+      headers: { authorization: `Bearer ${owner.token}`, 'content-type': 'application/json' },
+      remoteAddress: '10.9.9.9',
+    });
+    expect(publish.statusCode).toBe(200);
+    const broken = await ctx.venti.app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      headers: { 'content-type': 'application/json' },
+      payload: '{"email": ',
+      remoteAddress: '10.9.9.8',
+    });
+    expect(broken.statusCode).toBe(400);
+    expect(broken.json().error.code).toBe('invalid_json');
+  });
+});
+
 describe('salud y documentación', () => {
   it('readiness verifica la base y la documentación OpenAPI está publicada', async () => {
     expect((await call(ctx, 'GET', '/health/ready')).body).toEqual({ status: 'ok', database: 'ok' });

@@ -10,7 +10,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Config } from './config.ts';
 import type { Services } from './lib/context.ts';
-import { registerErrorHandler } from './lib/errors.ts';
+import { AppError, registerErrorHandler } from './lib/errors.ts';
 import { SUPABASE_ROOT_CA_2021 } from './lib/supabase-ca.ts';
 import { authRoutes, registerAuthHook } from './modules/auth/routes.ts';
 import { eventRoutes } from './modules/events/routes.ts';
@@ -58,6 +58,19 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
     trustProxy: config.TRUST_PROXY,
     bodyLimit: 256 * 1024,
     genReqId: () => randomUUID(),
+  });
+
+  // JSON tolerante a cuerpo vacío: acciones como "publicar" no llevan datos, y muchos clientes
+  // igual envían `content-type: application/json`. El JSON inválido sigue siendo 400.
+  app.removeContentTypeParser('application/json');
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    const text = typeof body === 'string' ? body : body.toString('utf8');
+    if (text.trim() === '') return done(null, undefined);
+    try {
+      done(null, JSON.parse(text));
+    } catch {
+      done(new AppError(400, 'invalid_json', 'El cuerpo de la solicitud no es JSON válido.'), undefined);
+    }
   });
 
   app.setValidatorCompiler(validatorCompiler);
