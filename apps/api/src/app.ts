@@ -25,6 +25,7 @@ import { businessRoutes } from './modules/business/routes.ts';
 import { paymentRoutes } from './modules/payments/routes.ts';
 import { HttpMercadoPago, type MercadoPagoClient } from './lib/mercadopago.ts';
 import { SecretBox } from './lib/secret-box.ts';
+import { HttpGoogle, type GoogleClient } from './lib/google.ts';
 
 const LOGO_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="0.5">Lintick</text></svg>';
@@ -38,6 +39,8 @@ export interface BuildOptions {
   readonly email?: EmailSender;
   /** Inyectable en tests: cliente de Mercado Pago de prueba. En producción se usa el real. */
   readonly mercadopago?: MercadoPagoClient;
+  /** Inyectable en tests: Google de prueba. En producción se usa el real. */
+  readonly google?: GoogleClient;
 }
 
 export interface VentiApp {
@@ -63,6 +66,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
     now: opts.now ?? (() => new Date()),
     mp: opts.mercadopago ?? (config.MP_CLIENT_ID && config.MP_CLIENT_SECRET ? new HttpMercadoPago(config.MP_CLIENT_ID, config.MP_CLIENT_SECRET, config.MP_TEST_MODE) : null),
     secretBox: config.PAYMENTS_ENC_KEY ? new SecretBox(config.PAYMENTS_ENC_KEY) : null,
+    google: opts.google ?? (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET ? new HttpGoogle(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET) : null),
   };
 
   const app = Fastify({

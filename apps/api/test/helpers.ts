@@ -8,6 +8,7 @@ import { buildApp, type VentiApp } from '../src/app.ts';
 import { loadConfig } from '../src/config.ts';
 import { OutboxSender } from '../src/lib/email.ts';
 import type { MercadoPagoClient } from '../src/lib/mercadopago.ts';
+import type { GoogleClient } from '../src/lib/google.ts';
 
 export interface TestContext {
   readonly venti: VentiApp;
@@ -17,7 +18,7 @@ export interface TestContext {
   readonly outbox: OutboxSender;
 }
 
-export async function setupApp(opts: { env?: Record<string, string>; mercadopago?: MercadoPagoClient } = {}): Promise<TestContext> {
+export async function setupApp(opts: { env?: Record<string, string>; mercadopago?: MercadoPagoClient; google?: GoogleClient } = {}): Promise<TestContext> {
   const config = loadConfig({
     NODE_ENV: 'test',
     LOG_LEVEL: 'silent',
@@ -31,7 +32,7 @@ export async function setupApp(opts: { env?: Record<string, string>; mercadopago
     ...opts.env,
   });
   const outbox = new OutboxSender(false);
-  const venti = await buildApp({ config, email: outbox, ...(opts.mercadopago ? { mercadopago: opts.mercadopago } : {}) });
+  const venti = await buildApp({ config, email: outbox, ...(opts.mercadopago ? { mercadopago: opts.mercadopago } : {}), ...(opts.google ? { google: opts.google } : {}) });
   await venti.app.ready();
   return { venti, owner: createDb(inject('ownerDatabaseUrl'), { max: 2 }), outbox };
 }

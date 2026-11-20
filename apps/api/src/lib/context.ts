@@ -1,4 +1,5 @@
 import type { KeyObject } from 'node:crypto';
+import type { GoogleClient } from './google.ts';
 import type { MercadoPagoClient } from './mercadopago.ts';
 import type { SecretBox } from './secret-box.ts';
 import { roleHas, type OrgRole, type Permission } from '@venti/domain';
@@ -21,6 +22,8 @@ export interface Services {
   readonly mp: MercadoPagoClient | null;
   /** Cifrado de tokens de las productoras (null si no hay clave). */
   readonly secretBox: SecretBox | null;
+  /** Ingreso con Google (null si no está configurado: el botón no se muestra). */
+  readonly google: GoogleClient | null;
 }
 
 export interface AuthInfo {

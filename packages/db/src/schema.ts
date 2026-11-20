@@ -90,6 +90,22 @@ export const users = pgTable(
   ],
 );
 
+/** Cuentas externas con las que una persona puede entrar (hoy: Google). Se identifica por el "sub" del proveedor, que nunca cambia. */
+export const userIdentities = pgTable(
+  'user_identities',
+  {
+    provider: text('provider').notNull(),
+    subject: text('subject').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    createdAt: createdAt(),
+    lastUsedAt: ts('last_used_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.subject] }), uniqueIndex('user_identities_user_provider_uq').on(t.userId, t.provider)],
+);
+
 export const sessions = pgTable(
   'sessions',
   {

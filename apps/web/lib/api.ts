@@ -103,6 +103,11 @@ export function getCategoryCounts() {
   return apiGet<{ items: { category: string; count: number }[] }>('/v1/public/categories', { revalidate: 60 });
 }
 
+/** Formas de ingreso activas (Google, y si se pueden crear cuentas con email). */
+export function getAuthProviders() {
+  return apiGet<{ google: boolean; email: boolean }>('/v1/auth/providers', { revalidate: 60 });
+}
+
 /** Cuenta de Mercado Pago de la productora (requiere permiso de finanzas). */
 export function getPaymentAccount(orgId: string) {
   return apiGet<PaymentAccountStatus>(`/v1/organizations/${encodeURIComponent(orgId)}/payments/mercadopago`, { auth: true });

@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { and, emailVerifications, eq, gt, isNull, passwordResets, sessions, sql, users } from '@venti/db';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { and, emailVerifications, eq, gt, isNull, passwordResets, sessions, sql, userIdentities, users } from '@venti/db';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -7,6 +7,7 @@ import { bindPendingClaims } from '../../lib/claims.ts';
 import { dummyPasswordHash, hashPassword, randomToken, sha256, verifyPassword } from '../../lib/crypto.ts';
 import { AppError, unauthorized } from '../../lib/errors.ts';
 import { requireAuth, type Services } from '../../lib/context.ts';
+import { GoogleAuthError, pkceChallenge, type GoogleProfile } from '../../lib/google.ts';
 
 export const SESSION_COOKIE = 'venti_session';
 const MAX_FAILED_LOGINS = 10;
@@ -334,5 +335,166 @@ export async function authRoutes(app: FastifyInstance, s: Services): Promise<voi
     const [user] = await s.db.select().from(users).where(eq(users.id, auth.userId));
     if (!user) throw unauthorized();
     return { user: toUserDto(user) };
+  });
+
+  // ─────────────── Ingreso con Google ───────────────
+  r.get(
+    '/v1/auth/providers',
+    { schema: { tags: ['auth'], summary: 'Formas de ingreso disponibles', response: { 200: z.object({ google: z.boolean(), email: z.boolean() }) } } },
+    async () => ({ google: !!s.google, email: s.email.enabled }),
+  );
+
+  r.get(
+    '/v1/auth/google/start',
+    {
+      config: authRateLimit,
+      schema: { tags: ['auth'], summary: 'Ir a Google para entrar o crear la cuenta', querystring: z.object({ next: z.string().max(300).optional() }) },
+    },
+    async (req, reply) => {
+      if (!s.google) return reply.redirect(webUrl(s, '/ingresar?google=no_disponible'));
+      const state = randomToken(24);
+      const nonce = randomToken(24);
+      const verifier = randomToken(48);
+      const next = safeNext(req.query.next);
+      // Cookie corta (10 min) que sólo existe durante el viaje a Google y vuelta: liga la vuelta a ESTE navegador.
+      reply.setCookie(GOOGLE_COOKIE, [state, nonce, verifier, Buffer.from(next).toString('base64url')].join('.'), {
+        httpOnly: true,
+        secure: s.config.COOKIE_SECURE,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 600,
+      });
+      return reply.redirect(s.google.authorizeUrl({ redirectUri: googleRedirectUri(s), state, nonce, codeChallenge: pkceChallenge(verifier) }));
+    },
+  );
+
+  r.get(
+    '/v1/auth/google/callback',
+    {
+      config: authRateLimit,
+      schema: {
+        tags: ['auth'],
+        summary: 'Vuelta de Google',
+        querystring: z.object({ code: z.string().max(2048).optional(), state: z.string().max(200).optional(), error: z.string().max(200).optional() }),
+      },
+    },
+    async (req, reply) => {
+      const fail = (motivo: string) => {
+        reply.clearCookie(GOOGLE_COOKIE, { path: '/' });
+        return reply.redirect(webUrl(s, `/ingresar?google=${motivo}`));
+      };
+      if (!s.google) return fail('no_disponible');
+      const [state, nonce, verifier, nextB64] = (req.cookies[GOOGLE_COOKIE] ?? '').split('.');
+      if (req.query.error) return fail(req.query.error === 'access_denied' ? 'cancelado' : 'error');
+      if (!state || !nonce || !verifier || !req.query.code || !req.query.state || !sameToken(state, req.query.state)) return fail('vencido');
+
+      let profile: GoogleProfile;
+      try {
+        profile = await s.google.exchangeCode({ code: req.query.code, redirectUri: googleRedirectUri(s), codeVerifier: verifier });
+      } catch (err) {
+        req.log.warn({ err: err instanceof GoogleAuthError ? err.message : String(err) }, 'google: canje fallido');
+        return fail('error');
+      }
+      if (profile.nonce !== nonce) return fail('vencido');
+
+      const result = await signInWithGoogle(s, profile);
+      if ('error' in result) return fail(result.error);
+      await bindPendingClaims(s.db, result.userId, s.now());
+      await createSession(s, req, reply, result.userId);
+      reply.clearCookie(GOOGLE_COOKIE, { path: '/' });
+      return reply.redirect(webUrl(s, safeNext(nextB64 ? Buffer.from(nextB64, 'base64url').toString('utf8') : undefined)));
+    },
+  );
+
+}
+
+
+const GOOGLE_COOKIE = 'lintick_google';
+
+function webUrl(s: Services, path: string) {
+  return `${s.config.PUBLIC_WEB_URL.replace(/\/+$/, '')}${path}`;
+}
+
+/** La vuelta de Google entra por la web (mismo dominio que la cookie de sesión) y el proxy /api la pasa a la API. */
+function googleRedirectUri(s: Services) {
+  return webUrl(s, '/api/v1/auth/google/callback');
+}
+
+/** Sólo rutas internas de Lintick: nunca "//otro-sitio" ni direcciones completas (evita redirecciones abiertas). */
+export function safeNext(next: string | undefined): string {
+  if (!next || !/^\/(?![/\\])[A-Za-z0-9\-._~/?=&%]*$/.test(next)) return '/';
+  return next;
+}
+
+function sameToken(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+type GoogleResult = { userId: string } | { error: 'sin_verificar' | 'bloqueada' | 'otra_cuenta' };
+
+/**
+ * Decide qué cuenta corresponde a esta persona de Google:
+ * 1. Si ya entró antes con Google (mismo "sub"), es esa cuenta.
+ * 2. Si no, se busca por email (Google ya confirmó que el email es suyo):
+ *    - cuenta confirmada: se vincula a Google;
+ *    - cuenta SIN confirmar: puede haberla creado otro con este email, así que la toma el dueño real:
+ *      se anula la contraseña pendiente, se cierran sesiones y se invalidan los enlaces de confirmación;
+ *    - no existe: se crea, ya confirmada.
+ */
+async function signInWithGoogle(s: Services, profile: GoogleProfile): Promise<GoogleResult> {
+  const p = { ...profile, email: profile.email.trim().toLowerCase() };
+  const now = s.now();
+  const [linked] = await s.db
+    .select({ userId: users.id, status: users.status })
+    .from(userIdentities)
+    .innerJoin(users, eq(users.id, userIdentities.userId))
+    .where(and(eq(userIdentities.provider, 'google'), eq(userIdentities.subject, p.sub)));
+  if (linked) {
+    if (linked.status !== 'active') return { error: 'bloqueada' };
+    await s.db
+      .update(userIdentities)
+      .set({ lastUsedAt: now, email: p.email })
+      .where(and(eq(userIdentities.provider, 'google'), eq(userIdentities.subject, p.sub)));
+    return { userId: linked.userId };
+  }
+  if (!p.emailVerified) return { error: 'sin_verificar' };
+
+  // Contraseña imposible de adivinar: quien entra con Google no la necesita (y puede crear una con "Olvidé mi contraseña").
+  const unusableHash = await hashPassword(randomToken(32));
+  const fullName = p.name ?? p.email.split('@')[0]!;
+  const byEmail = sql`lower(${users.email}) = ${p.email}`;
+
+  return s.db.transaction(async (tx): Promise<GoogleResult> => {
+    let [user] = await tx.select().from(users).where(byEmail).for('update');
+    if (!user) {
+      [user] = await tx
+        .insert(users)
+        .values({ id: randomUUID(), email: p.email, passwordHash: unusableHash, fullName, emailVerifiedAt: now })
+        .onConflictDoNothing()
+        .returning();
+      if (!user) [user] = await tx.select().from(users).where(byEmail).for('update');
+      if (!user) throw new AppError(409, 'conflict', 'Probá de nuevo.');
+    } else if (user.status !== 'active') {
+      return { error: 'bloqueada' };
+    } else if (!user.emailVerifiedAt) {
+      await tx.update(emailVerifications).set({ usedAt: now }).where(and(eq(emailVerifications.userId, user.id), isNull(emailVerifications.usedAt)));
+      await tx.update(sessions).set({ revokedAt: now }).where(and(eq(sessions.userId, user.id), isNull(sessions.revokedAt)));
+      [user] = await tx
+        .update(users)
+        .set({ passwordHash: unusableHash, fullName, emailVerifiedAt: now, failedLoginCount: 0, lockedUntil: null, updatedAt: now })
+        .where(eq(users.id, user.id))
+        .returning();
+    }
+    const userId = user!.id;
+    const inserted = await tx
+      .insert(userIdentities)
+      .values({ provider: 'google', subject: p.sub, userId, email: p.email, lastUsedAt: now })
+      .onConflictDoNothing()
+      .returning({ userId: userIdentities.userId });
+    // La cuenta ya estaba vinculada a OTRA cuenta de Google: no se reemplaza en silencio.
+    if (inserted[0]?.userId !== userId) return { error: 'otra_cuenta' };
+    return { userId };
   });
 }

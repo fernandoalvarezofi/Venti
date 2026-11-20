@@ -1,12 +1,18 @@
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/api';
+import { getAuthProviders, getCurrentUser } from '@/lib/api';
 import { safeNext } from '@/lib/safe-next';
 import { AuthForm } from './auth-form';
+import { GOOGLE_MESSAGES, GoogleButton } from './google-button';
 import { Mascot } from './mascot';
 
-export async function AuthPage({ mode, nextRaw }: { mode: 'login' | 'register'; nextRaw: string | undefined }) {
+export async function AuthPage({ mode, nextRaw, googleStatus }: { mode: 'login' | 'register'; nextRaw: string | undefined; googleStatus?: string }) {
   const next = safeNext(nextRaw);
   if (await getCurrentUser()) redirect(next);
+  const providers = await getAuthProviders();
+  const google = providers.ok && providers.data.google;
+  // Sin envío de emails no se pueden confirmar cuentas nuevas: en ese caso, crear la cuenta es sólo con Google.
+  const emailSignup = !providers.ok || providers.data.email;
+  const googleError = googleStatus ? (GOOGLE_MESSAGES[googleStatus] ?? GOOGLE_MESSAGES.error) : null;
   return (
     <div className="mx-auto grid max-w-5xl gap-10 px-4 pt-12 sm:px-6 md:grid-cols-[1fr_440px] md:pt-20">
       <div className="hidden md:block">
@@ -39,7 +45,29 @@ export async function AuthPage({ mode, nextRaw }: { mode: 'login' | 'register'; 
         </div>
         <div className="cut my-5" aria-hidden><span /></div>
         <div className="px-7 sm:px-9">
-          <AuthForm mode={mode} next={next} />
+          {googleError ? (
+            <p role="alert" className="mb-5 rounded-xl bg-accent/10 px-4 py-3 text-sm text-accent-ink">
+              {googleError}
+            </p>
+          ) : null}
+          {google ? (
+            <>
+              <GoogleButton next={next} label={mode === 'register' ? 'Registrarme con Google' : 'Continuar con Google'} />
+              {mode === 'register' && !emailSignup ? (
+                <p className="mt-4 text-sm text-muted">Usamos tu cuenta de Google para crear la tuya: no tenés que elegir contraseña ni confirmar el email.</p>
+              ) : (
+                <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted" aria-hidden>
+                  <span className="h-px flex-1 bg-line" />o con tu email
+                  <span className="h-px flex-1 bg-line" />
+                </div>
+              )}
+            </>
+          ) : null}
+          {mode === 'register' && !emailSignup ? (
+            google ? null : <p className="text-muted">Por ahora no se pueden crear cuentas nuevas. Probá de nuevo en un rato.</p>
+          ) : (
+            <AuthForm mode={mode} next={next} />
+          )}
         </div>
       </div>
     </div>

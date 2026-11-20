@@ -71,7 +71,16 @@ const ConfigSchema = z.object({
     .transform((v) => v === 'true'),
   /** Clave para cifrar los tokens de las productoras (32 bytes en base64). */
   PAYMENTS_ENC_KEY: z.string().optional(),
+  /**
+   * Ingreso con Google (OAuth "ID de cliente web" de Google Cloud). Si falta, el botón no aparece.
+   * URI de redirección autorizada: {PUBLIC_WEB_URL}/api/v1/auth/google/callback
+   */
+  GOOGLE_CLIENT_ID: z.string().trim().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().trim().optional(),
 }).superRefine((c, ctx) => {
+  if (c.GOOGLE_CLIENT_ID && !c.GOOGLE_CLIENT_SECRET) {
+    ctx.addIssue({ code: 'custom', path: ['GOOGLE_CLIENT_SECRET'], message: 'Falta GOOGLE_CLIENT_SECRET.' });
+  }
   if (c.MP_CLIENT_ID) {
     if (!c.MP_CLIENT_SECRET) ctx.addIssue({ code: 'custom', path: ['MP_CLIENT_SECRET'], message: 'Falta MP_CLIENT_SECRET.' });
     if (!c.PAYMENTS_ENC_KEY || Buffer.from(c.PAYMENTS_ENC_KEY, 'base64').length !== 32) {
