@@ -33,21 +33,25 @@ export function resolveActiveStage(stages: readonly PriceStage[], now: Date, qua
   return null;
 }
 
-/** Cargo por servicio al comprador por defecto: 10% (1000 puntos básicos). Cada productora puede tener el suyo. */
-export const DEFAULT_BUYER_FEE_BPS = 1000;
-/** Tope de seguridad: ningún cargo por servicio puede superar el 30%. */
-export const MAX_BUYER_FEE_BPS = 3000;
+/**
+ * Comisión de Lintick por defecto: 10% (1000 puntos básicos) de cada venta.
+ * El comprador paga sólo el precio de la entrada: la comisión se descuenta de lo que cobra la productora.
+ * Cada productora puede tener una comisión acordada distinta.
+ */
+export const DEFAULT_COMMISSION_BPS = 1000;
+/** Tope de seguridad: ninguna comisión puede superar el 30%. */
+export const MAX_COMMISSION_BPS = 3000;
 
 /**
- * Cargo por servicio de una compra. Se calcula sobre el subtotal completo (no por entrada)
- * con redondeo bancario. Las compras gratuitas no pagan cargo.
+ * Comisión de una venta. Se calcula sobre el subtotal completo (no por entrada)
+ * con redondeo bancario. Las entradas gratuitas no generan comisión.
  */
-export function buyerFeeCents(subtotalCents: number, feeBps: number): number {
+export function commissionCents(subtotalCents: number, feeBps: number): number {
   if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {
     throw new DomainError('pricing.invalid_subtotal', 'El subtotal debe ser un entero de centavos ≥ 0.');
   }
-  if (!Number.isSafeInteger(feeBps) || feeBps < 0 || feeBps > MAX_BUYER_FEE_BPS) {
-    throw new DomainError('pricing.invalid_fee', `El cargo por servicio debe estar entre 0 y ${MAX_BUYER_FEE_BPS / 100}%.`);
+  if (!Number.isSafeInteger(feeBps) || feeBps < 0 || feeBps > MAX_COMMISSION_BPS) {
+    throw new DomainError('pricing.invalid_fee', `La comisión debe estar entre 0 y ${MAX_COMMISSION_BPS / 100}%.`);
   }
   if (subtotalCents === 0) return 0;
   const raw = (subtotalCents * feeBps) / 10_000;

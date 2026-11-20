@@ -74,12 +74,10 @@ export function HoldPanel({ hold }: { hold: Hold }) {
             </li>
           ))}
         </ul>
-        <div className="flex items-baseline justify-between gap-4 py-2 text-sm text-muted">
-          <span>Cargo por servicio</span>
-          <span className="tabular-nums">{formatMoney(hold.feeCents, hold.currency)}</span>
-        </div>
         <div className="mt-2 flex items-baseline justify-between border-t border-line pt-4">
-          <span className="font-semibold">Total</span>
+          <span className="font-semibold">
+            Total <span className="text-xs font-normal text-muted">· sin cargos extra</span>
+          </span>
           <span className="font-display text-3xl font-extrabold tabular-nums">{formatMoney(hold.totalCents, hold.currency)}</span>
         </div>
 

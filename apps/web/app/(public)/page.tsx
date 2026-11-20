@@ -1,11 +1,11 @@
 import Link from 'next/link';
+import { CategoryCarousel } from '@/components/category-carousel';
 import { EventCard } from '@/components/event-card';
 import { Mascot } from '@/components/mascot';
 import { ArrowRightIcon } from '@/components/icons';
 import { SearchBar } from '@/components/search-bar';
 import { EmptyState, ErrorState } from '@/components/states';
 import { searchEvents } from '@/lib/api';
-import { CATEGORY_LABELS } from '@/lib/format';
 
 export default async function Home() {
   const result = await searchEvents({ limit: 12 });
@@ -27,15 +27,7 @@ export default async function Home() {
           <div aria-hidden className="search-aura" />
           <SearchBar />
         </div>
-        <ul className="mt-5 flex flex-wrap gap-2" aria-label="Categorías">
-          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-            <li key={value}>
-              <Link href={`/eventos?category=${value}`} className="inline-flex h-9 items-center rounded-full px-4 text-sm font-medium shadow-[inset_0_0_0_1px_var(--color-line-strong)] hover:bg-ink hover:text-paper hover:shadow-none">
-                {label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <CategoryCarousel />
       </section>
 
       <section className="mx-auto max-w-6xl px-4 sm:px-6" aria-labelledby="proximos">

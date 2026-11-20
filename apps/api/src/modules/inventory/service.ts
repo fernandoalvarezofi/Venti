@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_BUYER_FEE_BPS, DomainError, MAX_BUYER_FEE_BPS, buyerFeeCents, resolveActiveStage } from '@venti/domain';
+import { DEFAULT_COMMISSION_BPS, DomainError, MAX_COMMISSION_BPS, commissionCents, resolveActiveStage } from '@venti/domain';
 import {
   and,
   asc,
@@ -38,9 +38,14 @@ export interface Quote {
   currency: string;
   lines: QuoteLine[];
   subtotalCents: number;
-  feeCents: number;
-  feeBps: number;
+  /** Lo que paga el comprador: el precio de las entradas, sin cargos extra. */
   totalCents: number;
+}
+
+/** Comisión interna de una venta (no se muestra al comprador). */
+interface Commission {
+  commissionBps: number;
+  commissionCents: number;
 }
 
 export interface HoldView {
@@ -50,7 +55,6 @@ export interface HoldView {
   readonly expiresAt: Date;
   readonly currency: string;
   readonly subtotalCents: number;
-  readonly feeCents: number;
   readonly totalCents: number;
   readonly items: { ticketTypeId: string; ticketTypeName: string; stageName: string | null; quantity: number; unitPriceCents: number }[];
 }
@@ -58,9 +62,10 @@ export interface HoldView {
 /** Límite de unidades por compra entre todos los tipos (anti-acaparamiento). */
 export const MAX_UNITS_PER_HOLD = 20;
 
-export function feeBpsFromSettings(settings: unknown): number {
-  const raw = (settings as { buyerFeeBps?: unknown } | null)?.buyerFeeBps;
-  return typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 && raw <= MAX_BUYER_FEE_BPS ? raw : DEFAULT_BUYER_FEE_BPS;
+/** Comisión acordada con la productora (organizations.settings.commissionBps) o la de por defecto. */
+export function commissionBpsFromSettings(settings: unknown): number {
+  const raw = (settings as { commissionBps?: unknown } | null)?.commissionBps;
+  return typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 && raw <= MAX_COMMISSION_BPS ? raw : DEFAULT_COMMISSION_BPS;
 }
 
 function validateItems(items: readonly HoldRequestItem[]): string[] {
@@ -74,10 +79,10 @@ function validateItems(items: readonly HoldRequestItem[]): string[] {
 interface SaleEvent {
   id: string;
   organizationId: string;
-  feeBps: number;
+  commissionBps: number;
 }
 
-/** Evento vendible + cargo por servicio de su productora. La organización la decide el servidor. */
+/** Evento vendible + comisión acordada con su productora. La organización la decide el servidor. */
 async function loadSaleEvent(db: Db, eventId: string, userId: string | null, now: Date): Promise<SaleEvent> {
   const [row] = await withContext(db, { userId }, (tx) =>
     tx
@@ -88,7 +93,7 @@ async function loadSaleEvent(db: Db, eventId: string, userId: string | null, now
   );
   if (!row) throw notFound('Evento');
   if (row.status !== 'published' || row.endsAt <= now) throw conflict('event_not_on_sale', 'El evento no está a la venta.');
-  return { id: row.id, organizationId: row.organizationId, feeBps: feeBpsFromSettings(row.settings) };
+  return { id: row.id, organizationId: row.organizationId, commissionBps: commissionBpsFromSettings(row.settings) };
 }
 
 /**
@@ -96,7 +101,7 @@ async function loadSaleEvent(db: Db, eventId: string, userId: string | null, now
  * y elige la etapa vigente contando lo vendido y lo reservado. No reserva nada.
  * Es la única fuente de verdad del precio: la usan la cotización y la reserva.
  */
-async function priceSelection(tx: Tx, event: SaleEvent, items: readonly HoldRequestItem[], now: Date): Promise<Quote> {
+async function priceSelection(tx: Tx, event: SaleEvent, items: readonly HoldRequestItem[], now: Date): Promise<Quote & Commission> {
   const ids = items.map((i) => i.ticketTypeId);
   const types = await tx.select().from(ticketTypes).where(and(eq(ticketTypes.eventId, event.id), inArray(ticketTypes.id, ids)));
   const stages = await tx.select().from(priceStages).where(inArray(priceStages.ticketTypeId, ids)).orderBy(asc(priceStages.position));
@@ -131,15 +136,14 @@ async function priceSelection(tx: Tx, event: SaleEvent, items: readonly HoldRequ
   if (currencies.size > 1) throw new DomainError('hold.mixed_currency', 'No se pueden combinar entradas en distintas monedas.');
 
   const subtotalCents = lines.reduce((a, l) => a + l.lineTotalCents, 0);
-  const feeCents = buyerFeeCents(subtotalCents, event.feeBps);
   return {
     eventId: event.id,
     currency: [...currencies][0] ?? 'ARS',
     lines,
     subtotalCents,
-    feeCents,
-    feeBps: event.feeBps,
-    totalCents: subtotalCents + feeCents,
+    totalCents: subtotalCents,
+    commissionBps: event.commissionBps,
+    commissionCents: commissionCents(subtotalCents, event.commissionBps),
   };
 }
 
@@ -147,7 +151,8 @@ async function priceSelection(tx: Tx, event: SaleEvent, items: readonly HoldRequ
 export async function quote(db: Db, input: { eventId: string; items: readonly HoldRequestItem[]; now: Date }): Promise<Quote> {
   validateItems(input.items);
   const event = await loadSaleEvent(db, input.eventId, null, input.now);
-  return withContext(db, {}, (tx) => priceSelection(tx, event, input.items, input.now));
+  const { commissionBps: _b, commissionCents: _c, ...q } = await withContext(db, {}, (tx) => priceSelection(tx, event, input.items, input.now));
+  return q;
 }
 
 /**
@@ -210,7 +215,9 @@ export async function createHold(
       userId: input.userId,
       currency: priced.currency as 'ARS' | 'USD',
       subtotalCents: priced.subtotalCents,
-      feeCents: priced.feeCents,
+      feeCents: 0,
+      commissionBps: priced.commissionBps,
+      commissionCents: priced.commissionCents,
       expiresAt,
     });
     await tx.insert(holdItems).values(
@@ -231,7 +238,6 @@ export async function createHold(
       expiresAt,
       currency: priced.currency,
       subtotalCents: priced.subtotalCents,
-      feeCents: priced.feeCents,
       totalCents: priced.totalCents,
       items: priced.lines.map((l) => ({ ticketTypeId: l.ticketTypeId, ticketTypeName: l.ticketTypeName, stageName: l.stageName, quantity: l.quantity, unitPriceCents: l.unitPriceCents })),
     };
@@ -282,7 +288,6 @@ export async function getHold(db: Db, userId: string, holdId: string, now: Date)
       expiresAt: h.expiresAt,
       currency: h.currency,
       subtotalCents: h.subtotalCents,
-      feeCents: h.feeCents,
       totalCents: h.subtotalCents + h.feeCents,
       items: items.map((i) => ({
         ticketTypeId: i.item.ticketTypeId,

@@ -43,7 +43,7 @@ App `web` (marketplace) con Next.js.
 anulación de entradas y liberación de reservas), tipos de entrada (capacidad, ocultar, etapas: agregar y editar
 precio sólo si no vendió), cortesías, asistentes con búsqueda, equipo y roles.
 ✅ Compra pública rediseñada: hoja de compra (abajo en celular, lateral en escritorio) con cotización del servidor
-y cargo por servicio (10% por defecto, por productora).
+y comisión de Lintick (10% por defecto, acordable por productora) que se descuenta a la productora: el comprador paga sólo el precio de la entrada.
 ⏳ Falta:
 Panel con eventos, entradas, sectores, cupones, promociones, RRPP y vendedores con links trackeados,
 cortesías e invitados, colaboradores y permisos, estadísticas básicas.

@@ -343,12 +343,17 @@ export const holds = pgTable(
     currency: currency('currency').notNull().default('ARS'),
     /** Montos congelados al reservar: el precio no cambia mientras dura la reserva. */
     subtotalCents: cents('subtotal_cents').notNull().default(0),
+    /** Cargo al comprador: Lintick no cobra cargos al comprador, queda en 0. */
     feeCents: cents('fee_cents').notNull().default(0),
+    /** Comisión de Lintick (se descuenta a la productora), congelada al reservar. */
+    commissionBps: integer('commission_bps').notNull().default(0),
+    commissionCents: cents('commission_cents').notNull().default(0),
     expiresAt: ts('expires_at').notNull(),
     createdAt: createdAt(),
     closedAt: ts('closed_at'),
   },
   (t) => [
+    check('holds_commission', sql`${t.commissionCents} >= 0 AND ${t.commissionCents} <= ${t.subtotalCents} AND ${t.commissionBps} BETWEEN 0 AND 3000`),
     index('holds_expiry_idx').on(t.expiresAt).where(sql`${t.status} = 'active'`),
     index('holds_user_idx').on(t.userId),
   ],
@@ -392,6 +397,9 @@ export const orders = pgTable(
     subtotalCents: cents('subtotal_cents').notNull(),
     feeCents: cents('fee_cents').notNull().default(0),
     totalCents: cents('total_cents').notNull(),
+    /** Comisión de Lintick sobre esta venta; la productora cobra subtotal − comisión. */
+    commissionBps: integer('commission_bps').notNull().default(0),
+    commissionCents: cents('commission_cents').notNull().default(0),
     idempotencyKey: text('idempotency_key').notNull(),
     paidAt: ts('paid_at'),
     createdAt: createdAt(),
@@ -401,6 +409,7 @@ export const orders = pgTable(
     uniqueIndex('orders_idempotency_uq').on(t.buyerUserId, t.idempotencyKey),
     index('orders_org_idx').on(t.organizationId, t.createdAt),
     check('orders_total', sql`${t.totalCents} = ${t.subtotalCents} + ${t.feeCents} AND ${t.totalCents} >= 0`),
+    check('orders_commission', sql`${t.commissionCents} >= 0 AND ${t.commissionCents} <= ${t.subtotalCents} AND ${t.commissionBps} BETWEEN 0 AND 3000`),
   ],
 );
 
