@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PAYMENTS_LIVE } from '@/lib/config';
+import { BrandedQr } from './branded-qr';
 import { PayoutFlow } from './payout-flow';
 
 const Soon = () => (PAYMENTS_LIVE ? null : <span className="hz-soon ml-2 align-middle">Muy pronto</span>);
@@ -32,86 +33,141 @@ export function Payouts() {
   );
 }
 
-/** "Infaltables para tu evento" (referencia: infaltables). */
+/** "Infaltables para tu evento" (referencia: infaltables): entrada con QR real de la marca + panel de reportes. */
 export function Essentials() {
   return (
     <section className="hz hz-light" aria-labelledby="infaltables">
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-        <h2 id="infaltables" className="hz-title text-[clamp(2.6rem,7vw,4.6rem)]">
+        <p className="hz-eyebrow">Para el día del evento</p>
+        <h2 id="infaltables" className="hz-title mt-4 text-[clamp(2.6rem,7vw,4.6rem)]">
           Infaltables para
           <br />
-          tu evento.
+          <span className="hz-ghost">tu evento.</span>
         </h2>
-        <div className="mt-12 grid gap-8 md:grid-cols-2">
-          {/* 1. Escáner sin internet */}
-          <article>
-            <div className="relative aspect-[4/3.4] overflow-hidden rounded-2xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/home/escena-1.webp" alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover grayscale" />
-              <div className="absolute inset-0 bg-[#3a140b] mix-blend-color" />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/30 to-transparent" />
-              <span className="absolute left-4 top-4 grid size-8 place-items-center rounded-full bg-paper/15 text-sm font-bold backdrop-blur">1</span>
-              {/* Pantalla del escáner */}
-              <div className="absolute left-1/2 top-1/2 w-40 -translate-x-1/2 -translate-y-1/2 -rotate-6 rounded-[1.6rem] bg-[#0e0c0b] p-1.5 shadow-[0_30px_50px_-20px_rgb(0_0_0/0.9)]">
-                <div className="flex aspect-[9/16] flex-col items-center justify-center rounded-[1.25rem] bg-[#1d6b3a] text-center text-white">
-                  <span className="grid size-12 place-items-center rounded-full bg-white/20 text-2xl font-bold">✓</span>
-                  <span className="mt-3 font-display text-xl font-extrabold uppercase">Adelante</span>
-                  <span className="mt-2 rounded-full bg-black/25 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-[0.1em]">sin señal</span>
+        <div className="mt-12 grid gap-6 lg:grid-cols-2">
+          {/* 1. Entrada con QR de Lintick + escáner sin internet */}
+          <article className="ess-card flex flex-col">
+            <div className="ess-stage">
+              <span className="ess-num">1</span>
+              <div className="ess-pass">
+                <div className="flex items-center justify-between px-5 pt-4">
+                  <span className="font-display text-lg font-extrabold tracking-[-0.04em]">
+                    Lintick<span className="text-accent">.</span>
+                  </span>
+                  <span className="rounded-full bg-ink px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.12em] text-paper">Campo</span>
+                </div>
+                <div className="px-5 pb-1 pt-2">
+                  <p className="font-display text-[1.05rem] font-bold leading-tight">Noche de Otoño</p>
+                  <p className="text-[0.7rem] text-muted">Sáb 14/03 · 22:00 · Sala Norte</p>
+                </div>
+                <div className="cut my-2" aria-hidden>
+                  <span className="opacity-60" />
+                </div>
+                <div className="relative mx-auto mb-3 mt-1 w-[68%]">
+                  <BrandedQr value="https://venti-web-eta.vercel.app" className="block h-auto w-full" />
+                  {/* Visor del escáner sobre el QR */}
+                  <span className="ess-viewfinder" aria-hidden>
+                    <span className="ess-scanline" />
+                  </span>
+                </div>
+                <div className="flex items-center justify-between px-5 pb-4 text-[0.68rem]">
+                  <span>
+                    <span className="block text-[0.55rem] font-bold uppercase tracking-[0.14em] text-muted">Entrada Nº</span>
+                    <span className="font-mono text-sm font-bold">9F3A-2C1E</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-[0.55rem] font-bold uppercase tracking-[0.14em] text-muted">Titular</span>
+                    <span className="font-semibold">Ana P. · DNI •••123</span>
+                  </span>
                 </div>
               </div>
-              <div className="absolute bottom-4 right-4 flex items-center gap-2.5 rounded-xl bg-ink/85 px-3 py-2 text-xs backdrop-blur">
-                <span className="grid size-6 place-items-center rounded-full bg-[#1d6b3a] text-[0.7rem] font-bold">✓</span>
+              <div className="ess-toast">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#16a34a] text-xs font-bold text-white">✓</span>
                 <span>
-                  <span className="block font-semibold">Entrada validada</span>
-                  <span className="font-mono text-[0.65rem] text-paper/55">SIN SEÑAL · 9F3A-2C1E</span>
+                  <span className="block text-sm font-semibold">Entrada validada</span>
+                  <span className="font-mono text-[0.62rem] text-paper/60">SIN SEÑAL · PUERTA NORTE · 22:41</span>
                 </span>
               </div>
             </div>
-            <h3 className="mt-5 font-display text-2xl font-bold tracking-[-0.02em]">Escáner QR sin internet</h3>
-            <p className="hz-muted mt-1.5 max-w-sm text-sm">Validá las entradas desde cualquier celular, incluso sin conexión. Cuando vuelve la señal, todo se sincroniza solo.</p>
+            <div className="px-6 pb-6 pt-5">
+              <h3 className="font-display text-2xl font-bold tracking-[-0.02em]">Escáner QR sin internet</h3>
+              <p className="mt-1.5 max-w-md text-sm text-paper/65">
+                Cada entrada lleva un QR firmado e imposible de falsificar. En la puerta se valida desde cualquier celular, incluso sin señal, y cada QR entra una sola vez.
+              </p>
+            </div>
           </article>
 
-          {/* 2. Reportes */}
-          <article>
-            <div className="relative aspect-[4/3.4] overflow-hidden rounded-2xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/home/escena-2.webp" alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover grayscale" />
-              <div className="absolute inset-0 bg-[#3a140b] mix-blend-color" />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/10" />
-              <span className="absolute left-4 top-4 grid size-8 place-items-center rounded-full bg-paper/15 text-sm font-bold backdrop-blur">2</span>
-              <div className="absolute left-1/2 top-1/2 w-44 -translate-x-1/2 -translate-y-1/2 rotate-3 rounded-[1.6rem] bg-[#0e0c0b] p-1.5 shadow-[0_30px_50px_-20px_rgb(0_0_0/0.9)]">
-                <div className="aspect-[9/16] rounded-[1.25rem] bg-[#1f1b18] p-3">
-                  <div className="grid grid-cols-2 gap-1.5 text-center">
-                    <span className="rounded-lg bg-paper/10 py-1.5">
-                      <span className="block text-[0.5rem] text-paper/50">emitidas</span>
-                      <span className="text-sm font-bold">1.240</span>
-                    </span>
-                    <span className="rounded-lg bg-paper/10 py-1.5">
-                      <span className="block text-[0.5rem] text-paper/50">ingresaron</span>
-                      <span className="text-sm font-bold">1.198</span>
-                    </span>
-                  </div>
-                  <svg viewBox="0 0 100 50" className="mt-3 w-full" aria-hidden>
-                    <path d="M0 45 L12 40 L24 42 L36 30 L48 33 L60 20 L72 24 L84 10 L100 6" fill="none" stroke="#f08a4b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M0 45 L12 40 L24 42 L36 30 L48 33 L60 20 L72 24 L84 10 L100 6 L100 50 L0 50 Z" fill="rgb(240 138 75 / 0.18)" />
+          {/* 2. Reportes en vivo */}
+          <article className="ess-card flex flex-col">
+            <div className="ess-stage">
+              <span className="ess-num">2</span>
+              <div className="ess-dash">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-paper/70">Noche de Otoño · en vivo</p>
+                  <span className="flex items-center gap-1.5 text-[0.62rem] font-semibold text-[#7fd49b]">
+                    <span className="size-1.5 rounded-full bg-[#4ade80]" /> Actualizado
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {[
+                    ['Emitidas', '1.240', '+38 hoy'],
+                    ['Ingresaron', '1.198', '97%'],
+                    ['Neto', '$ 8,86 M', 'a cobrar'],
+                  ].map(([k, v, h]) => (
+                    <div key={k} className="rounded-xl bg-paper/[0.06] p-2.5">
+                      <p className="text-[0.58rem] font-semibold uppercase tracking-[0.1em] text-paper/50">{k}</p>
+                      <p className="mt-0.5 font-display text-lg font-extrabold tabular-nums leading-none">{v}</p>
+                      <p className="mt-1 text-[0.58rem] text-paper/50">{h}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 rounded-xl bg-paper/[0.04] p-3">
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-paper/50">Ventas por día</p>
+                  <svg viewBox="0 0 300 90" className="mt-2 h-auto w-full" aria-hidden>
+                    <defs>
+                      <linearGradient id="ess-area" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#f8942a" stopOpacity="0.45" />
+                        <stop offset="1" stopColor="#f8942a" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    {[22, 45, 68].map((y) => (
+                      <line key={y} x1="0" x2="300" y1={y} y2={y} stroke="rgb(244 239 230 / 0.08)" />
+                    ))}
+                    <path d="M0 80 C 30 76, 45 70, 60 66 S 100 58, 120 50 S 160 54, 180 40 S 220 30, 240 22 S 280 12, 300 8 L 300 90 L 0 90 Z" fill="url(#ess-area)" />
+                    <path className="ess-line" d="M0 80 C 30 76, 45 70, 60 66 S 100 58, 120 50 S 160 54, 180 40 S 220 30, 240 22 S 280 12, 300 8" fill="none" stroke="#f8942a" strokeWidth="2.5" strokeLinecap="round" />
+                    <circle cx="300" cy="8" r="4" fill="#f8942a" className="ess-dot" />
                   </svg>
-                  {['Campo', 'Platea', 'VIP'].map((t, i) => (
-                    <div key={t} className="mt-2 flex items-center gap-2 text-[0.55rem]">
-                      <span className="w-9 text-paper/60">{t}</span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {[
+                    ['Campo', 312, 400],
+                    ['Platea', 470, 600],
+                    ['VIP', 88, 120],
+                  ].map(([t, a, b]) => (
+                    <div key={t as string} className="flex items-center gap-3 text-[0.7rem]">
+                      <span className="w-12 text-paper/65">{t}</span>
                       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper/10">
-                        <span className="block h-full rounded-full bg-accent" style={{ width: `${[78, 62, 90][i]}%` }} />
+                        <span className="ess-bar block h-full rounded-full bg-accent" style={{ width: `${Math.round(((a as number) / (b as number)) * 100)}%` }} />
+                      </span>
+                      <span className="w-14 text-right tabular-nums text-paper/55">
+                        {a}/{b}
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="absolute bottom-4 left-4 rounded-xl bg-ink/85 px-3 py-2 backdrop-blur">
-                <span className="block font-mono text-[0.6rem] uppercase tracking-[0.1em] text-paper/55">Neto a cobrar · en vivo</span>
-                <span className="font-display text-lg font-bold tabular-nums">$ 8.861.000 ↗</span>
+              <div className="ess-toast ess-toast-right">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-white">↗</span>
+                <span>
+                  <span className="block font-mono text-[0.58rem] uppercase tracking-[0.12em] text-paper/55">Neto a cobrar · en vivo</span>
+                  <span className="font-display text-base font-bold tabular-nums">$ 8.861.000</span>
+                </span>
               </div>
             </div>
-            <h3 className="mt-5 font-display text-2xl font-bold tracking-[-0.02em]">Reportes bien discriminados</h3>
-            <p className="hz-muted mt-1.5 max-w-sm text-sm">Ventas por día y por tipo de entrada, ingreso en la puerta y neto a cobrar, en tiempo real.</p>
+            <div className="px-6 pb-6 pt-5">
+              <h3 className="font-display text-2xl font-bold tracking-[-0.02em]">Reportes bien discriminados</h3>
+              <p className="mt-1.5 max-w-md text-sm text-paper/65">Ventas por día y por tipo de entrada, ingreso en la puerta y neto a cobrar con la comisión descontada. En tiempo real y con planilla para Excel.</p>
+            </div>
           </article>
         </div>
       </div>

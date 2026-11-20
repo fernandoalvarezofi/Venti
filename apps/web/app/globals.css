@@ -1345,3 +1345,109 @@
   outline: 1.5px dashed rgb(23 20 17 / 0.2);
   outline-offset: -10px;
 }
+
+/* Infaltables: tarjetas oscuras sobre la sección clara, con escenario y piezas de producto. */
+.ess-card {
+  overflow: hidden;
+  border-radius: 22px;
+  color: var(--color-paper);
+  background: var(--color-ink);
+  box-shadow: 0 30px 60px -34px rgb(23 20 17 / 0.7);
+}
+.ess-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 25rem;
+  padding: 2.5rem 1.25rem 5.5rem;
+  background:
+    radial-gradient(60% 60% at 50% 40%, rgb(248 148 42 / 0.22), transparent 70%),
+    linear-gradient(rgb(244 239 230 / 0.05) 1px, transparent 1px) 0 0 / 28px 28px,
+    linear-gradient(90deg, rgb(244 239 230 / 0.05) 1px, transparent 1px) 0 0 / 28px 28px;
+  border-bottom: 1px solid rgb(244 239 230 / 0.08);
+}
+.ess-num {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: rgb(244 239 230 / 0.1);
+}
+.ess-pass {
+  width: min(78%, 17rem);
+  border-radius: 16px;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  box-shadow: 0 30px 50px -22px rgb(0 0 0 / 0.85);
+  transform: rotate(-3deg);
+}
+.ess-pass .cut::before,
+.ess-pass .cut::after { background: var(--color-ink); }
+.ess-viewfinder {
+  position: absolute;
+  inset: -7%;
+  border-radius: 10px;
+  background:
+    linear-gradient(var(--color-accent), var(--color-accent)) top left / 18px 3px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) top left / 3px 18px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) top right / 18px 3px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) top right / 3px 18px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) bottom left / 18px 3px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) bottom left / 3px 18px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) bottom right / 18px 3px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) bottom right / 3px 18px no-repeat;
+  pointer-events: none;
+}
+.ess-scanline {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 8%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-accent);
+  box-shadow: 0 0 14px 3px rgb(210 58 31 / 0.55);
+  animation: ess-scan 2.4s ease-in-out infinite alternate;
+}
+@keyframes ess-scan { to { top: 92%; } }
+.ess-toast {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.85rem 0.55rem 0.55rem;
+  border-radius: 14px;
+  background: rgb(23 20 17 / 0.88);
+  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.1), 0 14px 30px -14px rgb(0 0 0 / 0.8);
+  backdrop-filter: blur(8px);
+  animation: ess-pop 3.2s ease-in-out infinite;
+}
+.ess-toast-right { left: auto; right: 1rem; animation-delay: 1.2s; }
+@keyframes ess-pop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.ess-dash {
+  width: min(92%, 22rem);
+  padding: 1rem;
+  border-radius: 18px;
+  background: #1f1b18;
+  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.1), 0 30px 50px -22px rgb(0 0 0 / 0.85);
+  transform: rotate(2deg);
+}
+.ess-line { stroke-dasharray: 420; stroke-dashoffset: 420; animation: ess-draw 2.4s var(--ease-out-quint) forwards; }
+@keyframes ess-draw { to { stroke-dashoffset: 0; } }
+.ess-dot { animation: ess-pulse 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes ess-pulse { 50% { transform: scale(1.5); opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .ess-scanline, .ess-toast, .ess-dot { animation: none; }
+  .ess-line { animation: none; stroke-dashoffset: 0; }
+}
