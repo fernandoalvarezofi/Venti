@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createPublicKey, randomUUID, verify } from 'node:crypto';
 import { holds, sessions, sql, users } from '@venti/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { expireHolds } from '../src/modules/inventory/service.ts';
@@ -219,6 +219,71 @@ describe('cortesías, mis entradas y control de acceso', () => {
     const accessList = await call(ctx, 'GET', '/v1/me/access-events', { token: owner.token });
     expect(accessList.body.items.map((e: { eventId: string }) => e.eventId)).toContain(eventId);
     expect((await call(ctx, 'GET', '/v1/me/access-events', { token: guest.token })).body.items).toEqual([]);
+  });
+
+  it('modo sin señal: lista descargable, verificación local de la firma y sincronización con duplicados', async () => {
+    const owner = await registerUser(ctx);
+    const guest = await registerUser(ctx);
+    const { orgId, eventId, ticketTypeId } = await publishedEvent(ctx, owner.token);
+    const issued = await call(ctx, 'POST', `/v1/organizations/${orgId}/events/${eventId}/courtesies`, {
+      token: owner.token,
+      body: { ticketTypeId, quantity: 2, holderName: 'Ana Pérez', holderEmail: guest.email, holderDocument: '30111222' },
+    });
+    expect(issued.status).toBe(201);
+    const [a, b] = (await call(ctx, 'GET', '/v1/me/tickets', { token: guest.token })).body.items;
+    const base = `/v1/organizations/${orgId}/events/${eventId}`;
+
+    // 1) Lista para el celular: clave pública + entradas (sin emails ni DNI completo).
+    const pack = await call(ctx, 'GET', `${base}/access-pack`, { token: owner.token });
+    expect(pack.status).toBe(200);
+    expect(pack.body.full).toBe(true);
+    expect(pack.body.tickets).toHaveLength(2);
+    expect(pack.body.tickets[0]).toMatchObject({ s: 'valid', n: 'Ana Pérez', d: '222' });
+    expect(JSON.stringify(pack.body)).not.toContain(guest.email);
+    expect(JSON.stringify(pack.body)).not.toContain('30111222');
+
+    // 2) Con sólo la clave pública se verifica la firma del QR (lo que hace el celular sin señal).
+    const key = createPublicKey({ key: { kty: 'OKP', crv: 'Ed25519', x: pack.body.publicKey }, format: 'jwk' });
+    const [prefix, tid, ver, eid, sig] = a.qr.split('.');
+    expect(verify(null, Buffer.from([prefix, tid, ver, eid].join('.')), key, Buffer.from(sig, 'base64url'))).toBe(true);
+    expect(verify(null, Buffer.from([prefix, tid, '9', eid].join('.')), key, Buffer.from(sig, 'base64url'))).toBe(false);
+
+    // 3) Sincronización: entra A; reintentar el mismo lote no duplica.
+    const t0 = new Date(Date.now() - 60_000).toISOString();
+    const batch = { deviceId: 'device-puerta-1', entries: [{ ticketId: a.id, version: 1, scannedAt: t0, gate: 'Norte' }] };
+    const s1 = await call(ctx, 'POST', `${base}/check-in/sync`, { token: owner.token, body: batch });
+    expect(s1.status).toBe(200);
+    expect(s1.body.results[0]).toMatchObject({ result: 'admitted', usedAt: t0 });
+    const s2 = await call(ctx, 'POST', `${base}/check-in/sync`, { token: owner.token, body: batch });
+    expect(s2.body.results[0].result).toBe('admitted');
+
+    // 4) Otro celular dejó pasar la misma entrada sin señal: queda como duplicado (auditado).
+    const s3 = await call(ctx, 'POST', `${base}/check-in/sync`, {
+      token: owner.token,
+      body: { deviceId: 'device-puerta-2', entries: [{ ticketId: a.id, version: 1, scannedAt: new Date().toISOString() }] },
+    });
+    expect(s3.body.results[0]).toMatchObject({ result: 'duplicate', usedAt: t0 });
+    const scanA = await call(ctx, 'POST', `${base}/check-in`, { token: owner.token, body: { qr: a.qr } });
+    expect(scanA.body.result).toBe('already_used');
+
+    // 5) QR viejo (el titular lo regeneró después de la descarga): se rechaza y se audita.
+    const rotated = await call(ctx, 'POST', `/v1/me/tickets/${b.id}/rotate-qr`, { token: guest.token });
+    expect(rotated.status).toBe(200);
+    const s4 = await call(ctx, 'POST', `${base}/check-in/sync`, {
+      token: owner.token,
+      body: { deviceId: 'device-puerta-1', entries: [{ ticketId: b.id, version: 1, scannedAt: new Date().toISOString() }] },
+    });
+    expect(s4.body.results[0].result).toBe('outdated_qr');
+
+    // 6) Descarga incremental: sólo lo que cambió (A entró, B cambió de versión).
+    const delta = await call(ctx, 'GET', `${base}/access-pack?since=${encodeURIComponent(pack.body.serverTime)}`, { token: owner.token });
+    expect(delta.body.full).toBe(false);
+    const byId = Object.fromEntries(delta.body.tickets.map((t: { id: string }) => [t.id, t]));
+    expect(byId[a.id]).toMatchObject({ s: 'used' });
+    expect(byId[b.id]).toMatchObject({ s: 'valid', v: 2 });
+
+    // 7) Sin rol en la productora no se puede bajar la lista.
+    expect((await call(ctx, 'GET', `${base}/access-pack`, { token: guest.token })).status).toBe(404);
   });
 
   it('dos escaneos simultáneos del mismo QR: sólo uno entra', async () => {

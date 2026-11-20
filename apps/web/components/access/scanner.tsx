@@ -3,6 +3,19 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dateParts, ticketCode } from '@/lib/format';
+import {
+  downloadPack,
+  fetchWithTimeout,
+  loadPack,
+  loadQueue,
+  purgeExpired,
+  savePack,
+  saveQueue,
+  validateOffline,
+  wipeEvent,
+  type AccessPack,
+  type QueuedEntry,
+} from '@/lib/offline-access';
 import type { CheckinSummary, ScanResponse } from '@/lib/types';
 
 /* Tipos mínimos de BarcodeDetector (Chrome/Android lo traen; Safari no: usamos jsQR). */
@@ -19,7 +32,7 @@ declare global {
 }
 
 type Outcome =
-  | { kind: 'result'; data: ScanResponse; at: number }
+  | { kind: 'result'; data: ScanResponse; at: number; offline?: boolean }
   | { kind: 'network'; qr: string; at: number };
 
 type CamState = 'starting' | 'on' | 'denied' | 'unavailable';
@@ -99,33 +112,147 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
   const [torch, setTorch] = useState<boolean | null>(null);
   const [showRecent, setShowRecent] = useState(false);
   const base = `/api/v1/organizations/${orgId}/events/${eventId}`;
+  const packRef = useRef<AccessPack | undefined>(undefined);
+  const queueRef = useRef<QueuedEntry[]>([]);
+  const [online, setOnline] = useState(true);
+  const [packInfo, setPackInfo] = useState<{ count: number; syncedAt: string } | null>(null);
+  const [pending, setPending] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const refreshSummary = useCallback(async () => {
-    const res = await fetch(`${base}/check-in/summary`, { cache: 'no-store' }).catch(() => null);
+    const res = await fetchWithTimeout(`${base}/check-in/summary`, { cache: 'no-store' }, 5000);
     if (res?.ok) setSummary((await res.json()) as CheckinSummary);
   }, [base]);
+
+  const showPack = (p: AccessPack | undefined) => setPackInfo(p ? { count: Object.keys(p.tickets).length, syncedAt: p.syncedAt } : null);
+
+  /** Baja la lista (completa la primera vez, después sólo cambios) y sube la cola pendiente. */
+  const syncNow = useCallback(async () => {
+    if (!navigator.onLine) {
+      setOnline(false);
+      return;
+    }
+    // 1) Subir ingresos hechos sin señal.
+    const q = queueRef.current;
+    if (q.length > 0) {
+      const batch = q.slice(0, 500);
+      const res = await fetchWithTimeout(
+        `${base}/check-in/sync`,
+        { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ deviceId: readLocal('lintick.device', 'sin-id-000'), entries: batch }) },
+        12_000,
+      );
+      if (res?.ok) {
+        const body = (await res.json()) as { results: { ticketId: string; result: string; holderName: string | null; usedAt: string | null }[] };
+        const sent = new Set(batch.map((e) => `${e.ticketId}|${e.scannedAt}`));
+        queueRef.current = queueRef.current.filter((e) => !sent.has(`${e.ticketId}|${e.scannedAt}`));
+        await saveQueue(eventId, queueRef.current);
+        setPending(queueRef.current.length);
+        const problems = body.results.filter((r) => r.result !== 'admitted');
+        if (problems.length > 0) {
+          const names = problems.slice(0, 3).map((p) => p.holderName ?? 'sin nombre').join(', ');
+          setNotice(
+            `${problems.length === 1 ? "1 ingreso sin señal no era válido" : `${problems.length} ingresos sin señal no eran válidos`} (ya habían entrado por otra puerta o el QR estaba vencido): ${names}${problems.length > 3 ? "…" : ""}. Quedó registrado para la productora.`,
+          );
+        }
+      } else if (!res) {
+        setOnline(false);
+        return;
+      }
+    }
+    // 2) Actualizar la lista.
+    const next = await downloadPack(base, packRef.current);
+    if (next) {
+      // Lo que sigue en la cola (todavía sin subir) se mantiene como "ingresó".
+      for (const e of queueRef.current) {
+        const t = next.tickets[e.ticketId];
+        if (t && t.s === 'valid') next.tickets[e.ticketId] = { ...t, s: 'used', u: e.scannedAt };
+      }
+      packRef.current = next;
+      await savePack(next);
+      showPack(next);
+      setOnline(true);
+    } else {
+      setOnline(navigator.onLine);
+    }
+  }, [base, eventId]);
 
   useEffect(() => {
     setGate(readLocal('lintick.gate', ''));
     if (!readLocal('lintick.device', '')) writeLocal('lintick.device', crypto.randomUUID());
-    void refreshSummary();
-    const id = setInterval(refreshSummary, 6000);
-    return () => clearInterval(id);
-  }, [refreshSummary]);
+    let alive = true;
+    (async () => {
+      await purgeExpired();
+      packRef.current = await loadPack(eventId);
+      queueRef.current = await loadQueue(eventId);
+      if (!alive) return;
+      showPack(packRef.current);
+      setPending(queueRef.current.length);
+      setOnline(navigator.onLine);
+      await syncNow();
+      void refreshSummary();
+    })();
+    const tick = setInterval(() => {
+      void syncNow();
+      void refreshSummary();
+    }, 15_000);
+    const goOnline = () => {
+      setOnline(true);
+      void syncNow();
+    };
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      alive = false;
+      clearInterval(tick);
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [eventId, syncNow, refreshSummary]);
+
+  /** Sin señal: valida con la lista guardada en el celular. */
+  const validateLocally = useCallback(
+    async (qr: string): Promise<boolean> => {
+      const pack = packRef.current;
+      if (!pack) return false;
+      const { response, enqueue } = await validateOffline(qr, pack, readLocal('lintick.gate', '') || null);
+      if (enqueue) {
+        pack.tickets[enqueue.ticketId] = { ...pack.tickets[enqueue.ticketId]!, s: 'used', u: enqueue.scannedAt };
+        queueRef.current = [...queueRef.current, enqueue];
+        setPending(queueRef.current.length);
+        void saveQueue(eventId, queueRef.current);
+        void savePack(pack);
+        setSummary((sm) => (sm ? { ...sm, admitted: sm.admitted + 1 } : sm));
+      }
+      beep(response.result === 'admitted');
+      setOutcome({ kind: 'result', data: response, at: Date.now(), offline: true });
+      return true;
+    },
+    [eventId],
+  );
 
   const validate = useCallback(
     async (qr: string) => {
       busyRef.current = true;
-      const res = await fetch(`${base}/check-in`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ qr: qr.slice(0, 512), gate: readLocal('lintick.gate', '') || undefined, deviceId: readLocal('lintick.device', '') || undefined }),
-      }).catch(() => null);
+      if (!navigator.onLine && (await validateLocally(qr))) return;
+      const res = await fetchWithTimeout(
+        `${base}/check-in`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ qr: qr.slice(0, 512), gate: readLocal('lintick.gate', '') || undefined, deviceId: readLocal('lintick.device', '') || undefined }),
+        },
+        4000,
+      );
       if (!res || res.status >= 500) {
+        // Sin respuesta del servidor: si hay lista descargada, se valida en el celular.
+        setOnline(false);
+        if (await validateLocally(qr)) return;
         beep(false);
         setOutcome({ kind: 'network', qr, at: Date.now() });
         return;
       }
+      setOnline(true);
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
         beep(false);
@@ -133,12 +260,28 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
         return;
       }
       const data = (await res.json()) as ScanResponse;
+      // Mantener la lista del celular al día con lo que dijo el servidor.
+      const p = packRef.current;
+      if (p && data.ticket && p.tickets[data.ticket.id] && (data.result === 'admitted' || data.result === 'already_used')) {
+        p.tickets[data.ticket.id] = { ...p.tickets[data.ticket.id]!, s: 'used', u: data.ticket.usedAt };
+      }
       beep(data.result === 'admitted');
       setOutcome({ kind: 'result', data, at: Date.now() });
       void refreshSummary();
     },
-    [base, refreshSummary],
+    [base, refreshSummary, validateLocally],
   );
+
+  async function wipe() {
+    if (queueRef.current.length > 0) {
+      setNotice('Todavía hay ingresos sin subir. Conectate a internet antes de borrar los datos.');
+      return;
+    }
+    await wipeEvent(eventId);
+    packRef.current = undefined;
+    showPack(undefined);
+    setNotice('Se borró la lista de este celular. Se vuelve a descargar con señal.');
+  }
 
   const dismiss = useCallback(() => {
     setOutcome(null);
@@ -261,6 +404,12 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
             <p className="truncate font-bold leading-tight">{title}</p>
             {venueName ? <p className="truncate text-xs text-paper/60">{venueName}</p> : null}
           </div>
+          <span
+            className={`hidden rounded-full px-2.5 py-1 text-[0.7rem] font-semibold sm:inline-flex ${online ? 'bg-success/25 text-[#9be3b4]' : 'bg-[#f2a541] text-ink'}`}
+            aria-live="polite"
+          >
+            {online ? 'En línea' : `Sin señal${pending ? ` · ${pending} por subir` : ''}`}
+          </span>
           <div className="text-right leading-none" aria-live="polite">
             <p className="font-display text-2xl font-extrabold tabular-nums">{summary ? summary.admitted.toLocaleString('es-AR') : '—'}</p>
             <p className="mt-1 text-[0.7rem] text-paper/60">de {summary ? summary.expected.toLocaleString('es-AR') : '—'} ingresaron</p>
@@ -269,6 +418,16 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper/10" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Porcentaje de ingreso">
           <div className="h-full rounded-full bg-success transition-[width] duration-500" style={{ width: `${pct}%` }} />
         </div>
+        {!online ? (
+          <p className="mt-2 rounded-lg bg-[#f2a541] px-3 py-2 text-xs font-semibold text-ink sm:hidden">
+            Sin señal{pending ? ` · ${pending} ingresos por subir` : ''}. {packInfo ? 'Validando con la lista del celular.' : 'No hay lista descargada: no se puede validar.'}
+          </p>
+        ) : null}
+        {notice ? (
+          <button type="button" onClick={() => setNotice(null)} className="mt-2 w-full rounded-lg bg-danger/90 px-3 py-2 text-left text-xs font-semibold text-white">
+            {notice} <span className="opacity-70">(tocá para cerrar)</span>
+          </button>
+        ) : null}
       </header>
 
       {/* Cámara */}
@@ -324,6 +483,21 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
             Últimos
           </button>
         </div>
+        <div className="flex items-center justify-between gap-3 text-[0.72rem] text-paper/50">
+          <span>
+            {packInfo
+              ? `Lista sin señal: ${packInfo.count.toLocaleString('es-AR')} entradas · actualizada ${dateParts(packInfo.syncedAt).time} h`
+              : online
+                ? 'Descargando la lista para usar sin señal…'
+                : 'Sin lista descargada'}
+            {pending ? ` · ${pending} por subir` : ''}
+          </span>
+          {packInfo ? (
+            <button type="button" onClick={wipe} className="shrink-0 underline decoration-paper/30 underline-offset-2 hover:text-paper">
+              Borrar datos del celular
+            </button>
+          ) : null}
+        </div>
         {showRecent ? (
           <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
             {summary?.recent.length ? (
@@ -352,6 +526,7 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
 }
 
 function ResultOverlay({ outcome, onDismiss, onRetry }: { outcome: Outcome; onDismiss: () => void; onRetry: (qr: string) => void }) {
+  const offline = outcome.kind === 'result' && outcome.offline;
   if (outcome.kind === 'network') {
     return (
       <div role="alertdialog" aria-label="Sin conexión" className="scan-result fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#f2a541] p-8 text-center text-ink">
@@ -394,7 +569,8 @@ function ResultOverlay({ outcome, onDismiss, onRetry }: { outcome: Outcome; onDi
           </span>
         </span>
       ) : null}
-      <span className="mt-8 text-sm opacity-75">{data.result === 'admitted' ? 'Siguiente…' : 'Tocá para seguir escaneando'}</span>
+      {offline ? <span className="mt-6 rounded-full bg-black/25 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em]">Validado sin señal · se sube al volver la conexión</span> : null}
+      <span className="mt-6 text-sm opacity-75">{data.result === 'admitted' ? 'Siguiente…' : 'Tocá para seguir escaneando'}</span>
     </button>
   );
 }

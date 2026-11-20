@@ -1,9 +1,12 @@
-import { roleHas } from '@venti/domain';
+import { createPublicKey } from 'node:crypto';
+import { roleHas, transitionTicket } from '@venti/domain';
 import { and, asc, desc, eq, events, gt, inArray, memberships, organizations, sql, staffAssignments, ticketEvents, ticketTypes, tickets, venues, withContext } from '@venti/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { assertCanScanEvent } from '../../lib/access.ts';
+import { audit, recordTicketEvents } from '../../lib/audit.ts';
+import { notFound } from '../../lib/errors.ts';
 import { requireAuth, requireOrgPermission, inOrg, type Services } from '../../lib/context.ts';
 
 const AccessEvent = z.object({
@@ -111,6 +114,163 @@ export async function accessRoutes(app: FastifyInstance, s: Services): Promise<v
           expected: counts?.expected ?? 0,
           recent: recent.map((x) => ({ ticketId: x.ticketId, holderName: x.holderName, ticketTypeName: x.ticketTypeName, at: x.at, gate: ((x.data as { gate?: string | null }).gate ?? null) as string | null })),
         };
+      });
+    },
+  );
+
+  // ─── Modo sin señal ───
+  // Clave pública Ed25519 en crudo (32 bytes, base64url): el celular verifica la firma del QR sin conexión.
+  const publicKeyRaw = (createPublicKey(s.qrPrivateKey).export({ format: 'jwk' }) as { x: string }).x;
+
+  const PackTicket = z.object({
+    id: z.string().uuid(),
+    /** Versión vigente del QR. */
+    v: z.number(),
+    /** Estado: valid | used | locked | void | cancelled | refunded. */
+    s: z.string(),
+    /** Titular. */
+    n: z.string(),
+    /** Tipo de entrada. */
+    t: z.string(),
+    /** Últimos 3 del documento (si se cargó). */
+    d: z.string().nullable(),
+    /** Hora de ingreso, si ya entró. */
+    u: z.date().nullable(),
+  });
+
+  r.get(
+    '/v1/organizations/:orgId/events/:eventId/access-pack',
+    {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: {
+        tags: ['access'],
+        summary: 'Lista de entradas para validar sin señal',
+        description:
+          'Clave pública y entradas del evento con sólo lo necesario para controlar (titular, tipo, últimos 3 del DNI, estado y versión del QR). Con ?since= devuelve sólo lo que cambió.',
+        params: z.object({ orgId: z.string().uuid(), eventId: z.string().uuid() }),
+        querystring: z.object({ since: z.coerce.date().optional() }),
+        response: {
+          200: z.object({ eventId: z.string().uuid(), endsAt: z.date(), publicKey: z.string(), serverTime: z.date(), full: z.boolean(), tickets: z.array(PackTicket) }),
+        },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'access.scan');
+      const now = s.now();
+      await assertCanScanEvent(s.db, access, req.params.eventId, now);
+      return inOrg(s.db, access, async (tx) => {
+        const [ev] = await tx
+          .select({ id: events.id, endsAt: events.endsAt })
+          .from(events)
+          .where(and(eq(events.id, req.params.eventId), eq(events.organizationId, access.orgId)));
+        if (!ev) throw notFound('Evento');
+        const since = req.query.since;
+        const conds = [eq(tickets.eventId, ev.id)];
+        // Margen de 5 s para no perder cambios hechos justo durante la descarga anterior.
+        if (since) conds.push(gt(tickets.updatedAt, new Date(since.getTime() - 5000)));
+        const rows = await tx
+          .select({ id: tickets.id, v: tickets.qrVersion, s: tickets.status, n: tickets.holderName, t: ticketTypes.name, d: tickets.holderDocLast3, u: tickets.usedAt })
+          .from(tickets)
+          .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
+          .where(and(...conds));
+        if (!since) {
+          await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'access_pack.downloaded', entityType: 'event', entityId: ev.id, data: { tickets: rows.length }, ip: req.ip });
+        }
+        return { eventId: ev.id, endsAt: ev.endsAt, publicKey: publicKeyRaw, serverTime: now, full: !since, tickets: rows };
+      });
+    },
+  );
+
+  r.post(
+    '/v1/organizations/:orgId/events/:eventId/check-in/sync',
+    {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: {
+        tags: ['access'],
+        summary: 'Subir los ingresos registrados sin señal',
+        description:
+          'Aplica cada ingreso en orden de hora. Si la entrada ya había ingresado por otro lado, se informa como duplicado y queda registrado para auditoría. Reintentar el mismo lote es seguro.',
+        params: z.object({ orgId: z.string().uuid(), eventId: z.string().uuid() }),
+        body: z.object({
+          deviceId: z.string().trim().min(8).max(80),
+          entries: z
+            .array(z.object({ ticketId: z.string().uuid(), version: z.number().int().min(1), scannedAt: z.coerce.date(), gate: z.string().trim().max(60).nullish() }))
+            .min(1)
+            .max(500),
+        }),
+        response: {
+          200: z.object({
+            results: z.array(
+              z.object({
+                ticketId: z.string().uuid(),
+                scannedAt: z.date(),
+                result: z.enum(['admitted', 'duplicate', 'not_valid', 'outdated_qr', 'not_found']),
+                usedAt: z.date().nullable(),
+                holderName: z.string().nullable(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'access.scan');
+      const now = s.now();
+      await assertCanScanEvent(s.db, access, req.params.eventId, now);
+      const entries = [...req.body.entries].sort((a, b) => a.scannedAt.getTime() - b.scannedAt.getTime());
+      return inOrg(s.db, access, async (tx) => {
+        const results: {
+          ticketId: string;
+          scannedAt: Date;
+          result: 'admitted' | 'duplicate' | 'not_valid' | 'outdated_qr' | 'not_found';
+          usedAt: Date | null;
+          holderName: string | null;
+        }[] = [];
+        for (const e of entries) {
+          // Una hora "del futuro" (reloj del celular adelantado) se toma como ahora.
+          const at = e.scannedAt.getTime() > now.getTime() ? now : e.scannedAt;
+          const [t] = await tx
+            .select()
+            .from(tickets)
+            .where(and(eq(tickets.id, e.ticketId), eq(tickets.eventId, req.params.eventId)))
+            .for('update');
+          if (!t) {
+            results.push({ ticketId: e.ticketId, scannedAt: e.scannedAt, result: 'not_found', usedAt: null, holderName: null });
+            continue;
+          }
+          const base = { ticketId: t.id, scannedAt: e.scannedAt, holderName: t.holderName };
+          const data = { offline: true, deviceId: req.body.deviceId, gate: e.gate ?? null, scannedAt: e.scannedAt.toISOString() };
+          if (t.status === 'used') {
+            // Reintento del mismo lote: mismo instante ⇒ ya aplicado, no es un duplicado.
+            if (t.usedAt && t.usedAt.getTime() === at.getTime()) {
+              results.push({ ...base, result: 'admitted', usedAt: t.usedAt });
+              continue;
+            }
+            await recordTicketEvents(tx, [
+              { orgId: access.orgId, ticketId: t.id, type: 'duplicate_entry', actorUserId: access.userId, data: { ...data, firstUsedAt: t.usedAt?.toISOString() ?? null } },
+            ]);
+            results.push({ ...base, result: 'duplicate', usedAt: t.usedAt });
+            continue;
+          }
+          if (t.status !== 'valid') {
+            await recordTicketEvents(tx, [{ orgId: access.orgId, ticketId: t.id, type: 'offline_entry_rejected', actorUserId: access.userId, data: { ...data, status: t.status } }]);
+            results.push({ ...base, result: 'not_valid', usedAt: t.usedAt });
+            continue;
+          }
+          if (t.qrVersion !== e.version) {
+            await recordTicketEvents(tx, [{ orgId: access.orgId, ticketId: t.id, type: 'offline_entry_rejected', actorUserId: access.userId, data: { ...data, reason: 'outdated_qr' } }]);
+            results.push({ ...base, result: 'outdated_qr', usedAt: null });
+            continue;
+          }
+          const [used] = await tx
+            .update(tickets)
+            .set({ status: transitionTicket(t.status, 'check_in'), usedAt: at, updatedAt: now })
+            .where(eq(tickets.id, t.id))
+            .returning();
+          await recordTicketEvents(tx, [{ orgId: access.orgId, ticketId: t.id, type: 'checked_in', actorUserId: access.userId, data }]);
+          results.push({ ...base, result: 'admitted', usedAt: used!.usedAt });
+        }
+        return { results };
       });
     },
   );

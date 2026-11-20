@@ -17,6 +17,7 @@
     "tailwindcss": "4.3.5"
   },
   "dependencies": {
+    "@noble/ed25519": "2.1.0",
     "jsqr": "1.4.0",
     "next": "16.4.6",
     "qrcode": "1.5.4",

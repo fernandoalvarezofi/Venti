@@ -528,3 +528,19 @@ Todas contra PostgreSQL real, como la suite actual. Un control no se marca hecho
 - Política de reingreso por defecto (propuesto: sin reingreso).
 - Retención de datos de asistentes (propuesto: 180 días).
 - Proveedor para IAL4 (validación contra RENAPER), sólo si algún cliente lo requiere.
+
+## Lintick Access sin señal (implementado)
+
+- **Antes del evento, con señal:** el celular descarga `GET .../access-pack`: clave pública Ed25519 y, por entrada,
+  sólo id, versión del QR, estado, titular, tipo y últimos 3 del DNI (nunca email ni documento completo).
+  Cada descarga completa queda en la auditoría (`access_pack.downloaded`). Con señal se actualiza cada 15 s (`?since=`).
+- **Sin señal:** el celular verifica la firma del QR con la clave pública, que la entrada sea del evento, que la versión
+  coincida y que no figure como ingresada. Si corresponde, la marca como ingresada en ese celular y la encola.
+- **Al volver la señal:** `POST .../check-in/sync` aplica la cola en orden de hora con bloqueo por fila. Reintentar el
+  mismo lote es idempotente. Si la entrada ya había ingresado por otro lado se informa como `duplicate` y queda el
+  evento `duplicate_entry`; QR viejo o entrada anulada quedan como `offline_entry_rejected`.
+- **Límite conocido (no se oculta):** dos celulares sin señal no se ven entre sí; una misma entrada podría pasar por
+  dos puertas mientras ambas estén sin conexión. La pantalla avisa cuando valida sin señal, y la productora ve los
+  duplicados en la auditoría. Recomendación operativa: una puerta por tipo de entrada o volver a tener señal lo antes posible.
+- **Privacidad en el dispositivo:** la lista vive en IndexedDB del navegador; se borra sola 12 h después del fin del
+  evento (si no quedan ingresos sin subir) y el personal puede borrarla con "Borrar datos del celular".
