@@ -1,0 +1,469 @@
+import { randomUUID } from 'node:crypto';
+import { TICKET_STATUSES, validateStages } from '@venti/domain';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  events,
+  holds,
+  inArray,
+  priceStages,
+  sql,
+  ticketTypes,
+  tickets,
+  venues,
+  type Tx,
+} from '@venti/db';
+import type { FastifyInstance } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+import { audit, recordTicketEvents } from '../../lib/audit.ts';
+import { inOrg, requireOrgPermission, type OrgAccess, type Services } from '../../lib/context.ts';
+import { AppError, conflict, notFound } from '../../lib/errors.ts';
+import { releaseEventHoldsTx } from '../inventory/service.ts';
+
+const OrgParams = z.object({ orgId: z.string().uuid() });
+const EventParams = OrgParams.extend({ eventId: z.string().uuid() });
+const TypeParams = EventParams.extend({ ticketTypeId: z.string().uuid() });
+
+async function loadOwnEvent(tx: Tx, access: OrgAccess, eventId: string, opts: { forUpdate?: boolean } = {}) {
+  const q = tx.select().from(events).where(and(eq(events.id, eventId), eq(events.organizationId, access.orgId)));
+  const [e] = opts.forUpdate ? await q.for('update') : await q;
+  if (!e) throw notFound('Evento');
+  return e;
+}
+
+function assertEditable(status: string) {
+  if (status === 'cancelled' || status === 'finished') throw conflict('event_closed', 'El evento está cerrado y ya no admite cambios.');
+}
+
+const StatsDto = z.object({
+  capacity: z.number(),
+  sold: z.number(),
+  held: z.number(),
+  available: z.number(),
+  courtesies: z.number(),
+  checkedIn: z.number(),
+  grossCents: z.number(),
+  activeHolds: z.number(),
+  byType: z.array(
+    z.object({ id: z.string().uuid(), name: z.string(), kind: z.string(), capacity: z.number(), sold: z.number(), held: z.number(), courtesies: z.number(), checkedIn: z.number() }),
+  ),
+});
+
+/** Estadísticas de un evento calculadas en una sola transacción (consistentes entre sí). */
+async function eventStats(tx: Tx, eventId: string) {
+  const types = await tx.select().from(ticketTypes).where(eq(ticketTypes.eventId, eventId)).orderBy(asc(ticketTypes.createdAt));
+  const perType = await tx
+    .select({
+      ticketTypeId: tickets.ticketTypeId,
+      courtesies: sql<number>`count(*) filter (where ${tickets.orderId} is null and ${tickets.priceCents} = 0 and ${tickets.status} <> 'void')`.mapWith(Number),
+      checkedIn: sql<number>`count(*) filter (where ${tickets.status} = 'used')`.mapWith(Number),
+      grossCents: sql<number>`coalesce(sum(${tickets.priceCents}) filter (where ${tickets.orderId} is not null and ${tickets.status} in ('valid','used','locked')), 0)`.mapWith(Number),
+    })
+    .from(tickets)
+    .where(eq(tickets.eventId, eventId))
+    .groupBy(tickets.ticketTypeId);
+  const [holdsRow] = await tx
+    .select({ n: count() })
+    .from(holds)
+    .where(and(eq(holds.eventId, eventId), eq(holds.status, 'active')));
+  const byType = types.map((t) => {
+    const p = perType.find((x) => x.ticketTypeId === t.id);
+    return { id: t.id, name: t.name, kind: t.kind, capacity: t.capacity, sold: t.sold, held: t.held, courtesies: p?.courtesies ?? 0, checkedIn: p?.checkedIn ?? 0 };
+  });
+  const sum = (k: 'capacity' | 'sold' | 'held' | 'courtesies' | 'checkedIn') => byType.reduce((a, t) => a + t[k], 0);
+  return {
+    capacity: sum('capacity'),
+    sold: sum('sold'),
+    held: sum('held'),
+    available: Math.max(0, sum('capacity') - sum('sold') - sum('held')),
+    courtesies: sum('courtesies'),
+    checkedIn: sum('checkedIn'),
+    grossCents: perType.reduce((a, p) => a + p.grossCents, 0),
+    activeHolds: holdsRow?.n ?? 0,
+    byType,
+  };
+}
+
+export async function businessRoutes(app: FastifyInstance, s: Services): Promise<void> {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  // ─── Resumen de la productora ───
+  r.get(
+    '/v1/organizations/:orgId/overview',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Resumen de la productora: eventos con su ocupación',
+        params: OrgParams,
+        response: {
+          200: z.object({
+            totals: z.object({ events: z.number(), published: z.number(), drafts: z.number(), ticketsSold: z.number(), capacity: z.number() }),
+            events: z.array(
+              z.object({
+                id: z.string().uuid(),
+                title: z.string(),
+                status: z.enum(['draft', 'published', 'cancelled', 'finished']),
+                startsAt: z.date(),
+                endsAt: z.date(),
+                venueName: z.string().nullable(),
+                city: z.string().nullable(),
+                capacity: z.number(),
+                sold: z.number(),
+                held: z.number(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.read');
+      return inOrg(s.db, access, async (tx) => {
+        const rows = await tx
+          .select({
+            id: events.id,
+            title: events.title,
+            status: events.status,
+            startsAt: events.startsAt,
+            endsAt: events.endsAt,
+            venueName: venues.name,
+            city: venues.city,
+            capacity: sql<number>`coalesce((select sum(tt.capacity) from ticket_types tt where tt.event_id = ${events.id}), 0)`.mapWith(Number),
+            sold: sql<number>`coalesce((select sum(tt.sold) from ticket_types tt where tt.event_id = ${events.id}), 0)`.mapWith(Number),
+            held: sql<number>`coalesce((select sum(tt.held) from ticket_types tt where tt.event_id = ${events.id}), 0)`.mapWith(Number),
+          })
+          .from(events)
+          .leftJoin(venues, eq(venues.id, events.venueId))
+          .where(eq(events.organizationId, access.orgId))
+          .orderBy(desc(events.startsAt));
+        return {
+          totals: {
+            events: rows.length,
+            published: rows.filter((e) => e.status === 'published').length,
+            drafts: rows.filter((e) => e.status === 'draft').length,
+            ticketsSold: rows.reduce((a, e) => a + e.sold, 0),
+            capacity: rows.reduce((a, e) => a + e.capacity, 0),
+          },
+          events: rows,
+        };
+      });
+    },
+  );
+
+  // ─── Editar evento ───
+  r.patch(
+    '/v1/organizations/:orgId/events/:eventId',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Editar los datos de un evento',
+        params: EventParams,
+        body: z
+          .object({
+            title: z.string().trim().min(3).max(160),
+            description: z.string().max(20_000),
+            category: z.string().trim().toLowerCase().min(2).max(40),
+            venueId: z.string().uuid().nullable(),
+            startsAt: z.coerce.date(),
+            endsAt: z.coerce.date(),
+            coverImageUrl: z.string().url().max(2048).nullable(),
+          })
+          .partial()
+          .refine((b) => Object.keys(b).length > 0, 'Indicá al menos un dato para cambiar.'),
+        response: { 200: z.object({ id: z.string().uuid(), updated: z.array(z.string()) }) },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.write');
+      const b = req.body;
+      return inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId, { forUpdate: true });
+        assertEditable(e.status);
+        const startsAt = b.startsAt ?? e.startsAt;
+        const endsAt = b.endsAt ?? e.endsAt;
+        if (endsAt <= startsAt) throw new AppError(400, 'invalid_dates', 'El evento debe terminar después de empezar.');
+        if (b.venueId) {
+          const [v] = await tx.select({ id: venues.id }).from(venues).where(and(eq(venues.id, b.venueId), eq(venues.organizationId, access.orgId)));
+          if (!v) throw notFound('Lugar');
+        }
+        if (e.status === 'published' && b.venueId === null) throw conflict('venue_required', 'Un evento publicado necesita un lugar.');
+        await tx
+          .update(events)
+          .set({ ...b, updatedAt: s.now() })
+          .where(eq(events.id, e.id));
+        const updated = Object.keys(b);
+        await audit(tx, {
+          orgId: access.orgId,
+          actorUserId: access.userId,
+          action: 'event.updated',
+          entityType: 'event',
+          entityId: e.id,
+          data: { fields: updated, wasPublished: e.status === 'published' },
+          ip: req.ip,
+        });
+        return { id: e.id, updated };
+      });
+    },
+  );
+
+  // ─── Cancelar evento ───
+  r.post(
+    '/v1/organizations/:orgId/events/:eventId/cancel',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Cancelar un evento',
+        description: 'Saca el evento de la venta, libera las reservas y anula las entradas emitidas. Las devoluciones de dinero se procesan con el módulo de pagos.',
+        params: EventParams,
+        body: z.object({ reason: z.string().trim().min(5).max(500) }),
+        response: { 200: z.object({ id: z.string().uuid(), ticketsCancelled: z.number(), holdsReleased: z.number() }) },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.publish');
+      return inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId, { forUpdate: true });
+        assertEditable(e.status);
+        const now = s.now();
+        await tx.update(events).set({ status: 'cancelled', cancelledAt: now, cancellationReason: req.body.reason, updatedAt: now }).where(eq(events.id, e.id));
+        const holdsReleased = await releaseEventHoldsTx(tx, e.id, now);
+        const cancelled = await tx
+          .update(tickets)
+          .set({ status: 'cancelled', updatedAt: now })
+          .where(and(eq(tickets.eventId, e.id), inArray(tickets.status, ['valid', 'locked'])))
+          .returning({ id: tickets.id });
+        await recordTicketEvents(
+          tx,
+          cancelled.map((t) => ({ orgId: access.orgId, ticketId: t.id, type: 'cancelled', actorUserId: access.userId, data: { reason: 'event_cancelled' } })),
+        );
+        await audit(tx, {
+          orgId: access.orgId,
+          actorUserId: access.userId,
+          action: 'event.cancelled',
+          entityType: 'event',
+          entityId: e.id,
+          data: { reason: req.body.reason, ticketsCancelled: cancelled.length, holdsReleased },
+          ip: req.ip,
+        });
+        return { id: e.id, ticketsCancelled: cancelled.length, holdsReleased };
+      });
+    },
+  );
+
+  // ─── Editar tipo de entrada ───
+  r.patch(
+    '/v1/organizations/:orgId/events/:eventId/ticket-types/:ticketTypeId',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Editar un tipo de entrada',
+        description: 'Para cambiar capacidad usá /capacity; para precios, las etapas.',
+        params: TypeParams,
+        body: z
+          .object({
+            name: z.string().trim().min(1).max(80),
+            description: z.string().max(2000),
+            maxPerOrder: z.number().int().min(1).max(100),
+            salesStartAt: z.coerce.date().nullable(),
+            salesEndAt: z.coerce.date().nullable(),
+            hidden: z.boolean(),
+          })
+          .partial()
+          .refine((b) => Object.keys(b).length > 0, 'Indicá al menos un dato para cambiar.'),
+        response: { 200: z.object({ id: z.string().uuid(), updated: z.array(z.string()) }) },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'inventory.write');
+      return inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId);
+        assertEditable(e.status);
+        const [tt] = await tx.select().from(ticketTypes).where(and(eq(ticketTypes.id, req.params.ticketTypeId), eq(ticketTypes.eventId, e.id))).for('update');
+        if (!tt) throw notFound('Tipo de entrada');
+        const start = req.body.salesStartAt === undefined ? tt.salesStartAt : req.body.salesStartAt;
+        const end = req.body.salesEndAt === undefined ? tt.salesEndAt : req.body.salesEndAt;
+        if (start && end && end <= start) throw new AppError(400, 'invalid_sales_window', 'La venta debe terminar después de empezar.');
+        await tx.update(ticketTypes).set({ ...req.body, updatedAt: s.now() }).where(eq(ticketTypes.id, tt.id));
+        const updated = Object.keys(req.body);
+        await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'ticket_type.updated', entityType: 'ticket_type', entityId: tt.id, data: { fields: updated }, ip: req.ip });
+        return { id: tt.id, updated };
+      });
+    },
+  );
+
+  // ─── Etapas de precio ───
+  const StageBody = z.object({
+    name: z.string().trim().min(1).max(80),
+    priceCents: z.number().int().min(0),
+    startsAt: z.coerce.date().nullable().default(null),
+    endsAt: z.coerce.date().nullable().default(null),
+    quantityLimit: z.number().int().positive().nullable().default(null),
+  });
+
+  r.post(
+    '/v1/organizations/:orgId/events/:eventId/ticket-types/:ticketTypeId/stages',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Agregar una etapa de precio al final',
+        params: TypeParams,
+        body: StageBody,
+        response: { 201: z.object({ id: z.string().uuid(), position: z.number() }) },
+      },
+    },
+    async (req, reply) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'inventory.write');
+      const result = await inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId);
+        assertEditable(e.status);
+        const [tt] = await tx.select({ id: ticketTypes.id }).from(ticketTypes).where(and(eq(ticketTypes.id, req.params.ticketTypeId), eq(ticketTypes.eventId, e.id))).for('update');
+        if (!tt) throw notFound('Tipo de entrada');
+        const [last] = await tx.select({ max: sql<number>`coalesce(max(${priceStages.position}), 0)`.mapWith(Number) }).from(priceStages).where(eq(priceStages.ticketTypeId, tt.id));
+        const position = (last?.max ?? 0) + 1;
+        validateStages([{ ...req.body, position }]);
+        const id = randomUUID();
+        await tx.insert(priceStages).values({ id, organizationId: access.orgId, ticketTypeId: tt.id, position, ...req.body });
+        await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'price_stage.created', entityType: 'price_stage', entityId: id, data: { ticketTypeId: tt.id, priceCents: req.body.priceCents }, ip: req.ip });
+        return { id, position };
+      });
+      return reply.status(201).send(result);
+    },
+  );
+
+  r.patch(
+    '/v1/organizations/:orgId/events/:eventId/ticket-types/:ticketTypeId/stages/:stageId',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Editar una etapa de precio',
+        description: 'El precio sólo se puede cambiar si la etapa todavía no vendió ni reservó: así nadie paga distinto por lo mismo. Si ya vendió, cerrala y creá una nueva.',
+        params: TypeParams.extend({ stageId: z.string().uuid() }),
+        body: StageBody.partial().refine((b) => Object.keys(b).length > 0, 'Indicá al menos un dato para cambiar.'),
+        response: { 200: z.object({ id: z.string().uuid(), updated: z.array(z.string()) }) },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'inventory.write');
+      return inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId);
+        assertEditable(e.status);
+        const [st] = await tx
+          .select()
+          .from(priceStages)
+          .innerJoin(ticketTypes, eq(ticketTypes.id, priceStages.ticketTypeId))
+          .where(and(eq(priceStages.id, req.params.stageId), eq(priceStages.ticketTypeId, req.params.ticketTypeId), eq(ticketTypes.eventId, e.id)))
+          .for('update', { of: priceStages });
+        if (!st) throw notFound('Etapa');
+        const stage = st.price_stages;
+        const b = req.body;
+        if (b.priceCents !== undefined && b.priceCents !== stage.priceCents && stage.soldCount + stage.heldCount > 0) {
+          throw conflict('stage_has_sales', 'Esta etapa ya tiene ventas o reservas: no se puede cambiar su precio. Cerrala con una fecha de fin y creá una etapa nueva.');
+        }
+        const merged = {
+          position: stage.position,
+          priceCents: b.priceCents ?? stage.priceCents,
+          startsAt: b.startsAt === undefined ? stage.startsAt : b.startsAt,
+          endsAt: b.endsAt === undefined ? stage.endsAt : b.endsAt,
+          quantityLimit: b.quantityLimit === undefined ? stage.quantityLimit : b.quantityLimit,
+        };
+        validateStages([merged]);
+        if (merged.quantityLimit !== null && merged.quantityLimit < stage.soldCount + stage.heldCount) {
+          throw conflict('limit_below_committed', 'El cupo no puede ser menor a lo ya vendido o reservado en esta etapa.');
+        }
+        await tx.update(priceStages).set(b).where(eq(priceStages.id, stage.id));
+        const updated = Object.keys(b);
+        await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'price_stage.updated', entityType: 'price_stage', entityId: stage.id, data: { fields: updated, from: { priceCents: stage.priceCents } }, ip: req.ip });
+        return { id: stage.id, updated };
+      });
+    },
+  );
+
+  // ─── Estadísticas y asistentes ───
+  r.get(
+    '/v1/organizations/:orgId/events/:eventId/stats',
+    { schema: { tags: ['business'], summary: 'Estadísticas de un evento', params: EventParams, response: { 200: StatsDto } } },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.read');
+      return inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId);
+        return eventStats(tx, e.id);
+      });
+    },
+  );
+
+  r.get(
+    '/v1/organizations/:orgId/events/:eventId/attendees',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Entradas emitidas de un evento',
+        params: EventParams,
+        querystring: z.object({
+          q: z.string().trim().min(2).max(80).optional(),
+          status: z.enum(TICKET_STATUSES).optional(),
+          limit: z.coerce.number().int().min(1).max(200).default(50),
+          offset: z.coerce.number().int().min(0).max(100_000).default(0),
+        }),
+        response: {
+          200: z.object({
+            total: z.number(),
+            items: z.array(
+              z.object({
+                id: z.string().uuid(),
+                holderName: z.string(),
+                holderEmail: z.string(),
+                ticketTypeName: z.string(),
+                status: z.enum(TICKET_STATUSES),
+                priceCents: z.number(),
+                courtesy: z.boolean(),
+                issuedAt: z.date(),
+                usedAt: z.date().nullable(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'tickets.read');
+      const { q, status, limit, offset } = req.query;
+      return inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId);
+        const conds = [eq(tickets.eventId, e.id)];
+        if (status) conds.push(eq(tickets.status, status));
+        if (q) {
+          const like = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
+          conds.push(sql`(${tickets.holderName} ILIKE ${like} OR ${tickets.holderEmail} ILIKE ${like} OR ${tickets.holderDocument} ILIKE ${like})`);
+        }
+        const where = and(...conds);
+        const [totalRow] = await tx.select({ n: count() }).from(tickets).where(where);
+        const rows = await tx
+          .select({ t: tickets, typeName: ticketTypes.name })
+          .from(tickets)
+          .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
+          .where(where)
+          .orderBy(desc(tickets.issuedAt), asc(tickets.id))
+          .limit(limit)
+          .offset(offset);
+        return {
+          total: totalRow?.n ?? 0,
+          items: rows.map(({ t, typeName }) => ({
+            id: t.id,
+            holderName: t.holderName,
+            holderEmail: t.holderEmail,
+            ticketTypeName: typeName,
+            status: t.status,
+            priceCents: t.priceCents,
+            courtesy: t.orderId === null && t.priceCents === 0,
+            issuedAt: t.issuedAt,
+            usedAt: t.usedAt,
+          })),
+        };
+      });
+    },
+  );
+}

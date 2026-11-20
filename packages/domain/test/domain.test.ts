@@ -4,6 +4,7 @@ import {
   addMoney,
   base32Decode,
   base32Encode,
+  buyerFeeCents,
   generateQrKeyPair,
   hotp,
   loadPrivateKey,
@@ -80,6 +81,19 @@ describe('etapas de precio', () => {
   it('valida posiciones duplicadas y ventanas inválidas', () => {
     expect(() => validateStages([{ position: 1, priceCents: 1, startsAt: null, endsAt: null, quantityLimit: null }, { position: 1, priceCents: 1, startsAt: null, endsAt: null, quantityLimit: null }])).toThrow(/posición 1/);
     expect(() => validateStages([{ position: 1, priceCents: 1, startsAt: new Date(2), endsAt: new Date(1), quantityLimit: null }])).toThrow(DomainError);
+  });
+});
+
+describe('cargo por servicio', () => {
+  it('calcula el 10% con redondeo bancario y no cobra en compras gratis', () => {
+    expect(buyerFeeCents(3_600_000, 1000)).toBe(360_000);
+    expect(buyerFeeCents(5, 1000)).toBe(0); // 0,5 → 0 (par)
+    expect(buyerFeeCents(15, 1000)).toBe(2); // 1,5 → 2 (par)
+    expect(buyerFeeCents(0, 1000)).toBe(0);
+  });
+  it('rechaza cargos fuera de rango', () => {
+    expect(() => buyerFeeCents(100, 3001)).toThrow(DomainError);
+    expect(() => buyerFeeCents(-1, 100)).toThrow(DomainError);
   });
 });
 

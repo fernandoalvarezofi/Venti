@@ -18,6 +18,7 @@ import { healthRoutes } from './modules/health/routes.ts';
 import { inventoryRoutes } from './modules/inventory/routes.ts';
 import { organizationRoutes } from './modules/organizations/routes.ts';
 import { ticketRoutes } from './modules/tickets/routes.ts';
+import { businessRoutes } from './modules/business/routes.ts';
 
 const VENTI_LOGO_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="32" viewBox="0 0 120 32"><text x="0" y="24" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="2">VENTI</text></svg>';
@@ -108,6 +109,7 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
   await eventRoutes(app, services);
   await inventoryRoutes(app, services);
   await ticketRoutes(app, services);
+  await businessRoutes(app, services);
 
   return {
     app,

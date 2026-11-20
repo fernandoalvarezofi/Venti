@@ -2,7 +2,12 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { requireAuth, type Services } from '../../lib/context.ts';
-import { createHold, getHold, releaseHold } from './service.ts';
+import { createHold, getHold, quote, releaseHold } from './service.ts';
+
+const Items = z
+  .array(z.object({ ticketTypeId: z.string().uuid(), quantity: z.number().int().min(1).max(100) }))
+  .min(1)
+  .max(10);
 
 const HoldDto = z.object({
   id: z.string().uuid(),
@@ -10,6 +15,8 @@ const HoldDto = z.object({
   status: z.enum(['active', 'converted', 'expired', 'released']),
   expiresAt: z.date(),
   currency: z.string(),
+  subtotalCents: z.number(),
+  feeCents: z.number(),
   totalCents: z.number(),
   items: z.array(
     z.object({
@@ -22,8 +29,43 @@ const HoldDto = z.object({
   ),
 });
 
+const QuoteDto = z.object({
+  eventId: z.string().uuid(),
+  currency: z.string(),
+  lines: z.array(
+    z.object({
+      ticketTypeId: z.string().uuid(),
+      ticketTypeName: z.string(),
+      stageId: z.string().uuid(),
+      stageName: z.string(),
+      quantity: z.number(),
+      unitPriceCents: z.number(),
+      lineTotalCents: z.number(),
+    }),
+  ),
+  subtotalCents: z.number(),
+  feeCents: z.number(),
+  feeBps: z.number(),
+  totalCents: z.number(),
+});
+
 export async function inventoryRoutes(app: FastifyInstance, s: Services): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.post(
+    '/v1/checkout/quote',
+    {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: {
+        tags: ['checkout'],
+        summary: 'Cotizar una selección de entradas',
+        description: 'Precio vigente por etapa, cargo por servicio y total, calculados en el servidor. No reserva stock.',
+        body: z.object({ eventId: z.string().uuid(), items: Items }),
+        response: { 200: QuoteDto },
+      },
+    },
+    async (req) => quote(s.db, { eventId: req.body.eventId, items: req.body.items, now: s.now() }),
+  );
 
   r.post(
     '/v1/holds',
@@ -32,14 +74,8 @@ export async function inventoryRoutes(app: FastifyInstance, s: Services): Promis
       schema: {
         tags: ['checkout'],
         summary: 'Reservar entradas temporalmente',
-        description: 'Bloquea el stock por unos minutos mientras el comprador paga. Reemplaza cualquier reserva activa del mismo usuario para el mismo evento.',
-        body: z.object({
-          eventId: z.string().uuid(),
-          items: z
-            .array(z.object({ ticketTypeId: z.string().uuid(), quantity: z.number().int().min(1).max(100) }))
-            .min(1)
-            .max(10),
-        }),
+        description: 'Bloquea el stock por unos minutos mientras el comprador paga. Reemplaza cualquier reserva activa del mismo usuario para el mismo evento. Los montos quedan congelados.',
+        body: z.object({ eventId: z.string().uuid(), items: Items }),
         response: { 201: HoldDto },
       },
     },

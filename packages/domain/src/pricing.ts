@@ -33,6 +33,31 @@ export function resolveActiveStage(stages: readonly PriceStage[], now: Date, qua
   return null;
 }
 
+/** Cargo por servicio al comprador por defecto: 10% (1000 puntos básicos). Cada productora puede tener el suyo. */
+export const DEFAULT_BUYER_FEE_BPS = 1000;
+/** Tope de seguridad: ningún cargo por servicio puede superar el 30%. */
+export const MAX_BUYER_FEE_BPS = 3000;
+
+/**
+ * Cargo por servicio de una compra. Se calcula sobre el subtotal completo (no por entrada)
+ * con redondeo bancario. Las compras gratuitas no pagan cargo.
+ */
+export function buyerFeeCents(subtotalCents: number, feeBps: number): number {
+  if (!Number.isSafeInteger(subtotalCents) || subtotalCents < 0) {
+    throw new DomainError('pricing.invalid_subtotal', 'El subtotal debe ser un entero de centavos ≥ 0.');
+  }
+  if (!Number.isSafeInteger(feeBps) || feeBps < 0 || feeBps > MAX_BUYER_FEE_BPS) {
+    throw new DomainError('pricing.invalid_fee', `El cargo por servicio debe estar entre 0 y ${MAX_BUYER_FEE_BPS / 100}%.`);
+  }
+  if (subtotalCents === 0) return 0;
+  const raw = (subtotalCents * feeBps) / 10_000;
+  const floor = Math.floor(raw);
+  const diff = raw - floor;
+  if (diff > 0.5) return floor + 1;
+  if (diff < 0.5) return floor;
+  return floor % 2 === 0 ? floor : floor + 1;
+}
+
 /** Valida que las etapas sean coherentes antes de persistirlas. */
 export function validateStages(stages: readonly Omit<PriceStage, 'id' | 'soldCount'>[]): void {
   const positions = new Set<number>();

@@ -198,6 +198,8 @@ export const events = pgTable(
     timezone: text('timezone').notNull().default('America/Argentina/Buenos_Aires'),
     coverImageUrl: text('cover_image_url'),
     publishedAt: ts('published_at'),
+    cancelledAt: ts('cancelled_at'),
+    cancellationReason: text('cancellation_reason'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -306,6 +308,10 @@ export const holds = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     status: holdStatus('status').notNull().default('active'),
+    currency: currency('currency').notNull().default('ARS'),
+    /** Montos congelados al reservar: el precio no cambia mientras dura la reserva. */
+    subtotalCents: cents('subtotal_cents').notNull().default(0),
+    feeCents: cents('fee_cents').notNull().default(0),
     expiresAt: ts('expires_at').notNull(),
     createdAt: createdAt(),
     closedAt: ts('closed_at'),
