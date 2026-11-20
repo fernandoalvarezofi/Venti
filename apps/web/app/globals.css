@@ -933,7 +933,7 @@
   width: var(--m-w);
   height: var(--m-h);
   border-radius: 12px;
-  transition: background-color 200ms, box-shadow 200ms, transform 260ms var(--ease-out-quint);
+  transition: background-color 200ms, box-shadow 200ms;
 }
 @media (min-width: 641px) {
   .banner-hotspot {
@@ -950,14 +950,13 @@
   box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.55), 0 10px 24px -12px rgb(0 0 0 / 0.6);
   backdrop-filter: brightness(1.15);
   -webkit-backdrop-filter: brightness(1.15);
-  transform: translateY(-2px);
   outline: none;
 }
 .banner-hotspot:focus-visible {
   box-shadow: inset 0 0 0 2px #f39a2b, 0 10px 24px -12px rgb(0 0 0 / 0.6);
 }
 .banner-hotspot:active {
-  transform: translateY(0) scale(0.97);
+  background: rgb(255 255 255 / 0.2);
 }
 @media (prefers-reduced-motion: reduce) {
   .banner-hotspot { transition: none; }

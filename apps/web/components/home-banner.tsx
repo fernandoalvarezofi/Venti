@@ -6,9 +6,10 @@ import Link from 'next/link';
  * exactamente sobre el ícono en los dos tamaños.
  */
 const HOTSPOTS = [
-  { href: '/mis-entradas', label: 'Entradas: ver mis entradas', d: [5.08, 77.04, 7.48, 19.56], m: [4.47, 68.66, 10.16, 17.16] },
-  { href: '/eventos', label: 'Eventos: ver todos los eventos', d: [15.67, 77.04, 7.48, 19.56], m: [18.86, 68.66, 10.16, 17.16] },
-  { href: '/eventos?category=festival', label: 'Experiencias: ver festivales', d: [26.32, 77.04, 10.17, 19.56], m: [33.33, 68.66, 13.82, 17.16] },
+  // Medido sobre los píxeles del ícono + su texto, con 16–18 px de margen (mismo alto para los tres).
+  { href: '/mis-entradas', label: 'Entradas: ver mis entradas', d: [4.904, 76.7, 7.656, 20.75], m: [4.228, 68.36, 10.407, 18.21] },
+  { href: '/eventos', label: 'Eventos: ver todos los eventos', d: [15.58, 76.7, 7.656, 20.75], m: [18.74, 68.36, 10.407, 18.21] },
+  { href: '/eventos?category=festival', label: 'Experiencias: ver festivales', d: [26.316, 76.7, 10.227, 20.75], m: [33.333, 68.36, 13.902, 18.21] },
 ] as const;
 
 const vars = (p: readonly number[], k: 'd' | 'm') =>
@@ -34,7 +35,7 @@ export function HomeBanner() {
             height={588}
             fetchPriority="high"
             decoding="async"
-            className="block h-auto w-full transition-transform duration-[1200ms] ease-[var(--ease-out-quint)] group-hover:scale-[1.015]"
+            className="block h-auto w-full"
           />
         </picture>
         {/* Enlace general (todo el banner): queda debajo de los íconos. */}
