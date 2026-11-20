@@ -916,52 +916,9 @@
 @media (max-width: 640px) {
   .banner-frame { border-radius: 16px; }
 }
-.banner-cover {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-}
-.banner-cover:focus-visible {
+.banner-frame:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 3px;
-}
-/* Zonas táctiles sobre los íconos dibujados: invisibles hasta pasar el mouse o enfocarlas. */
-.banner-hotspot {
-  position: absolute;
-  z-index: 2;
-  left: var(--m-l);
-  top: var(--m-t);
-  width: var(--m-w);
-  height: var(--m-h);
-  border-radius: 12px;
-  transition: background-color 200ms, box-shadow 200ms;
-}
-@media (min-width: 641px) {
-  .banner-hotspot {
-    left: var(--d-l);
-    top: var(--d-t);
-    width: var(--d-w);
-    height: var(--d-h);
-    border-radius: 16px;
-  }
-}
-.banner-hotspot:hover,
-.banner-hotspot:focus-visible {
-  background: rgb(255 255 255 / 0.12);
-  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.55), 0 10px 24px -12px rgb(0 0 0 / 0.6);
-  backdrop-filter: brightness(1.15);
-  -webkit-backdrop-filter: brightness(1.15);
-  outline: none;
-}
-.banner-hotspot:focus-visible {
-  box-shadow: inset 0 0 0 2px #f39a2b, 0 10px 24px -12px rgb(0 0 0 / 0.6);
-}
-.banner-hotspot:active {
-  background: rgb(255 255 255 / 0.2);
-}
-@media (prefers-reduced-motion: reduce) {
-  .banner-hotspot { transition: none; }
 }
 
 /* Entrada del menú: apenas inclinada; al pasar el mouse se endereza y sube. */
