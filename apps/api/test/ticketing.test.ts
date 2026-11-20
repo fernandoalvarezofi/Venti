@@ -180,7 +180,8 @@ describe('cortesías, mis entradas y control de acceso', () => {
     expect(t1.qr).toMatch(/^V1\./);
     expect(t1.priceCents).toBe(0);
 
-    const scan = (qr: string, token = staff.token) => call(ctx, 'POST', `/v1/organizations/${orgId}/events/${eventId}/check-in`, { token, body: { qr, gate: 'Puerta 1' } });
+    // Escanea la productora: el personal de acceso necesita un turno vigente (ver security.test.ts, H4).
+    const scan = (qr: string, token = owner.token) => call(ctx, 'POST', `/v1/organizations/${orgId}/events/${eventId}/check-in`, { token, body: { qr, gate: 'Puerta 1' } });
 
     expect((await scan(t1.qr)).body.result).toBe('admitted');
     expect((await scan(t1.qr)).body.result).toBe('already_used');

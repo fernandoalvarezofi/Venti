@@ -1,12 +1,13 @@
 import { createPublicKey, randomUUID } from 'node:crypto';
 import { TICKET_STATUSES, isTerminal, signTicketQr, transitionTicket, verifyTicketQr } from '@venti/domain';
-import { and, desc, eq, events, sql, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
+import { and, desc, eq, events, gt, isNotNull, lte, sql, staffAssignments, ticketClaims, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
-import { conflict, notFound } from '../../lib/errors.ts';
+import { AppError, conflict, notFound } from '../../lib/errors.ts';
+import { protectDocument } from '../../lib/identity.ts';
 
 const TicketDto = z.object({
   id: z.string().uuid(),
@@ -28,7 +29,7 @@ const ScanResult = z.object({
   result: z.enum(['admitted', 'already_used', 'invalid_signature', 'malformed', 'wrong_event', 'not_found', 'outdated_qr', 'not_valid']),
   message: z.string(),
   ticket: z
-    .object({ id: z.string().uuid(), holderName: z.string(), ticketTypeName: z.string(), status: z.enum(TICKET_STATUSES), usedAt: z.date().nullable() })
+    .object({ id: z.string().uuid(), holderName: z.string(), holderDocLast3: z.string().nullable(), ticketTypeName: z.string(), status: z.enum(TICKET_STATUSES), usedAt: z.date().nullable() })
     .nullable(),
 });
 
@@ -89,23 +90,31 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
       schema: {
         tags: ['tickets'],
         summary: 'Emitir cortesías',
-        description: 'Emite tickets sin cargo descontando stock real. Si el email tiene cuenta VENTI, el ticket aparece en su app.',
+        description: 'Emite tickets sin cargo descontando stock real. Si el email pertenece a una cuenta VERIFICADA, el ticket aparece en su app; si no, queda pendiente hasta que alguien confirme ese email.',
         params: z.object({ orgId: z.string().uuid(), eventId: z.string().uuid() }),
         body: z.object({
           ticketTypeId: z.string().uuid(),
           quantity: z.number().int().min(1).max(50),
           holderName: z.string().trim().min(2).max(120),
           holderEmail: z.string().trim().toLowerCase().email(),
-          holderDocument: z.string().trim().regex(/^\d{7,9}$/, 'DNI inválido.').optional(),
+          // Acepta "30.111.222" o "30111222": se normaliza y valida en protectDocument.
+          holderDocument: z.string().trim().max(15).optional(),
           note: z.string().trim().max(500).optional(),
         }),
-        response: { 201: z.object({ ticketIds: z.array(z.string().uuid()) }) },
+        response: { 201: z.object({ ticketIds: z.array(z.string().uuid()), pendingClaim: z.boolean() }) },
       },
     },
     async (req, reply) => {
       const access = await requireOrgPermission(s.db, req, req.params.orgId, 'tickets.courtesy');
       const b = req.body;
-      const [owner] = await s.db.select({ id: users.id }).from(users).where(sql`lower(${users.email}) = ${b.holderEmail}`);
+      // H1: sólo se entrega directo a una cuenta que DEMOSTRÓ controlar ese email.
+      const [owner] = await s.db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(sql`lower(${users.email}) = ${b.holderEmail}`, isNotNull(users.emailVerifiedAt)));
+      // H3: el DNI nunca se guarda en claro.
+      const doc = b.holderDocument ? protectDocument(s.docKey, access.orgId, b.holderDocument) : null;
+      if (b.holderDocument && !doc) throw new AppError(400, 'invalid_document', 'DNI inválido.');
       const ticketIds = await inOrg(s.db, access, async (tx) => {
         const [e] = await tx.select().from(events).where(and(eq(events.id, req.params.eventId), eq(events.organizationId, access.orgId)));
         if (!e) throw notFound('Evento');
@@ -134,16 +143,22 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
             eventId: e.id,
             ticketTypeId: tt.id,
             ownerUserId: owner?.id ?? null,
+            assignmentStatus: owner ? ('assigned' as const) : ('pending_claim' as const),
             holderName: b.holderName,
             holderEmail: b.holderEmail,
-            holderDocument: b.holderDocument ?? null,
+            holderDocHmac: doc?.hmac ?? null,
+            holderDocLast3: doc?.last3 ?? null,
             priceCents: 0,
             currency: tt.currency,
           })),
         );
+        if (!owner) {
+          // Reclamo abierto hasta el fin del evento: se resuelve cuando alguien confirma ese email.
+          await tx.insert(ticketClaims).values(ids.map((id) => ({ id: randomUUID(), organizationId: access.orgId, ticketId: id, emailLower: b.holderEmail, expiresAt: e.endsAt })));
+        }
         await recordTicketEvents(
           tx,
-          ids.map((id) => ({ orgId: access.orgId, ticketId: id, type: 'issued', actorUserId: access.userId, data: { reason: 'courtesy', note: b.note ?? null } })),
+          ids.map((id) => ({ orgId: access.orgId, ticketId: id, type: 'issued', actorUserId: access.userId, data: { reason: 'courtesy', note: b.note ?? null, pendingClaim: !owner } })),
         );
         await audit(tx, {
           orgId: access.orgId,
@@ -154,9 +169,23 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
           data: { ticketTypeId: tt.id, quantity: b.quantity, holderEmail: b.holderEmail },
           ip: req.ip,
         });
-        return ids;
+        return { ids, eventTitle: e.title };
       });
-      return reply.status(201).send({ ticketIds });
+      // Aviso al invitado (si el proveedor de email no está configurado, la cortesía igual queda emitida).
+      if (s.email.enabled) {
+        await s.email
+          .send({
+            to: b.holderEmail,
+            kind: owner ? 'tickets_assigned' : 'tickets_pending_claim',
+            subject: `Tenés ${b.quantity === 1 ? 'una entrada' : `${b.quantity} entradas`} para ${ticketIds.eventTitle}`,
+            text: owner
+              ? `Ya están en "Mis entradas": ${s.config.PUBLIC_WEB_URL}/mis-entradas`
+              : `Para recibirlas, creá tu cuenta en VENTI con este mismo email y confirmalo: ${s.config.PUBLIC_WEB_URL}/registrarse?next=/mis-entradas
+Si ya tenés cuenta, ingresá y confirmá tu email.`,
+          })
+          .catch((err) => req.log.warn({ err }, 'No se pudo avisar por email de una cortesía'));
+      }
+      return reply.status(201).send({ ticketIds: ticketIds.ids, pendingClaim: !owner });
     },
   );
 
@@ -253,6 +282,24 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
     },
     async (req) => {
       const access = await requireOrgPermission(s.db, req, req.params.orgId, 'access.scan');
+      // H4: el personal de acceso sólo escanea eventos donde tiene una asignación vigente (evento + turno).
+      if (access.role === 'access_staff') {
+        const now = s.now();
+        const [assignment] = await inOrg(s.db, access, (tx) =>
+          tx
+            .select({ id: staffAssignments.id })
+            .from(staffAssignments)
+            .where(
+              and(
+                eq(staffAssignments.eventId, req.params.eventId),
+                eq(staffAssignments.userId, access.userId),
+                lte(staffAssignments.validFrom, now),
+                gt(staffAssignments.validUntil, now),
+              ),
+            ),
+        );
+        if (!assignment) throw new AppError(403, 'not_assigned', 'No tenés un turno asignado en este evento ahora.');
+      }
       const verdict = verifyTicketQr(req.body.qr, publicKey);
       if (!verdict.ok) {
         const result: ScanResultCode = verdict.reason === 'bad_signature' ? 'invalid_signature' : 'malformed';
@@ -269,7 +316,7 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
           .where(and(eq(tickets.id, claims.ticketId), eq(tickets.eventId, req.params.eventId)))
           .for('update', { of: tickets });
         if (!row) return { result: 'not_found' as const, message: SCAN_MESSAGES.not_found, ticket: null };
-        const view = (t: typeof tickets.$inferSelect) => ({ id: t.id, holderName: t.holderName, ticketTypeName: row.typeName, status: t.status, usedAt: t.usedAt });
+        const view = (t: typeof tickets.$inferSelect) => ({ id: t.id, holderName: t.holderName, holderDocLast3: t.holderDocLast3, ticketTypeName: row.typeName, status: t.status, usedAt: t.usedAt });
         const t = row.t;
         if (t.status === 'used') return { result: 'already_used' as const, message: SCAN_MESSAGES.already_used, ticket: view(t) };
         if (isTerminal(t.status) || t.status !== 'valid') return { result: 'not_valid' as const, message: SCAN_MESSAGES.not_valid, ticket: view(t) };

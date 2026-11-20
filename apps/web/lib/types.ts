@@ -190,6 +190,8 @@ export interface Attendee {
   id: string;
   holderName: string;
   holderEmail: string;
+  holderDocLast3: string | null;
+  pendingClaim: boolean;
   ticketTypeName: string;
   status: Ticket['status'];
   priceCents: number;
@@ -204,4 +206,13 @@ export interface Member {
   fullName: string;
   role: OrgRole;
   createdAt: string;
+}
+
+export interface StaffShift {
+  id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  validFrom: string;
+  validUntil: string;
 }

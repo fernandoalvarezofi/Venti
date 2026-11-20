@@ -40,6 +40,27 @@ const ConfigSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  /** URL pública de la web (para los enlaces de los emails). */
+  PUBLIC_WEB_URL: z.string().url().default('http://localhost:3000'),
+  /**
+   * resend: envío real. outbox: buzón en memoria, SÓLO desarrollo y tests (se rechaza en producción).
+   * disabled: no hay proveedor; las funciones que necesitan email responden 503 explicando por qué.
+   */
+  EMAIL_PROVIDER: z.enum(['resend', 'outbox', 'disabled']).default('outbox'),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('VENTI <no-reply@venti.local>'),
+  /** Clave HMAC para el DNI (32+ bytes en base64). El DNI nunca se guarda en claro. */
+  DOC_HMAC_KEY: z
+    .string()
+    .min(1)
+    .refine((v) => Buffer.from(v, 'base64').length >= 32, 'DOC_HMAC_KEY debe ser al menos 32 bytes en base64.'),
+}).superRefine((c, ctx) => {
+  if (c.NODE_ENV === 'production' && c.EMAIL_PROVIDER === 'outbox') {
+    ctx.addIssue({ code: 'custom', path: ['EMAIL_PROVIDER'], message: 'En producción no se permite el buzón en memoria: usá resend o disabled.' });
+  }
+  if (c.EMAIL_PROVIDER === 'resend' && !c.RESEND_API_KEY) {
+    ctx.addIssue({ code: 'custom', path: ['RESEND_API_KEY'], message: 'Falta RESEND_API_KEY para enviar emails.' });
+  }
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

@@ -11,18 +11,69 @@ afterAll(async () => {
 });
 
 describe('autenticación', () => {
-  it('registra, devuelve sesión y setea cookie HttpOnly', async () => {
+  it('registrar no inicia sesión: pide confirmar el email, y confirmar sí (cookie HttpOnly)', async () => {
     const res = await call(ctx, 'POST', '/v1/auth/register', { body: { email: 'Ana.Test@Venti.test', password: 'una-clave-larga-1', fullName: 'Ana' } });
-    expect(res.status).toBe(201);
-    expect(res.body.user.email).toBe('ana.test@venti.test');
-    expect(res.body).not.toHaveProperty('user.passwordHash');
-    expect(String(res.headers['set-cookie'])).toMatch(/venti_session=.+HttpOnly/i);
+    expect(res.status).toBe(202);
+    expect(res.headers['set-cookie']).toBeUndefined();
+    const msg = ctx.outbox.last('ana.test@venti.test', 'verify_email');
+    expect(msg?.meta?.url).toMatch(/^https:\/\/venti\.test\/verificar\?token=/);
+
+    // Sin confirmar no se puede entrar (ni siquiera con la contraseña correcta).
+    const early = await call(ctx, 'POST', '/v1/auth/login', { body: { email: 'ana.test@venti.test', password: 'una-clave-larga-1' } });
+    expect(early.body.error.code).toBe('email_not_verified');
+
+    const v = await call(ctx, 'POST', '/v1/auth/verify-email', { body: { token: msg!.meta!.token, password: 'una-clave-larga-1' } });
+    expect(v.status).toBe(200);
+    expect(v.body.user).toMatchObject({ email: 'ana.test@venti.test', emailVerified: true });
+    expect(v.body).not.toHaveProperty('user.passwordHash');
+    expect(String(v.headers['set-cookie'])).toMatch(/venti_session=.+HttpOnly/i);
+    // El enlace es de un solo uso.
+    expect((await call(ctx, 'POST', '/v1/auth/verify-email', { body: { token: msg!.meta!.token, password: 'una-clave-larga-1' } })).status).toBe(400);
   });
 
-  it('rechaza email duplicado sin importar mayúsculas', async () => {
-    const res = await call(ctx, 'POST', '/v1/auth/register', { body: { email: 'ANA.TEST@venti.test', password: 'una-clave-larga-1', fullName: 'Ana' } });
-    expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('email_taken');
+  it('H5: registrar un email existente responde exactamente igual que uno nuevo', async () => {
+    const nuevo = await call(ctx, 'POST', '/v1/auth/register', { body: { email: 'nuevo-h5@venti.test', password: 'una-clave-larga-1', fullName: 'Nuevo' } });
+    const repetido = await call(ctx, 'POST', '/v1/auth/register', { body: { email: 'ANA.TEST@venti.test', password: 'otra-clave-larga-2', fullName: 'Otra' } });
+    expect(repetido.status).toBe(nuevo.status);
+    expect(repetido.body).toEqual(nuevo.body);
+    // El dueño real recibe un aviso, no un enlace de activación.
+    expect(ctx.outbox.last('ana.test@venti.test', 'account_exists')).toBeDefined();
+    // Y la contraseña del intento NO reemplazó la del dueño.
+    expect((await call(ctx, 'POST', '/v1/auth/login', { body: { email: 'ana.test@venti.test', password: 'una-clave-larga-1' } })).status).toBe(200);
+  });
+
+  it('nadie puede apropiarse de un email ajeno registrándolo primero', async () => {
+    const victim = 'victima-squat@venti.test';
+    // El atacante registra el email de la víctima (no controla ese buzón).
+    await call(ctx, 'POST', '/v1/auth/register', { body: { email: victim, password: 'clave-del-atacante-1', fullName: 'Atacante' } });
+    const attackerLink = ctx.outbox.last(victim, 'verify_email')!.meta!.token!;
+    // La víctima se registra con su propia contraseña.
+    await call(ctx, 'POST', '/v1/auth/register', { body: { email: victim, password: 'clave-de-la-victima-2', fullName: 'Víctima' } });
+    const victimLink = ctx.outbox.last(victim, 'verify_email')!.meta!.token!;
+    expect(victimLink).not.toBe(attackerLink);
+
+    // Si la víctima toca por error el enlace del atacante, no puede activarlo con SU contraseña…
+    const wrong = await call(ctx, 'POST', '/v1/auth/verify-email', { body: { token: attackerLink, password: 'clave-de-la-victima-2' } });
+    expect(wrong.status).toBe(401);
+    // …y con el suyo, la cuenta queda con SU contraseña y el enlace del atacante muere.
+    const ok = await call(ctx, 'POST', '/v1/auth/verify-email', { body: { token: victimLink, password: 'clave-de-la-victima-2' } });
+    expect(ok.body.user.fullName).toBe('Víctima');
+    expect((await call(ctx, 'POST', '/v1/auth/verify-email', { body: { token: attackerLink, password: 'clave-del-atacante-1' } })).status).toBe(400);
+    expect((await call(ctx, 'POST', '/v1/auth/login', { body: { email: victim, password: 'clave-del-atacante-1' } })).status).toBe(401);
+  });
+
+  it('recuperar contraseña: respuesta uniforme, enlace de un solo uso y cierra todas las sesiones', async () => {
+    const u = await registerUser(ctx);
+    const ghost = await call(ctx, 'POST', '/v1/auth/password/forgot', { body: { email: 'nadie-aca@venti.test' } });
+    const real = await call(ctx, 'POST', '/v1/auth/password/forgot', { body: { email: u.email } });
+    expect(real.status).toBe(202);
+    expect(real.body).toEqual(ghost.body);
+    const token = ctx.outbox.last(u.email, 'password_reset')!.meta!.token!;
+    const reset = await call(ctx, 'POST', '/v1/auth/password/reset', { body: { token, password: 'nueva-clave-segura-9' } });
+    expect(reset.status).toBe(204);
+    expect((await call(ctx, 'GET', '/v1/me', { token: u.token })).status).toBe(401); // sesión vieja cerrada
+    expect((await call(ctx, 'POST', '/v1/auth/password/reset', { body: { token, password: 'otra-clave-segura-9' } })).status).toBe(400);
+    expect((await call(ctx, 'POST', '/v1/auth/login', { body: { email: u.email, password: 'nueva-clave-segura-9' } })).status).toBe(200);
   });
 
   it('rechaza contraseñas cortas', async () => {

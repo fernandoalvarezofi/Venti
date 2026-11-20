@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AddTicketTypeForm, CourtesyForm, EditEventForm, EventActions, TicketTypeCard } from '@/components/business/event-manage';
+import { StaffManager } from '@/components/business/staff-manager';
 import { PageTitle, Panel, StatCard, StatusBadge } from '@/components/business/ui';
 import { ErrorState } from '@/components/states';
-import { getAttendees, getEventStats, getOrgEvent } from '@/lib/api';
+import { getAttendees, getEventStats, getMembers, getOrgEvent, getStaffShifts } from '@/lib/api';
 import { dateParts, formatMoney } from '@/lib/format';
 
 export const metadata: Metadata = { title: 'Evento' };
@@ -29,7 +30,13 @@ export default async function ManageEventPage({
   const { q, aviso, pagina } = await searchParams;
   if (!/^[0-9a-f-]{36}$/.test(eventId)) notFound();
   const page = Math.max(0, Number(pagina) || 0);
-  const [ev, stats, attendees] = await Promise.all([getOrgEvent(orgId, eventId), getEventStats(orgId, eventId), getAttendees(orgId, eventId, { q, offset: page * 50 })]);
+  const [ev, stats, attendees, shifts, members] = await Promise.all([
+    getOrgEvent(orgId, eventId),
+    getEventStats(orgId, eventId),
+    getAttendees(orgId, eventId, { q, offset: page * 50 }),
+    getStaffShifts(orgId, eventId),
+    getMembers(orgId),
+  ]);
   if (!ev.ok) {
     if (ev.status === 404) notFound();
     return <ErrorState message={ev.error?.message ?? 'El servicio no respondió.'} />;
@@ -81,6 +88,18 @@ export default async function ManageEventPage({
           <Panel title="Cortesías" description="Entradas sin cargo que descuentan stock real.">
             <CourtesyForm orgId={orgId} event={e} />
           </Panel>
+          {shifts.ok && e.status !== 'cancelled' && e.status !== 'finished' ? (
+            <Panel title="Personal de acceso" description="Sólo escanean dentro de su turno y en este evento.">
+              <StaffManager
+                orgId={orgId}
+                eventId={e.id}
+                startsAt={e.startsAt}
+                endsAt={e.endsAt}
+                shifts={shifts.data.items}
+                accessMembers={members.ok ? members.data.items.filter((m) => m.role === 'access_staff') : []}
+              />
+            </Panel>
+          ) : null}
           {e.status !== 'cancelled' && e.status !== 'finished' ? (
             <Panel title="Datos del evento">
               <EditEventForm orgId={orgId} event={e} />
@@ -94,7 +113,7 @@ export default async function ManageEventPage({
           <label htmlFor="q" className="sr-only">
             Buscar por nombre, email o DNI
           </label>
-          <input id="q" name="q" defaultValue={q ?? ''} className="field h-10 max-w-sm" placeholder="Nombre, email o DNI" minLength={2} />
+          <input id="q" name="q" defaultValue={q ?? ''} className="field h-10 max-w-sm" placeholder="Nombre, email o DNI completo" minLength={2} />
           <button type="submit" className="btn btn-ghost h-10 text-sm">
             Buscar
           </button>
@@ -124,8 +143,12 @@ export default async function ManageEventPage({
                   {attendees.data.items.map((a) => (
                     <tr key={a.id}>
                       <td className="px-5 py-3 sm:px-0">
-                        <p className="font-medium">{a.holderName}</p>
+                        <p className="font-medium">
+                          {a.holderName}
+                          {a.holderDocLast3 ? <span className="ml-2 font-mono text-xs text-muted">DNI •••{a.holderDocLast3}</span> : null}
+                        </p>
                         <p className="text-xs text-muted">{a.holderEmail}</p>
+                        {a.pendingClaim ? <p className="mt-0.5 text-xs font-semibold text-warn">Pendiente: todavía no confirmó su email</p> : null}
                       </td>
                       <td className="py-3">{a.ticketTypeName}</td>
                       <td className="py-3">

@@ -390,7 +390,12 @@ export const tickets = pgTable(
     /** Titular nominal (puede no tener cuenta todavía, p. ej. cortesía enviada por email). */
     holderName: text('holder_name').notNull(),
     holderEmail: text('holder_email').notNull(),
-    holderDocument: text('holder_document'),
+    /** DNI del titular: nunca en claro. HMAC-SHA256 con clave del servidor y pimienta por organización. */
+    holderDocHmac: text('holder_doc_hmac'),
+    /** Últimos 3 dígitos, para la verificación visual en la puerta. */
+    holderDocLast3: text('holder_doc_last3'),
+    /** assigned: tiene cuenta titular; pending_claim: emitido a un email que todavía no lo reclamó. */
+    assignmentStatus: text('assignment_status', { enum: ['assigned', 'pending_claim'] }).notNull().default('assigned'),
     status: ticketStatus('status').notNull().default('valid'),
     /** Versión del QR: se incrementa al regenerar el QR; el anterior deja de validar. */
     qrVersion: integer('qr_version').notNull().default(1),
@@ -407,6 +412,9 @@ export const tickets = pgTable(
     index('tickets_holder_email_idx').on(sql`lower(${t.holderEmail})`),
     // Un ticket anulado tiene, como mucho, un sucesor.
     uniqueIndex('tickets_previous_uq').on(t.previousTicketId),
+    index('tickets_holder_doc_idx').on(t.eventId, t.holderDocHmac),
+    check('tickets_doc_last3', sql`${t.holderDocLast3} IS NULL OR ${t.holderDocLast3} ~ '^[0-9]{3}$'`),
+    check('tickets_claim_owner', sql`${t.assignmentStatus} <> 'pending_claim' OR ${t.ownerUserId} IS NULL`),
   ],
 );
 
@@ -425,8 +433,12 @@ export const ticketEvents = pgTable(
     actorUserId: uuid('actor_user_id'),
     data: jsonb('data').notNull().default({}),
     occurredAt: ts('occurred_at').notNull().defaultNow(),
+    /** Cadena de hashes por organización: la completa un trigger de la base, nunca la app. */
+    seq: bigint('seq', { mode: 'number' }),
+    prevHash: text('prev_hash'),
+    hash: text('hash'),
   },
-  (t) => [index('ticket_events_ticket_idx').on(t.ticketId, t.occurredAt)],
+  (t) => [index('ticket_events_ticket_idx').on(t.ticketId, t.occurredAt), uniqueIndex('ticket_events_chain_uq').on(t.organizationId, t.seq)],
 );
 
 /** Auditoría de acciones administrativas y financieras. Solo inserción. */
@@ -444,6 +456,97 @@ export const auditLogs = pgTable(
     data: jsonb('data').notNull().default({}),
     ip: text('ip'),
     occurredAt: ts('occurred_at').notNull().defaultNow(),
+    seq: bigint('seq', { mode: 'number' }),
+    prevHash: text('prev_hash'),
+    hash: text('hash'),
   },
-  (t) => [index('audit_logs_org_idx').on(t.organizationId, t.occurredAt)],
+  (t) => [index('audit_logs_org_idx').on(t.organizationId, t.occurredAt), uniqueIndex('audit_logs_chain_uq').on(t.organizationId, t.seq)],
+);
+
+// ───────────────────────────── Identidad: verificación y recuperación (global) ─────────────────────────────
+
+/** Tokens de un solo uso. Sólo se guarda el SHA-256 del token. */
+export const emailVerifications = pgTable(
+  'email_verifications',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    /** Contraseña elegida en ESE registro: se aplica sólo al confirmar, y la confirmación exige conocerla. */
+    pendingPasswordHash: text('pending_password_hash').notNull(),
+    pendingFullName: text('pending_full_name').notNull(),
+    expiresAt: ts('expires_at').notNull(),
+    usedAt: ts('used_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('email_verifications_token_uq').on(t.tokenHash), index('email_verifications_user_idx').on(t.userId)],
+);
+
+export const passwordResets = pgTable(
+  'password_resets',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: ts('expires_at').notNull(),
+    usedAt: ts('used_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('password_resets_token_uq').on(t.tokenHash), index('password_resets_user_idx').on(t.userId)],
+);
+
+// ───────────────────────────── Reclamo de entradas emitidas a un email ─────────────────────────────
+
+export const ticketClaims = pgTable(
+  'ticket_claims',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => tickets.id, { onDelete: 'cascade' }),
+    emailLower: text('email_lower').notNull(),
+    expiresAt: ts('expires_at').notNull(),
+    claimedBy: uuid('claimed_by').references(() => users.id, { onDelete: 'set null' }),
+    claimedAt: ts('claimed_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // Un reclamo abierto por ticket.
+    uniqueIndex('ticket_claims_open_uq').on(t.ticketId).where(sql`${t.claimedAt} IS NULL`),
+    index('ticket_claims_email_idx').on(t.emailLower),
+  ],
+);
+
+// ───────────────────────────── Personal de acceso asignado por evento y turno ─────────────────────────────
+
+export const staffAssignments = pgTable(
+  'staff_assignments',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    eventId: uuid('event_id')
+      .notNull()
+      .references(() => events.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    validFrom: ts('valid_from').notNull(),
+    validUntil: ts('valid_until').notNull(),
+    createdBy: uuid('created_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('staff_assignments_uq').on(t.eventId, t.userId),
+    index('staff_assignments_user_idx').on(t.userId),
+    check('staff_assignments_window', sql`${t.validUntil} > ${t.validFrom}`),
+  ],
 );

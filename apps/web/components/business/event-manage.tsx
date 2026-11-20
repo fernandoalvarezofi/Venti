@@ -408,7 +408,7 @@ export function CourtesyForm({ orgId, event }: { orgId: string; event: AdminEven
               holderEmail: v.holderEmail.trim(),
               ...(v.holderDocument ? { holderDocument: v.holderDocument } : {}),
             }),
-          `${q === 1 ? 'Cortesía emitida' : `${q} cortesías emitidas`} para ${v.holderEmail.trim()}. La ve en "Mis entradas" al ingresar con ese email.`,
+          `${q === 1 ? 'Cortesía emitida' : `${q} cortesías emitidas`} para ${v.holderEmail.trim()}. Le llega a "Mis entradas" cuando ingrese con ese email confirmado.`,
         );
         setV({ ...v, quantity: '1', holderName: '', holderEmail: '', holderDocument: '' });
       }}

@@ -10,6 +10,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Config } from './config.ts';
 import type { Services } from './lib/context.ts';
+import { createEmailSender, type EmailSender } from './lib/email.ts';
 import { AppError, registerErrorHandler } from './lib/errors.ts';
 import { SUPABASE_ROOT_CA_2021 } from './lib/supabase-ca.ts';
 import { authRoutes, registerAuthHook } from './modules/auth/routes.ts';
@@ -28,6 +29,8 @@ export interface BuildOptions {
   /** Inyectable en tests para controlar el tiempo. */
   readonly now?: () => Date;
   readonly db?: DbHandle;
+  /** Inyectable en tests (buzón en memoria). */
+  readonly email?: EmailSender;
 }
 
 export interface VentiApp {
@@ -48,6 +51,8 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
     config,
     db: handle.db,
     qrPrivateKey: loadPrivateKey(config.QR_SIGNING_PRIVATE_KEY),
+    email: opts.email ?? createEmailSender(config),
+    docKey: Buffer.from(config.DOC_HMAC_KEY, 'base64'),
     now: opts.now ?? (() => new Date()),
   };
 

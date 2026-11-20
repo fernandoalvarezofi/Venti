@@ -12,6 +12,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   function validate(data: FormData) {
     const errs: Record<string, string> = {};
@@ -42,6 +43,11 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
         body: JSON.stringify(payload),
       }).catch(() => null);
       if (!res) return setError('No pudimos conectarnos. Revisá tu conexión.');
+      if (res.ok && mode === 'register') {
+        // La cuenta se activa con el enlace del email: la respuesta es la misma exista o no la cuenta.
+        setSentTo(String(data.get('email')).trim());
+        return;
+      }
       if (res.ok) {
         router.push(next);
         router.refresh();
@@ -49,10 +55,24 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
       }
       const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
       const code = body?.error.code;
-      if (code === 'email_taken') setFieldErrors({ email: 'Ya hay una cuenta con este email. Ingresá con tu contraseña.' });
-      else if (code === 'rate_limited') setError('Hiciste muchos intentos seguidos. Esperá un minuto y probá de nuevo.');
+      if (code === 'rate_limited') setError('Hiciste muchos intentos seguidos. Esperá un minuto y probá de nuevo.');
       else setError(body?.error.message ?? 'No se pudo completar. Intentá de nuevo.');
     });
+  }
+
+  if (sentTo) {
+    return (
+      <div className="space-y-4" role="status">
+        <p className="text-lg font-semibold">Revisá tu email</p>
+        <p className="text-muted">
+          Si <span className="font-semibold text-ink">{sentTo}</span> es correcto, te llega un enlace para activar la cuenta. Al abrirlo vas a necesitar la contraseña que acabás de elegir.
+        </p>
+        <p className="text-sm text-muted">¿No llega? Revisá spam o promociones. Si pasaron unos minutos, volvé a registrarte con el mismo email y te mandamos otro.</p>
+        <button type="button" onClick={() => setSentTo(null)} className="btn btn-ghost w-full">
+          Usar otro email
+        </button>
+      </div>
+    );
   }
 
   const field = (name: string, label: string, props: React.InputHTMLAttributes<HTMLInputElement>, hint?: string) => (
@@ -98,6 +118,13 @@ export function AuthForm({ mode, next }: { mode: Mode; next: string }) {
       <button type="submit" disabled={pending} className="btn btn-ink w-full">
         {pending ? (mode === 'register' ? 'Creando tu cuenta…' : 'Ingresando…') : mode === 'register' ? 'Crear cuenta' : 'Ingresar'}
       </button>
+      {mode === 'login' ? (
+        <p className="text-center text-sm">
+          <Link href="/recuperar" className="text-muted underline underline-offset-2 hover:text-ink">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </p>
+      ) : null}
       <p className="text-center text-sm text-muted">
         {mode === 'register' ? '¿Ya tenés cuenta? ' : '¿Primera vez en VENTI? '}
         <Link href={`${mode === 'register' ? '/ingresar' : '/registrarse'}?next=${encodeURIComponent(next)}`} className="font-semibold text-ink underline underline-offset-2">

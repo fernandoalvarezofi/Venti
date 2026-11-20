@@ -149,7 +149,7 @@ describe('gestión de eventos (VENTI BUSINESS)', () => {
 
     const all = await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/attendees`, { token: owner.token });
     expect(all.body.total).toBe(3);
-    const found = await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/attendees?q=30111`, { token: owner.token });
+    const found = await call(ctx, 'GET', `/v1/organizations/${orgId}/events/${eventId}/attendees?q=30111222`, { token: owner.token });
     expect(found.body.total).toBe(2);
     expect(found.body.items[0]).toMatchObject({ holderName: 'Lucía Pérez', courtesy: true });
 

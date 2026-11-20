@@ -9,6 +9,9 @@ import {
   events,
   holds,
   inArray,
+  memberships,
+  staffAssignments,
+  users,
   priceStages,
   sql,
   ticketTypes,
@@ -22,6 +25,7 @@ import { z } from 'zod';
 import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireOrgPermission, type OrgAccess, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
+import { maskEmail, protectDocument } from '../../lib/identity.ts';
 import { releaseEventHoldsTx } from '../inventory/service.ts';
 
 const OrgParams = z.object({ orgId: z.string().uuid() });
@@ -416,6 +420,8 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
                 id: z.string().uuid(),
                 holderName: z.string(),
                 holderEmail: z.string(),
+                holderDocLast3: z.string().nullable(),
+                pendingClaim: z.boolean(),
                 ticketTypeName: z.string(),
                 status: z.enum(TICKET_STATUSES),
                 priceCents: z.number(),
@@ -435,10 +441,14 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
         const e = await loadOwnEvent(tx, access, req.params.eventId);
         const conds = [eq(tickets.eventId, e.id)];
         if (status) conds.push(eq(tickets.status, status));
-        if (q) {
+        // H3: un DNI se busca por coincidencia EXACTA de su HMAC; nunca por partes.
+        const docQuery = q && /^[\d.\s]{7,12}$/.test(q) ? protectDocument(s.docKey, access.orgId, q) : null;
+        if (docQuery) conds.push(eq(tickets.holderDocHmac, docQuery.hmac));
+        else if (q) {
           const like = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
-          conds.push(sql`(${tickets.holderName} ILIKE ${like} OR ${tickets.holderEmail} ILIKE ${like} OR ${tickets.holderDocument} ILIKE ${like})`);
+          conds.push(sql`(${tickets.holderName} ILIKE ${like} OR ${tickets.holderEmail} ILIKE ${like})`);
         }
+        const fullEmails = ['owner', 'admin', 'manager', 'finance'].includes(access.role);
         const where = and(...conds);
         const [totalRow] = await tx.select({ n: count() }).from(tickets).where(where);
         const rows = await tx
@@ -454,7 +464,9 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
           items: rows.map(({ t, typeName }) => ({
             id: t.id,
             holderName: t.holderName,
-            holderEmail: t.holderEmail,
+            holderEmail: fullEmails ? t.holderEmail : maskEmail(t.holderEmail),
+            holderDocLast3: t.holderDocLast3,
+            pendingClaim: t.assignmentStatus === 'pending_claim',
             ticketTypeName: typeName,
             status: t.status,
             priceCents: t.priceCents,
@@ -463,6 +475,127 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
             usedAt: t.usedAt,
           })),
         };
+      });
+    },
+  );
+
+  // ─── Turnos del personal de acceso (H4) ───
+  const StaffDto = z.object({ id: z.string().uuid(), userId: z.string().uuid(), fullName: z.string(), email: z.string(), validFrom: z.date(), validUntil: z.date() });
+
+  r.get(
+    '/v1/organizations/:orgId/events/:eventId/staff',
+    { schema: { tags: ['business'], summary: 'Turnos del personal de acceso', params: EventParams, response: { 200: z.object({ items: z.array(StaffDto) }) } } },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.write');
+      return inOrg(s.db, access, async (tx) => {
+        await loadOwnEvent(tx, access, req.params.eventId);
+        const items = await tx
+          .select({ id: staffAssignments.id, userId: users.id, fullName: users.fullName, email: users.email, validFrom: staffAssignments.validFrom, validUntil: staffAssignments.validUntil })
+          .from(staffAssignments)
+          .innerJoin(users, eq(users.id, staffAssignments.userId))
+          .where(eq(staffAssignments.eventId, req.params.eventId))
+          .orderBy(asc(users.fullName));
+        return { items };
+      });
+    },
+  );
+
+  r.put(
+    '/v1/organizations/:orgId/events/:eventId/staff',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Asignar (o reprogramar) un turno de acceso',
+        description: 'La persona tiene que ser miembro de la productora con rol Acceso. El turno no puede pasar 48 h y debe cruzarse con el evento.',
+        params: EventParams,
+        body: z.object({ userId: z.string().uuid(), validFrom: z.coerce.date(), validUntil: z.coerce.date() }),
+        response: { 200: z.object({ id: z.string().uuid() }) },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.write');
+      const b = req.body;
+      if (b.validUntil <= b.validFrom) throw new AppError(400, 'invalid_window', 'El turno debe terminar después de empezar.');
+      if (b.validUntil.getTime() - b.validFrom.getTime() > 48 * 3_600_000) throw new AppError(400, 'window_too_long', 'Un turno no puede durar más de 48 horas.');
+      return inOrg(s.db, access, async (tx) => {
+        const e = await loadOwnEvent(tx, access, req.params.eventId);
+        assertEditable(e.status);
+        if (b.validUntil <= new Date(e.startsAt.getTime() - 12 * 3_600_000) || b.validFrom >= new Date(e.endsAt.getTime() + 6 * 3_600_000)) {
+          throw new AppError(400, 'outside_event', 'El turno tiene que cruzarse con el horario del evento.');
+        }
+        const [m] = await tx
+          .select({ role: memberships.role })
+          .from(memberships)
+          .where(and(eq(memberships.organizationId, access.orgId), eq(memberships.userId, b.userId)));
+        if (!m) throw notFound('Miembro');
+        if (m.role !== 'access_staff') throw new AppError(422, 'not_access_staff', 'Sólo se asignan turnos a personas con rol Acceso.');
+        const [row] = await tx
+          .insert(staffAssignments)
+          .values({ id: randomUUID(), organizationId: access.orgId, eventId: e.id, userId: b.userId, validFrom: b.validFrom, validUntil: b.validUntil, createdBy: access.userId })
+          .onConflictDoUpdate({ target: [staffAssignments.eventId, staffAssignments.userId], set: { validFrom: b.validFrom, validUntil: b.validUntil } })
+          .returning({ id: staffAssignments.id });
+        await audit(tx, {
+          orgId: access.orgId,
+          actorUserId: access.userId,
+          action: 'staff.assigned',
+          entityType: 'event',
+          entityId: e.id,
+          data: { userId: b.userId, validFrom: b.validFrom.toISOString(), validUntil: b.validUntil.toISOString() },
+          ip: req.ip,
+        });
+        return { id: row!.id };
+      });
+    },
+  );
+
+  r.delete(
+    '/v1/organizations/:orgId/events/:eventId/staff/:userId',
+    { schema: { tags: ['business'], summary: 'Quitar un turno de acceso', params: EventParams.extend({ userId: z.string().uuid() }), response: { 204: z.null() } } },
+    async (req, reply) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.write');
+      await inOrg(s.db, access, async (tx) => {
+        await loadOwnEvent(tx, access, req.params.eventId);
+        const gone = await tx
+          .delete(staffAssignments)
+          .where(and(eq(staffAssignments.eventId, req.params.eventId), eq(staffAssignments.userId, req.params.userId)))
+          .returning({ id: staffAssignments.id });
+        if (gone.length === 0) throw notFound('Turno');
+        await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'staff.unassigned', entityType: 'event', entityId: req.params.eventId, data: { userId: req.params.userId }, ip: req.ip });
+      });
+      return reply.status(204).send(null);
+    },
+  );
+
+  // ─── Verificación de la cadena de auditoría (H7) ───
+  const ChainDto = z.object({ checked: z.number(), ok: z.boolean(), firstBrokenSeq: z.number().nullable(), reason: z.string().nullable() });
+
+  r.get(
+    '/v1/organizations/:orgId/audit/verify',
+    {
+      schema: {
+        tags: ['business'],
+        summary: 'Verificar que la auditoría no fue alterada',
+        description: 'Recalcula la cadena de hashes de la auditoría y del historial de tickets de la productora.',
+        params: OrgParams,
+        response: { 200: z.object({ auditLogs: ChainDto, ticketEvents: ChainDto }) },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'audit.read');
+      return inOrg(s.db, access, async (tx) => {
+        const check = async (table: 'audit_logs' | 'ticket_events') => {
+          const res = await tx.execute<{ checked: string; first_broken_seq: string | null; reason: string | null }>(
+            sql`select * from venti_verify_chain(${table}, ${access.orgId}::uuid)`,
+          );
+          const row = res.rows[0]!;
+          return {
+            checked: Number(row.checked),
+            ok: row.first_broken_seq === null,
+            firstBrokenSeq: row.first_broken_seq === null ? null : Number(row.first_broken_seq),
+            reason: row.reason,
+          };
+        };
+        return { auditLogs: await check('audit_logs'), ticketEvents: await check('ticket_events') };
       });
     },
   );

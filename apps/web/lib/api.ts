@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { API_URL } from './config';
-import type { AdminEvent, ApiErrorBody, Attendee, EventStats, Hold, Member, Org, Overview, PublicEvent, PublicEventDetail, Ticket, User, Venue } from './types';
+import type { AdminEvent, ApiErrorBody, Attendee, EventStats, Hold, Member, Org, Overview, PublicEvent, PublicEventDetail, StaffShift, Ticket, User, Venue } from './types';
 
 /** Llamada a la API desde el servidor, reenviando la cookie de sesión del visitante. */
 async function apiGet<T>(path: string, opts: { auth?: boolean; revalidate?: number } = {}): Promise<{ ok: true; data: T } | { ok: false; status: number; error: ApiErrorBody['error'] | null }> {
@@ -87,4 +87,8 @@ export function getVenues(orgId: string) {
 
 export function getMembers(orgId: string) {
   return apiGet<{ items: Member[] }>(`/v1/organizations/${encodeURIComponent(orgId)}/members`, { auth: true });
+}
+
+export function getStaffShifts(orgId: string, eventId: string) {
+  return apiGet<{ items: StaffShift[] }>(`/v1/organizations/${encodeURIComponent(orgId)}/events/${encodeURIComponent(eventId)}/staff`, { auth: true });
 }

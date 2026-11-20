@@ -1,0 +1,1 @@
+ALTER TABLE "tickets" DROP COLUMN "holder_document";

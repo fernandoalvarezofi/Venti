@@ -3,13 +3,17 @@ import { generateQrKeyPair } from '@venti/domain';
 import { createDb, type DbHandle } from '@venti/db';
 import '@venti/db/testing';
 import { inject } from 'vitest';
+import { randomBytes } from 'node:crypto';
 import { buildApp, type VentiApp } from '../src/app.ts';
 import { loadConfig } from '../src/config.ts';
+import { OutboxSender } from '../src/lib/email.ts';
 
 export interface TestContext {
   readonly venti: VentiApp;
   /** Conexión con el rol dueño: sólo para preparar escenarios (p. ej. vencer una reserva). */
   readonly owner: DbHandle;
+  /** Buzón en memoria: los emails que "enviaría" la API. */
+  readonly outbox: OutboxSender;
 }
 
 export async function setupApp(): Promise<TestContext> {
@@ -20,10 +24,14 @@ export async function setupApp(): Promise<TestContext> {
     DATABASE_POOL_MAX: '30',
     QR_SIGNING_PRIVATE_KEY: generateQrKeyPair().privateKeyPem,
     COOKIE_SECURE: 'false',
+    EMAIL_PROVIDER: 'outbox',
+    DOC_HMAC_KEY: randomBytes(32).toString('base64'),
+    PUBLIC_WEB_URL: 'https://venti.test',
   });
-  const venti = await buildApp({ config });
+  const outbox = new OutboxSender(false);
+  const venti = await buildApp({ config, email: outbox });
   await venti.app.ready();
-  return { venti, owner: createDb(inject('ownerDatabaseUrl'), { max: 2 }) };
+  return { venti, owner: createDb(inject('ownerDatabaseUrl'), { max: 2 }), outbox };
 }
 
 /** IP aleatoria por request: el rate limit es por IP y los tests no deben interferir entre sí. */
@@ -46,8 +54,18 @@ export async function registerUser(ctx: TestContext, name = 'Usuario Test') {
   const email = `u-${randomUUID().slice(0, 12)}@venti.test`;
   const password = 'clave-super-segura-123';
   const res = await call(ctx, 'POST', '/v1/auth/register', { body: { email, password, fullName: name } });
-  if (res.status !== 201) throw new Error(`registro falló: ${res.status} ${JSON.stringify(res.body)}`);
-  return { id: res.body.user.id as string, email, password, token: res.body.token as string };
+  if (res.status !== 202) throw new Error(`registro falló: ${res.status} ${JSON.stringify(res.body)}`);
+  const verified = await confirmEmail(ctx, email, password);
+  return { id: verified.user.id as string, email, password, token: verified.token as string };
+}
+
+/** Confirma el email usando el último enlace del buzón en memoria. */
+export async function confirmEmail(ctx: TestContext, email: string, password: string) {
+  const msg = ctx.outbox.last(email, 'verify_email');
+  if (!msg?.meta?.token) throw new Error(`no llegó el email de confirmación a ${email}`);
+  const res = await call(ctx, 'POST', '/v1/auth/verify-email', { body: { token: msg.meta.token, password } });
+  if (res.status !== 200) throw new Error(`confirmación falló: ${res.status} ${JSON.stringify(res.body)}`);
+  return res.body;
 }
 
 /** Calcula un CUIT válido a partir de un prefijo de 10 dígitos. */

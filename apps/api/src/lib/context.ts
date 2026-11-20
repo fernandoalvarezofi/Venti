@@ -3,6 +3,7 @@ import { roleHas, type OrgRole, type Permission } from '@venti/domain';
 import { and, eq, memberships, withContext, type Db, type Tx } from '@venti/db';
 import type { FastifyRequest } from 'fastify';
 import type { Config } from '../config.ts';
+import type { EmailSender } from './email.ts';
 import { forbidden, notFound, unauthorized } from './errors.ts';
 
 /** Dependencias compartidas por todos los módulos (composition root en app.ts). */
@@ -10,6 +11,9 @@ export interface Services {
   readonly config: Config;
   readonly db: Db;
   readonly qrPrivateKey: KeyObject;
+  readonly email: EmailSender;
+  /** Clave HMAC para documentos (DNI). */
+  readonly docKey: Buffer;
   readonly now: () => Date;
 }
 
