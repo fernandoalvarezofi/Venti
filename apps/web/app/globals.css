@@ -894,3 +894,27 @@
 @media (prefers-reduced-motion: reduce) {
   .nx-label, .nx-chevron, .nx-menu { transition: none; animation: none; }
 }
+
+/* Banner del inicio: esquinas suaves, filete interior y sombra baja; el foco de teclado se ve. */
+.banner-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--color-ink);
+  box-shadow: 0 1px 0 rgb(23 20 17 / 0.06), 0 24px 48px -28px rgb(23 20 17 / 0.55);
+}
+.banner-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  pointer-events: none;
+}
+@media (max-width: 640px) {
+  .banner-frame { border-radius: 16px; }
+}
+.banner-frame:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
