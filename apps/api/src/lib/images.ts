@@ -68,6 +68,57 @@ function webpScan(b: Buffer) {
   return { size, exif };
 }
 
+/**
+ * Quita los metadatos (EXIF/XMP: ubicación, cámara, fecha) sin tocar la imagen.
+ * Algunos navegadores (Safari) agregan un bloque EXIF aunque la foto ya se haya re-codificado en el teléfono;
+ * en vez de rechazarla, se limpia acá. JPEG: se descartan los segmentos APP1 (EXIF/XMP). WebP: los bloques EXIF y XMP.
+ */
+export function stripImageMetadata(buf: Buffer): Buffer {
+  const type = sniff(buf);
+  if (type === 'image/jpeg') {
+    const parts: Buffer[] = [buf.subarray(0, 2)];
+    let i = 2;
+    while (i + 4 <= buf.length) {
+      if (buf[i] !== 0xff) return buf; // estructura inesperada: se deja como está (la validación decide)
+      const marker = buf[i + 1]!;
+      if (marker === 0xda) {
+        parts.push(buf.subarray(i)); // datos de la imagen hasta el final
+        return Buffer.concat(parts);
+      }
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+        parts.push(buf.subarray(i, i + 2));
+        i += 2;
+        continue;
+      }
+      const len = buf.readUInt16BE(i + 2);
+      if (len < 2 || i + 2 + len > buf.length) return buf;
+      if (marker !== 0xe1) parts.push(buf.subarray(i, i + 2 + len)); // APP1 = EXIF/XMP: afuera
+      i += 2 + len;
+    }
+    return buf;
+  }
+  if (type === 'image/webp' && buf.toString('ascii', 12, 16) === 'VP8X') {
+    const chunks: Buffer[] = [];
+    let i = 12;
+    while (i + 8 <= buf.length) {
+      const id = buf.toString('ascii', i, i + 4);
+      const size = buf.readUInt32LE(i + 4);
+      const total = 8 + size + (size % 2);
+      if (i + 8 + size > buf.length) return buf;
+      if (id !== 'EXIF' && id !== 'XMP ') chunks.push(buf.subarray(i, Math.min(i + total, buf.length)));
+      i += total;
+    }
+    const body = Buffer.concat(chunks);
+    body[8] = body[8]! & ~0x0c; // banderas VP8X: sin EXIF (0x08) ni XMP (0x04)
+    const header = Buffer.alloc(12);
+    header.write('RIFF', 0, 'ascii');
+    header.writeUInt32LE(body.length + 4, 4);
+    header.write('WEBP', 8, 'ascii');
+    return Buffer.concat([header, body]);
+  }
+  return buf;
+}
+
 /** Valida una imagen subida y devuelve sus datos. Lanza un 4xx explicativo si no sirve. */
 /** `minSide`: logos y fotos de artistas pueden ser más chicos (120 px); portada y galería, 400 px. */
 export function inspectImage(buf: Buffer, minSide = MIN_SIDE): ImageInfo {

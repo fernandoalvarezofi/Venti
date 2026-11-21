@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
-import { inspectImage } from '../src/lib/images.ts';
+import { inspectImage, stripImageMetadata } from '../src/lib/images.ts';
 import { call, inDays, publishedEvent, registerUser, setupApp, type TestContext } from './helpers.ts';
 
 // ─── Imágenes mínimas válidas (sólo cabeceras: alcanza para el verificador) ───
@@ -54,9 +54,11 @@ describe('verificador de imágenes', () => {
     expect(() => inspectImage(Buffer.from('<svg onload="alert(1)"></svg>'))).toThrow(/JPG, PNG o WebP/);
     expect(() => inspectImage(Buffer.from('%PDF-1.7 ...'))).toThrow(/JPG, PNG o WebP/);
   });
-  it('rechaza fotos con metadatos EXIF (ubicación, cámara)', () => {
+  it('rechaza fotos con metadatos EXIF sin limpiar; stripImageMetadata los quita (JPEG y WebP)', () => {
     expect(() => inspectImage(jpeg(1600, 900, true))).toThrow(/metadatos/);
     expect(() => inspectImage(webpVp8x(1600, 900, true))).toThrow(/metadatos/);
+    expect(inspectImage(stripImageMetadata(jpeg(1600, 900, true)))).toMatchObject({ width: 1600, height: 900 });
+    expect(inspectImage(stripImageMetadata(webpVp8x(1600, 900, true)))).toMatchObject({ width: 1600, height: 900 });
   });
   it('rechaza imágenes muy chicas, enormes o vacías', () => {
     expect(() => inspectImage(png(300, 300))).toThrow(/muy chica/);
@@ -140,11 +142,18 @@ describe('imágenes del evento', () => {
     expect((await upload(orgId, draft.body.id, stranger.token, png(1000, 600), 'cover')).status).toBe(404);
   });
 
-  it('rechaza archivos que no son imágenes y fotos con EXIF', async () => {
+  it('rechaza archivos que no son imágenes; a las fotos con EXIF les quita los metadatos y las guarda', async () => {
     const owner = await registerUser(ctx);
     const { orgId, eventId } = await publishedEvent(ctx, owner.token);
     expect((await upload(orgId, eventId, owner.token, Buffer.from('no soy una imagen pero digo que sí'), 'cover')).status).toBe(415);
-    expect((await upload(orgId, eventId, owner.token, jpeg(1600, 900, true), 'cover', 'image/jpeg')).body.error.code).toBe('image_has_metadata');
+    // Safari agrega EXIF al re-codificar en el teléfono: no se rechaza, se limpia y lo guardado no tiene EXIF.
+    const up = await upload(orgId, eventId, owner.token, jpeg(1600, 900, true), 'cover', 'image/jpeg');
+    expect(up.status).toBe(201);
+    const stored = await ctx.owner.pool.query('select bytes from event_media where id = $1', [up.body.id]);
+    const bytes: Buffer = stored.rows[0].bytes;
+    expect(bytes.includes(Buffer.from('Exif'))).toBe(false);
+    expect(bytes.includes(Buffer.from('GPS-DATA'))).toBe(false);
+    expect(inspectImage(bytes)).toMatchObject({ width: 1600, height: 900 });
   });
 });
 
