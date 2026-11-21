@@ -40,11 +40,14 @@ interface TypeDraft {
 }
 
 const emptyType = (): TypeDraft => ({ name: '', kind: 'general', capacity: '', maxPerOrder: '6', description: '', stages: [{ name: 'General', price: '', limit: '', endsAt: '' }] });
-const STEPS = ['Datos', 'Lugar', 'Entradas', 'Revisar'] as const;
+const STEPS = ['Datos', 'Lugar', 'Entradas', 'Fotos y videos', 'Revisar'] as const;
+const VIDEO_RE = /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|vimeo\.com|player\.vimeo\.com)\//i;
+const MAX_GALLERY = 12;
 const STEP_INFO: { icon: PanelIconName; hint: string }[] = [
   { icon: 'events', hint: 'Nombre, fecha y portada' },
   { icon: 'pin', hint: 'Dónde se hace' },
   { icon: 'ticket', hint: 'Tipos, precios y cupos' },
+  { icon: 'events', hint: 'Galería y videos (opcional)' },
   { icon: 'check', hint: 'Revisá y publicá' },
 ];
 
@@ -90,6 +93,10 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
   const [venue, setVenue] = useState({ name: '', address: '', city: '', province: '', capacity: '' });
   const [types, setTypes] = useState<TypeDraft[]>([emptyType()]);
   const [cover, setCover] = useState<{ blob: Blob; preview: string } | null>(null);
+  const [gallery, setGallery] = useState<{ blob: Blob; preview: string }[]>([]);
+  const [galleryBusy, setGalleryBusy] = useState(false);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [videos, setVideos] = useState<string[]>(['']);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [restored, setRestored] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -150,12 +157,38 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
     }
   }
 
+  async function pickGallery(files: FileList | null) {
+    setGalleryError(null);
+    if (!files?.length) return;
+    setGalleryBusy(true);
+    const room = MAX_GALLERY - gallery.length;
+    const out: { blob: Blob; preview: string }[] = [];
+    let failed = 0;
+    for (const file of Array.from(files).slice(0, room)) {
+      try {
+        const blob = await prepareImage(file);
+        out.push({ blob, preview: URL.createObjectURL(blob) });
+      } catch {
+        failed++;
+      }
+    }
+    setGallery((g) => [...g, ...out]);
+    setGalleryBusy(false);
+    if (files.length > room) setGalleryError(`Hasta ${MAX_GALLERY} fotos en la galería.`);
+    else if (failed) setGalleryError(`${failed === 1 ? 'Una foto no se pudo usar' : `${failed} fotos no se pudieron usar`}. Probá con otras.`);
+  }
+
   const updateType = (i: number, patch: Partial<TypeDraft>) => setTypes((ts) => ts.map((t, j) => (j === i ? { ...t, ...patch } : t)));
   const updateStage = (i: number, k: number, patch: Partial<StageDraft>) =>
     setTypes((ts) => ts.map((t, j) => (j === i ? { ...t, stages: t.stages.map((s, m) => (m === k ? { ...s, ...patch } : s)) } : t)));
 
   function validate(s: number): Record<string, string> {
     const e: Record<string, string> = {};
+    if (s === 3) {
+      videos.forEach((v, i) => {
+        if (v.trim() && !VIDEO_RE.test(v.trim())) e[`video${i}`] = 'Pegá un enlace de YouTube o Vimeo (https://…).';
+      });
+    }
     if (s === 0) {
       if (info.title.trim().length < 3) e.title = 'El nombre del evento debe tener al menos 3 letras.';
       const a = fromLocalInput(info.startsAt);
@@ -202,7 +235,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
   }
 
   function submit(publish: boolean) {
-    for (let s = 0; s < 3; s++) {
+    for (let s = 0; s < 4; s++) {
       const e = validate(s);
       if (Object.keys(e).length) {
         setErrors(e);
@@ -240,6 +273,21 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
         const up = await uploadEventImage(orgId, ev.data.id, cover.blob, 'cover');
         if (!up.ok) {
           router.push(`${eventUrl}?aviso=${encodeURIComponent(`El evento se creó, pero la portada no se pudo subir: ${up.message}`)}`);
+          return;
+        }
+      }
+      for (const g of gallery) {
+        const up = await uploadEventImage(orgId, ev.data.id, g.blob, 'gallery');
+        if (!up.ok) {
+          router.push(`${eventUrl}?aviso=${encodeURIComponent(`El evento se creó, pero una foto de la galería no se pudo subir: ${up.message}`)}`);
+          return;
+        }
+      }
+      const vids = videos.map((v) => v.trim()).filter(Boolean);
+      if (vids.length) {
+        const pv = await send('PATCH', `/v1/organizations/${orgId}/events/${ev.data.id}`, { videos: vids.map((url) => ({ url, title: '' })) });
+        if (!pv.ok) {
+          router.push(`${eventUrl}?aviso=${encodeURIComponent(`El evento se creó, pero los videos no se guardaron: ${pv.message}`)}`);
           return;
         }
       }
@@ -566,6 +614,61 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
         {step === 3 ? (
           <div className="space-y-6">
             <div>
+              <p className="mb-1.5 block text-sm font-semibold">Galería de fotos <span className="font-normal text-muted">(opcional, hasta {MAX_GALLERY})</span></p>
+              <p className="mb-3 text-sm text-muted">Fotos del lugar, de ediciones anteriores o de los artistas. Se ven en la página del evento con visor a pantalla completa.</p>
+              <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {gallery.map((g, i) => (
+                  <li key={g.preview} className="relative aspect-square overflow-hidden rounded-lg bg-ink/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={g.preview} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setGallery((gs) => { URL.revokeObjectURL(gs[i]!.preview); return gs.filter((_, j) => j !== i); })}
+                      aria-label={`Quitar foto ${i + 1}`}
+                      className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-ink/70 text-sm text-paper"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+                {gallery.length < MAX_GALLERY ? (
+                  <li>
+                    <label className="grid aspect-square cursor-pointer place-items-center rounded-lg border-2 border-dashed border-line-strong text-center text-sm text-muted hover:bg-ink/[0.03]">
+                      <span>{galleryBusy ? 'Preparando…' : '+ Agregar fotos'}</span>
+                      <input type="file" accept="image/*" multiple className="sr-only" disabled={galleryBusy} onChange={(e) => { void pickGallery(e.target.files); e.target.value = ''; }} />
+                    </label>
+                  </li>
+                ) : null}
+              </ul>
+              {galleryError ? <p className="mt-1.5 text-sm text-danger">{galleryError}</p> : null}
+            </div>
+            <div>
+              <p className="mb-1.5 block text-sm font-semibold">Videos <span className="font-normal text-muted">(opcional)</span></p>
+              <p className="mb-3 text-sm text-muted">Pegá enlaces de YouTube o Vimeo: el aftermovie, un tema del artista, el teaser.</p>
+              <div className="space-y-2">
+                {videos.map((v, i) => (
+                  <div key={i}>
+                    <div className="flex gap-2">
+                      <input value={v} onChange={(e) => setVideos((vs) => vs.map((x, j) => (j === i ? e.target.value : x)))} placeholder="https://www.youtube.com/watch?v=…" inputMode="url" className="field h-11 min-w-0 flex-1" />
+                      {videos.length > 1 ? (
+                        <button type="button" onClick={() => setVideos((vs) => vs.filter((_, j) => j !== i))} className="btn btn-ghost h-11 px-3" aria-label="Quitar video">✕</button>
+                      ) : null}
+                    </div>
+                    {err(`video${i}`)}
+                  </div>
+                ))}
+                {videos.length < 6 ? (
+                  <button type="button" onClick={() => setVideos((vs) => [...vs, ''])} className="text-sm font-semibold text-muted hover:text-ink">+ Otro video</button>
+                ) : null}
+              </div>
+            </div>
+            <p className="text-sm text-muted">Artistas, auspiciantes y preguntas frecuentes los podés sumar después desde "Editar página", sin despublicar.</p>
+          </div>
+        ) : null}
+
+        {step === 4 ? (
+          <div className="space-y-6">
+            <div>
               <p className="eyebrow">{CATEGORY_LABELS[info.category]}</p>
               <h2 className="mt-1 text-2xl font-bold">{info.title}</h2>
               <p className="mt-1 text-sm text-muted">
@@ -604,7 +707,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
         <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || pending} className="btn btn-ghost">
           Atrás
         </button>
-        {step < 3 ? (
+        {step < 4 ? (
           <button type="button" onClick={next} className="btn btn-ink">
             Siguiente
           </button>
