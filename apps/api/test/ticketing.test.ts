@@ -106,10 +106,10 @@ describe('reservas de stock', () => {
     });
     const [a, b] = await fastBuyers(2);
     const h1 = await call(ctx, 'POST', '/v1/holds', { token: a, body: { eventId, items: [{ ticketTypeId, quantity: 2 }] } });
-    expect(h1.body).toMatchObject({ subtotalCents: 2_000_000, feeCents: 200_000, totalCents: 2_200_000, items: [{ stageName: 'Early Bird', unitPriceCents: 1_000_000 }] });
+    expect(h1.body).toMatchObject({ subtotalCents: 2_000_000, feeCents: 381_211, totalCents: 2_381_211, items: [{ stageName: 'Early Bird', unitPriceCents: 1_000_000 }] });
     // Queda 1 early bird; una compra de 2 pasa entera a General.
     const h2 = await call(ctx, 'POST', '/v1/holds', { token: b, body: { eventId, items: [{ ticketTypeId, quantity: 2 }] } });
-    expect(h2.body).toMatchObject({ subtotalCents: 4_000_000, feeCents: 400_000, totalCents: 4_400_000, items: [{ stageName: 'General' }] });
+    expect(h2.body).toMatchObject({ subtotalCents: 4_000_000, feeCents: 762_421, totalCents: 4_762_421, items: [{ stageName: 'General' }] });
   });
 
   it('respeta el máximo por compra y no vende cortesías', async () => {

@@ -146,14 +146,14 @@ describe('Mercado Pago: compra', () => {
     expect(pref.token).toBe('TEST-token-vendedor'); // con el token del vendedor (el dinero va a su cuenta)
     expect(pref.input).toMatchObject({ marketplaceFee: 3000, externalReference: co.body.orderId, payerEmail: buyer.email });
     expect(pref.input.items[0]).toMatchObject({ quantity: 2, unitPrice: 15000, currency: 'ARS' });
-    expect(pref.input.items[1]).toMatchObject({ id: 'cargo-servicio', quantity: 1, unitPrice: 3000 });
+    expect(pref.input.items[1]).toMatchObject({ id: 'cargo-servicio', quantity: 1, unitPrice: 5718.16 });
     expect(pref.input.notificationUrl).toContain(`org=${orgId}&order=${co.body.orderId}`);
 
 
     // Antes del pago: la orden espera y no hay entradas.
     expect((await call(ctx, 'GET', `/v1/orders/${co.body.orderId}`, { token: buyer.token })).body).toMatchObject({ status: 'pending_payment', tickets: 0 });
 
-    mp.payments.set('9001', { id: '9001', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 33000, currency: 'ARS', collectorId: mp.lastSeller });
+    mp.payments.set('9001', { id: '9001', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 35718.16, currency: 'ARS', collectorId: mp.lastSeller });
     const wh = await webhook(orgId, co.body.orderId, '9001', { sign: 'ok' });
     expect(wh.statusCode).toBe(200);
     expect((await call(ctx, 'GET', `/v1/orders/${co.body.orderId}`, { token: buyer.token })).body).toMatchObject({ status: 'paid', tickets: 2 });
@@ -217,7 +217,7 @@ describe('Mercado Pago: compra', () => {
     await ctx.owner.pool.query("update holds set status = 'expired', closed_at = now() where id = $1", [hold.body.id]);
     await ctx.owner.pool.query('update ticket_types set held = 0, sold = capacity where id = $1', [ticketTypeId]);
 
-    mp.payments.set('9004', { id: '9004', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 16500, currency: 'ARS', collectorId: mp.lastSeller });
+    mp.payments.set('9004', { id: '9004', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 17859.08, currency: 'ARS', collectorId: mp.lastSeller });
     await webhook(orgId, co.body.orderId, '9004', { sign: 'ok' });
     expect((await call(ctx, 'GET', `/v1/orders/${co.body.orderId}`, { token: buyer.token })).body).toMatchObject({ status: 'refunded', tickets: 0 });
     expect(mp.refunds).toContain('9004');
@@ -229,7 +229,7 @@ describe('Mercado Pago: compra', () => {
     const { orgId, eventId, ticketTypeId } = await publishedEvent(ctx, owner.token);
     await connectSeller(owner.token, orgId);
     const { co } = await holdAndCheckout(buyer.token, eventId, ticketTypeId, 1);
-    mp.payments.set('9005', { id: '9005', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 16500, currency: 'ARS', collectorId: mp.lastSeller });
+    mp.payments.set('9005', { id: '9005', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 17859.08, currency: 'ARS', collectorId: mp.lastSeller });
     const res = await call(ctx, 'GET', `/v1/orders/${co.body.orderId}?refresh=1`, { token: buyer.token });
     expect(res.body).toMatchObject({ status: 'paid', tickets: 1 });
     // Nadie más puede ver esa compra.
@@ -259,7 +259,7 @@ describe('Mercado Pago: API de Orders', () => {
     const { co } = await holdAndCheckout(buyer.token, eventId, ticketTypeId, 1);
     expect(co.status).toBe(200);
     // La orden de Mercado Pago: aprobada, con la referencia a la compra de Lintick y cobrada por ESTE vendedor.
-    mp.payments.set('ORD01TESTAPROBADA', { id: 'ORD01TESTAPROBADA', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 16500, currency: 'ARS', collectorId: seller });
+    mp.payments.set('ORD01TESTAPROBADA', { id: 'ORD01TESTAPROBADA', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 17859.08, currency: 'ARS', collectorId: seller });
     const send = () =>
       ctx.venti.app.inject({ method: 'POST', url: '/v1/webhooks/mercadopago', remoteAddress: randomIp(), payload: { type: 'order', action: 'order.processed', user_id: Number(seller), data: { id: 'ORD01TESTAPROBADA' } } });
     expect((await send()).statusCode).toBe(200);

@@ -25,7 +25,7 @@ export function Payouts() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-ink/10 pt-6 text-sm text-muted">
             <span>Cobrás con</span>
             <span className="rounded-full bg-[#009ee3] px-3 py-1 font-semibold text-white">Mercado Pago</span>
-            <span className="text-xs">Ejemplo: entrada de $ 120.000 → el comprador paga $ 132.000 (cargo por servicio 10%) y a vos te llegan $ 120.000. Montos ilustrativos.</span>
+            <span className="text-xs">Ejemplo: entrada de $ 120.000 → el comprador paga $ 142.872,61 (incluye la comisión de Lintick y la de Mercado Pago) y a vos te llegan $ 120.000 limpios. Montos ilustrativos.</span>
           </div>
         </div>
       </div>
@@ -283,7 +283,7 @@ export function Support() {
 
 const FAQ = [
   ['¿Cuándo cobro las ventas?', 'Al instante. Cada venta se acredita directo en tu cuenta de Mercado Pago, por el precio completo de la entrada. Lintick no retiene tu plata.'],
-  ['¿Cuánto cuesta usar Lintick?', 'Para la productora, nada: crear tu cuenta y publicar eventos es gratis, sin abono mensual, y cobrás el precio completo de cada entrada. El comprador paga un cargo por servicio del 10% sobre el precio, que ve antes de pagar. Las cortesías y las entradas gratuitas no tienen cargo.'],
+  ['¿Cuánto cuesta usar Lintick?', 'Para la productora, nada: crear tu cuenta y publicar eventos es gratis, sin abono mensual, y recibís el precio completo de cada entrada, limpio. El comprador paga un cargo por servicio (la comisión de Lintick del 10% más el costo de Mercado Pago), que ve antes de pagar. Las cortesías y las entradas gratuitas no tienen cargo.'],
   ['¿Qué pasa con los reembolsos?', 'Cada productora define su política de devoluciones y la publica en las condiciones del evento. Los reembolsos se hacen sobre el pago original en Mercado Pago, y la entrada devuelta queda anulada: su QR deja de servir.'],
   ['¿Qué necesito para escanear entradas?', 'Sólo un celular con cámara y el navegador (Chrome o Safari). No hace falta instalar nada, y si se corta la señal el escáner sigue validando y sincroniza al volver la conexión.'],
   ['¿Puedo personalizar la página con mi marca?', 'Sí: cada evento lleva tu portada, galería, line-up, enlaces y condiciones. La página propia con tu marca y tu dominio (marca blanca) está en camino.'],
@@ -357,7 +357,7 @@ export function FinalCta() {
           <a href="#como-funciona" className="mt-3 flex items-center justify-center rounded-xl bg-white/10 py-3.5 font-semibold shadow-[inset_0_0_0_1px_rgb(255_255_255/0.3)] transition-colors hover:bg-white/15">
             Ver cómo funciona
           </a>
-          <p className="mt-3 text-center text-xs text-white/80">Sin abono mensual · sólo 10% sobre cada venta cobrada</p>
+          <p className="mt-3 text-center text-xs text-white/80">Sin abono mensual · recibís el precio completo de cada entrada</p>
         </div>
       </div>
     </section>
