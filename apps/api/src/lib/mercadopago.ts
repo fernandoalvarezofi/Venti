@@ -44,6 +44,20 @@ export interface MpPayment {
   collectorId: string | null;
 }
 
+/** Cómo se repartió un pago, según Mercado Pago (montos en pesos). */
+export interface MpSettlement {
+  paymentId: string;
+  status: string;
+  total: number;
+  mercadoPagoFee: number;
+  applicationFee: number;
+  otherFees: number;
+  netToSeller: number | null;
+  marketplaceFee: number | null;
+  collectorId: string | null;
+  moneyReleaseDate: string | null;
+}
+
 export interface MercadoPagoClient {
   authorizeUrl(state: string, redirectUri: string): string;
   exchangeCode(code: string, redirectUri: string): Promise<MpTokens>;
@@ -52,6 +66,8 @@ export interface MercadoPagoClient {
   getPayment(accessToken: string, paymentId: string): Promise<MpPayment | null>;
   searchPaymentsByReference(accessToken: string, externalReference: string): Promise<MpPayment[]>;
   refund(accessToken: string, paymentId: string, idempotencyKey: string): Promise<void>;
+  /** Detalle de comisiones de un pago (opcional: sólo para revisar liquidaciones). */
+  getSettlement?(accessToken: string, paymentId: string): Promise<MpSettlement | null>;
 }
 
 const API = 'https://api.mercadopago.com';
@@ -186,6 +202,30 @@ export class HttpMercadoPago implements MercadoPagoClient {
     const { body } = await this.call(`/v1/payments/search?${qs}`, { method: 'GET', token: accessToken });
     const results = Array.isArray(body.results) ? (body.results as Record<string, unknown>[]) : [];
     return results.map(toPayment);
+  }
+
+  async getSettlement(accessToken: string, paymentId: string): Promise<MpSettlement | null> {
+    try {
+      const { body } = await this.call(`/v1/payments/${encodeURIComponent(paymentId)}`, { method: 'GET', token: accessToken });
+      const fees = Array.isArray(body.fee_details) ? (body.fee_details as { type?: string; amount?: number }[]) : [];
+      const sum = (pred: (t: string) => boolean) => fees.filter((f) => pred(String(f.type ?? ''))).reduce((a, f) => a + Number(f.amount ?? 0), 0);
+      const td = (body.transaction_details ?? {}) as { net_received_amount?: number };
+      return {
+        paymentId: String(body.id),
+        status: String(body.status ?? ''),
+        total: Number(body.transaction_amount ?? 0),
+        mercadoPagoFee: sum((t) => t === 'mercadopago_fee'),
+        applicationFee: sum((t) => t === 'application_fee'),
+        otherFees: sum((t) => t !== 'mercadopago_fee' && t !== 'application_fee'),
+        netToSeller: td.net_received_amount !== undefined ? Number(td.net_received_amount) : null,
+        marketplaceFee: body.marketplace_fee !== undefined && body.marketplace_fee !== null ? Number(body.marketplace_fee) : null,
+        collectorId: body.collector_id !== undefined && body.collector_id !== null ? String(body.collector_id) : null,
+        moneyReleaseDate: body.money_release_date ? String(body.money_release_date) : null,
+      };
+    } catch (err) {
+      if (err instanceof AppError && (err.details as { status?: number } | undefined)?.status === 404) return null;
+      throw err;
+    }
   }
 
   async refund(accessToken: string, paymentId: string, idempotencyKey: string): Promise<void> {

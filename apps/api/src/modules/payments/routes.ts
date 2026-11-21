@@ -21,6 +21,43 @@ export async function paymentRoutes(app: FastifyInstance, s: Services): Promise<
 
   // ─── Conexión de la cuenta de la productora ───
   r.get(
+    '/v1/organizations/:orgId/payments/settlements',
+    {
+      schema: {
+        tags: ['payments'],
+        summary: 'Cómo repartió Mercado Pago las últimas ventas (comisión de MP, de Lintick y neto para la productora)',
+        params: z.object({ orgId: z.string().uuid() }),
+        querystring: z.object({ limit: z.coerce.number().int().min(1).max(20).default(10) }),
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'finance.read');
+      if (!paymentsEnabled(s) || !s.mp?.getSettlement) return { items: [] };
+      const seller = await sellerAccess(s, access.orgId);
+      const rows = await inOrg(s.db, access, (tx) =>
+        tx.execute(sql`select p.provider_payment_id as id, o.id as order_id, o.subtotal_cents, o.fee_cents, o.commission_cents, o.total_cents, o.paid_at
+          from payments p join orders o on o.id = p.order_id
+          where p.organization_id = ${access.orgId} and o.status = 'paid' and p.status = 'approved'
+          order by o.paid_at desc nulls last limit ${req.query.limit}`),
+      );
+      const list = ((rows as unknown as { rows?: Record<string, unknown>[] }).rows ?? (rows as unknown as Record<string, unknown>[])) as {
+        id: string; order_id: string; subtotal_cents: string; fee_cents: string; commission_cents: string; total_cents: string; paid_at: string;
+      }[];
+      const items = [];
+      for (const r of list) {
+        const st = await s.mp.getSettlement(seller.token, r.id).catch(() => null);
+        items.push({
+          orderId: r.order_id,
+          paidAt: r.paid_at,
+          lintick: { priceCents: Number(r.subtotal_cents), serviceChargeCents: Number(r.fee_cents), lintickCommissionCents: Number(r.commission_cents), totalCents: Number(r.total_cents) },
+          mercadoPago: st,
+        });
+      }
+      return { items };
+    },
+  );
+
+  r.get(
     '/v1/organizations/:orgId/payments/mercadopago',
     {
       schema: {
