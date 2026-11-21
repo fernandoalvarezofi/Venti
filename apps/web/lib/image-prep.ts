@@ -44,11 +44,12 @@ export async function prepareImage(file: File, maxSide = 2000, minSide = 400): P
     }
   }
   const { width, height } = bitmap;
-  if (Math.min(width, height) < minSide) {
+  // Como en las redes: una foto chica se agranda sola hasta el mínimo (sólo se rechazan las diminutas, tipo ícono).
+  if (Math.min(width, height) < 100) {
     bitmap.close();
-    throw new Error(`La imagen es muy chica: el lado menor tiene que medir al menos ${minSide} px.`);
+    throw new Error('La imagen es demasiado chica (menos de 100 px). Elegí una foto más grande.');
   }
-  const scale = Math.min(1, maxSide / Math.max(width, height));
+  const scale = Math.min(maxSide / Math.max(width, height), Math.max(1, minSide / Math.min(width, height)));
   const w = Math.round(width * scale);
   const h = Math.round(height * scale);
   const canvas = document.createElement('canvas');
