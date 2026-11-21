@@ -1,6 +1,7 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { MercadoPagoClient, MpPayment, MpPreferenceInput, MpTokens } from '../src/lib/mercadopago.ts';
+import { isMpOrderId, orderToPayment } from '../src/lib/mercadopago.ts';
 import { call, publishedEvent, randomIp, registerUser, setupApp, type TestContext } from './helpers.ts';
 
 /**
@@ -225,5 +226,40 @@ describe('Mercado Pago: compra', () => {
     // Nadie más puede ver esa compra.
     const other = await registerUser(ctx);
     expect((await call(ctx, 'GET', `/v1/orders/${co.body.orderId}`, { token: other.token })).status).toBe(404);
+  });
+});
+
+describe('Mercado Pago: API de Orders', () => {
+  it('traduce los estados de la orden a los de un pago', () => {
+    expect(isMpOrderId('ORD01J67CQQH5904WDBVZEM4JMEP3')).toBe(true);
+    expect(isMpOrderId('123456789')).toBe(false);
+    const base = { id: 'ORD1', external_reference: 'ref', total_amount: '33000.00', currency: 'ARS', user_id: 777 };
+    expect(orderToPayment({ ...base, status: 'processed', status_detail: 'accredited', total_paid_amount: '33000.00' })).toMatchObject({ id: 'ORD1', status: 'approved', transactionAmount: 33000, currency: 'ARS', collectorId: '777', externalReference: 'ref' });
+    expect(orderToPayment({ ...base, status: 'refunded', status_detail: 'refunded' }).status).toBe('refunded');
+    expect(orderToPayment({ ...base, status: 'failed', status_detail: 'rejected_by_issuer' }).status).toBe('rejected');
+    expect(orderToPayment({ ...base, status: 'canceled', status_detail: 'canceled' }).status).toBe('cancelled');
+    expect(orderToPayment({ ...base, status: 'action_required', status_detail: 'waiting_capture' }).status).toBe('in_process');
+  });
+
+  it('el aviso de una orden (sin ?org=&order=) emite las entradas del vendedor correcto, una sola vez', async () => {
+    const owner = await registerUser(ctx);
+    const buyer = await registerUser(ctx, 'Beto Comprador');
+    const { orgId, eventId, ticketTypeId } = await publishedEvent(ctx, owner.token);
+    await connectSeller(owner.token, orgId);
+    const seller = mp.lastSeller;
+    const { co } = await holdAndCheckout(buyer.token, eventId, ticketTypeId, 1);
+    expect(co.status).toBe(200);
+    // La orden de Mercado Pago: aprobada, con la referencia a la compra de Lintick y cobrada por ESTE vendedor.
+    mp.payments.set('ORD01TESTAPROBADA', { id: 'ORD01TESTAPROBADA', status: 'approved', statusDetail: 'accredited', externalReference: co.body.orderId, transactionAmount: 16500, currency: 'ARS', collectorId: seller });
+    const send = () =>
+      ctx.venti.app.inject({ method: 'POST', url: '/v1/webhooks/mercadopago', remoteAddress: randomIp(), payload: { type: 'order', action: 'order.processed', user_id: Number(seller), data: { id: 'ORD01TESTAPROBADA' } } });
+    expect((await send()).statusCode).toBe(200);
+    expect((await call(ctx, 'GET', `/v1/orders/${co.body.orderId}`, { token: buyer.token })).body).toMatchObject({ status: 'paid', tickets: 1 });
+    await send(); // repetido: no duplica
+    expect((await call(ctx, 'GET', '/v1/me/tickets', { token: buyer.token })).body.items).toHaveLength(1);
+
+    // Un aviso con un vendedor que no es de Lintick no hace nada.
+    const res = await ctx.venti.app.inject({ method: 'POST', url: '/v1/webhooks/mercadopago', remoteAddress: randomIp(), payload: { type: 'order', user_id: 1, data: { id: 'ORD01OTRA' } } });
+    expect(res.statusCode).toBe(200);
   });
 });

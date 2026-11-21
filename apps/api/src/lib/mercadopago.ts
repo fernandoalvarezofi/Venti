@@ -100,7 +100,7 @@ export class HttpMercadoPago implements MercadoPagoClient {
     return `https://auth.mercadopago.com/authorization?${qs}`;
   }
 
-  private async call(path: string, init: RequestInit & { token?: string; idem?: string }, okStatuses = [200, 201]): Promise<{ status: number; body: Record<string, unknown> }> {
+  protected async call(path: string, init: RequestInit & { token?: string; idem?: string }, okStatuses = [200, 201]): Promise<{ status: number; body: Record<string, unknown> }> {
     const headers: Record<string, string> = { 'content-type': 'application/json', accept: 'application/json' };
     if (init.token) headers.authorization = `Bearer ${init.token}`;
     if (init.idem) headers['x-idempotency-key'] = init.idem;
@@ -214,3 +214,85 @@ export function verifyMpSignature(opts: { xSignature: string | undefined; xReque
   const expected = createHmac('sha256', opts.secret).update(parts.join(';') + ';').digest('hex');
   return expected.length === v1.length && timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
 }
+
+/** Ids de órdenes de la API de Orders (ej. "ORD01J…"); los pagos clásicos son numéricos. */
+export const isMpOrderId = (id: string) => /^ORD[0-9A-Z]+$/.test(id);
+
+/**
+ * Estado de una orden (API de Orders) traducido al de un pago clásico, para reusar la misma lógica de cobro:
+ *  processed/accredited → approved · refunded → refunded · failed → rejected · canceled → cancelled · resto → in_process.
+ * El id de "pago" es el id de la orden de Mercado Pago (es lo que se consulta y se devuelve).
+ */
+export function orderToPayment(o: Record<string, unknown>): MpPayment {
+  const status = String(o.status ?? '');
+  const detail = o.status_detail ? String(o.status_detail) : null;
+  const mapped =
+    status === 'processed' && detail !== 'partially_refunded' ? 'approved'
+    : status === 'processed' ? 'approved'
+    : status === 'refunded' ? 'refunded'
+    : status === 'failed' ? 'rejected'
+    : status === 'canceled' ? 'cancelled'
+    : 'in_process';
+  const paid = Number(o.total_paid_amount ?? 0);
+  return {
+    id: String(o.id),
+    status: mapped,
+    statusDetail: detail,
+    externalReference: o.external_reference ? String(o.external_reference) : null,
+    transactionAmount: paid > 0 ? paid : Number(o.total_amount ?? 0),
+    currency: String(o.currency ?? ''),
+    collectorId: o.user_id !== undefined && o.user_id !== null ? String(o.user_id) : null,
+  };
+}
+
+/**
+ * Checkout Pro con la API de Orders (la que Mercado Pago recomienda para integraciones nuevas).
+ * Misma interfaz que la de Preferences: el resto de Lintick no cambia. Se activa con MP_INTEGRATION=orders.
+ */
+export class HttpMercadoPagoOrders extends HttpMercadoPago {
+  override async createPreference(accessToken: string, p: MpPreferenceInput, idempotencyKey: string) {
+    const money = (n: number) => n.toFixed(2);
+    const items = p.items.map((i) => ({ external_code: i.id, title: i.title, quantity: i.quantity, unit_price: money(i.unitPrice) }));
+    const total = p.items.reduce((a, i) => a + Math.round(i.unitPrice * 100) * i.quantity, 0) / 100;
+    const minutes = Math.max(5, Math.floor((p.expiresAt.getTime() - Date.now()) / 60_000));
+    const { body } = await this.call('/v1/orders', {
+      method: 'POST',
+      token: accessToken,
+      idem: idempotencyKey,
+      body: JSON.stringify({
+        type: 'online',
+        processing_mode: 'manual',
+        total_amount: money(total),
+        external_reference: p.externalReference,
+        marketplace_fee: money(p.marketplaceFee),
+        expiration_time: `PT${minutes}M`,
+        payer: { email: p.payerEmail },
+        items,
+        config: {
+          statement_descriptor: p.statementDescriptor,
+          online: { success_url: p.backUrl, failure_url: p.backUrl, pending_url: p.backUrl, auto_return: 'approved' },
+        },
+      }),
+    });
+    if (!body.id || !body.checkout_url) throw new AppError(502, 'mp_bad_order', 'Mercado Pago no devolvió el enlace de pago.');
+    return { id: String(body.id), checkoutUrl: String(body.checkout_url) };
+  }
+
+  override async getPayment(accessToken: string, paymentId: string): Promise<MpPayment | null> {
+    if (!isMpOrderId(paymentId)) return super.getPayment(accessToken, paymentId);
+    try {
+      const { body } = await this.call(`/v1/orders/${encodeURIComponent(paymentId)}`, { method: 'GET', token: accessToken });
+      return orderToPayment(body);
+    } catch (err) {
+      if (err instanceof AppError && (err.details as { status?: number } | undefined)?.status === 404) return null;
+      throw err;
+    }
+  }
+
+  override async refund(accessToken: string, paymentId: string, idempotencyKey: string): Promise<void> {
+    if (!isMpOrderId(paymentId)) return super.refund(accessToken, paymentId, idempotencyKey);
+    // Sin cuerpo = devolución total.
+    await this.call(`/v1/orders/${encodeURIComponent(paymentId)}/refund`, { method: 'POST', token: accessToken, idem: idempotencyKey });
+  }
+}
+

@@ -23,7 +23,7 @@ import { ticketRoutes } from './modules/tickets/routes.ts';
 import { accessRoutes } from './modules/access/routes.ts';
 import { businessRoutes } from './modules/business/routes.ts';
 import { paymentRoutes } from './modules/payments/routes.ts';
-import { HttpMercadoPago, type MercadoPagoClient } from './lib/mercadopago.ts';
+import { HttpMercadoPago, HttpMercadoPagoOrders, type MercadoPagoClient } from './lib/mercadopago.ts';
 import { SecretBox } from './lib/secret-box.ts';
 import { HttpGoogle, type GoogleClient } from './lib/google.ts';
 
@@ -64,7 +64,11 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
     email: opts.email ?? createEmailSender(config),
     docKey: Buffer.from(config.DOC_HMAC_KEY, 'base64'),
     now: opts.now ?? (() => new Date()),
-    mp: opts.mercadopago ?? (config.MP_CLIENT_ID && config.MP_CLIENT_SECRET ? new HttpMercadoPago(config.MP_CLIENT_ID, config.MP_CLIENT_SECRET, config.MP_TEST_MODE) : null),
+    mp:
+      opts.mercadopago ??
+      (config.MP_CLIENT_ID && config.MP_CLIENT_SECRET
+        ? new (config.MP_INTEGRATION === 'orders' ? HttpMercadoPagoOrders : HttpMercadoPago)(config.MP_CLIENT_ID, config.MP_CLIENT_SECRET, config.MP_TEST_MODE)
+        : null),
     secretBox: config.PAYMENTS_ENC_KEY ? new SecretBox(config.PAYMENTS_ENC_KEY) : null,
     google: opts.google ?? (config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET ? new HttpGoogle(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET) : null),
   };

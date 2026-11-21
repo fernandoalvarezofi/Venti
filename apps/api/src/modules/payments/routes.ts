@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { audit } from '../../lib/audit.ts';
 import { inOrg, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
 import { AppError, notFound } from '../../lib/errors.ts';
-import { verifyMpSignature } from '../../lib/mercadopago.ts';
+import { verifyMpSignature, isMpOrderId } from '../../lib/mercadopago.ts';
 import { commissionBpsFromSettings } from '../inventory/service.ts';
 import { applyPayment, paymentsEnabled, reconcileOrder, sellerAccess, startCheckout } from './service.ts';
 
@@ -241,6 +241,20 @@ export async function paymentRoutes(app: FastifyInstance, s: Services): Promise<
             await audit(tx, { orgId: org, actorUserId: null, action: 'payments.mercadopago_revoked', entityType: 'organization', entityId: org });
           });
         }
+        return reply.status(200).send({ ok: true });
+      }
+
+      // Órdenes (API de Orders): el aviso trae el id de la orden y el vendedor (user_id). Se consulta la orden con el
+      // token de ESE vendedor; la productora sale del vendedor y la orden de Lintick de external_reference (y se vuelve a
+      // verificar todo en applyPayment: referencia, monto, moneda y cobrador).
+      if ((type === 'order' || type === 'orders' || type === 'orders_v2') && isMpOrderId(dataId) && body.user_id !== undefined) {
+        const rows = await withContext(s.db, {}, (tx) => tx.execute(sql`select venti_payment_account_org('mercadopago', ${String(body.user_id)}) as org`));
+        const org = ((rows as unknown as { rows?: { org: string | null }[] }).rows?.[0] ?? (rows as unknown as { org: string | null }[])[0])?.org;
+        if (!org) return reply.status(200).send({ ok: true });
+        const seller = await sellerAccess(s, org).catch(() => null);
+        if (!seller) return reply.status(200).send({ ok: true });
+        const payment = await s.mp!.getPayment(seller.token, dataId);
+        if (payment?.externalReference && /^[0-9a-f-]{36}$/.test(payment.externalReference)) await applyPayment(s, org, payment.externalReference, payment, seller.providerUserId);
         return reply.status(200).send({ ok: true });
       }
 

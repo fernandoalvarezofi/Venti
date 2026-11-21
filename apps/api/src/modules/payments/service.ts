@@ -20,7 +20,7 @@ import {
 import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import type { Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
-import type { MpPayment } from '../../lib/mercadopago.ts';
+import { isMpOrderId, type MpPayment } from '../../lib/mercadopago.ts';
 
 /** Minutos extra que se le dan a una reserva cuando la persona pasa a pagar (una sola vez). */
 const PAY_WINDOW_MINUTES = 15;
@@ -306,6 +306,12 @@ export async function applyPayment(s: Services, orgId: string, orderId: string, 
 export async function reconcileOrder(s: Services, orgId: string, orderId: string): Promise<void> {
   if (!paymentsEnabled(s)) return;
   const seller = await sellerAccess(s, orgId);
+  const [o] = await withContext(s.db, { orgId }, (tx) => tx.select({ providerId: orders.providerPreferenceId }).from(orders).where(eq(orders.id, orderId)));
+  if (o?.providerId && isMpOrderId(o.providerId)) {
+    const p = await s.mp!.getPayment(seller.token, o.providerId);
+    if (p) await applyPayment(s, orgId, orderId, p, seller.providerUserId);
+    return;
+  }
   const found = await s.mp!.searchPaymentsByReference(seller.token, orderId);
   for (const p of found) await applyPayment(s, orgId, orderId, p, seller.providerUserId);
 }

@@ -69,6 +69,11 @@ const ConfigSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  /**
+   * Qué API de Checkout Pro usar: "preferences" (la de siempre, probada) u "orders" (la nueva que recomienda Mercado Pago).
+   * Se pasa a "orders" recién después de una compra real de prueba.
+   */
+  MP_INTEGRATION: z.enum(['preferences', 'orders']).default('preferences'),
   /** Clave para cifrar los tokens de las productoras (32 bytes en base64). */
   PAYMENTS_ENC_KEY: z.string().optional(),
   /**
