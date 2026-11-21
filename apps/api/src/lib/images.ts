@@ -69,7 +69,8 @@ function webpScan(b: Buffer) {
 }
 
 /** Valida una imagen subida y devuelve sus datos. Lanza un 4xx explicativo si no sirve. */
-export function inspectImage(buf: Buffer): ImageInfo {
+/** `minSide`: logos y fotos de artistas pueden ser más chicos (120 px); portada y galería, 400 px. */
+export function inspectImage(buf: Buffer, minSide = MIN_SIDE): ImageInfo {
   if (buf.length === 0) throw new AppError(400, 'image_empty', 'El archivo está vacío.');
   if (buf.length > MAX_IMAGE_BYTES) throw new AppError(413, 'image_too_large', 'La imagen supera 3 MB.');
   const type = sniff(buf);
@@ -84,7 +85,7 @@ export function inspectImage(buf: Buffer): ImageInfo {
     // La web siempre re-codifica antes de subir; si llega EXIF es que vino sin pasar por ahí.
     throw new AppError(422, 'image_has_metadata', 'La imagen trae metadatos (ubicación, cámara). Subila desde Lintick para que los quitemos.');
   }
-  if (Math.min(size.width, size.height) < MIN_SIDE) throw new AppError(422, 'image_too_small', `La imagen es muy chica: el lado menor tiene que medir al menos ${MIN_SIDE} px.`);
+  if (Math.min(size.width, size.height) < minSide) throw new AppError(422, 'image_too_small', `La imagen es muy chica: el lado menor tiene que medir al menos ${minSide} px.`);
   if (Math.max(size.width, size.height) > MAX_SIDE) throw new AppError(422, 'image_too_big', `La imagen es muy grande: máximo ${MAX_SIDE} px por lado.`);
   return { contentType: type, width: size.width, height: size.height, sizeBytes: buf.length, sha256: createHash('sha256').update(buf).digest('hex') };
 }

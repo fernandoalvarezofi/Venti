@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AddTicketTypeForm, CourtesyForm, EditEventForm, EventActions, TicketTypeCard } from '@/components/business/event-manage';
-import { ContentEditor, MediaEditor } from '@/components/business/content-editor';
+import { PageEditor } from '@/components/business/page-editor';
 import { StaffManager } from '@/components/business/staff-manager';
 import { EntryProgress, EventTabs, EVENT_TABS, MoneyBreakdown, Readiness, TypeBreakdown, type EventTab } from '@/components/business/insights';
 import { SalesChart } from '@/components/business/sales-chart';
@@ -128,14 +128,7 @@ export default async function ManageEventPage({
       ) : null}
       {tab === 'contenido' ? (
         <div className="space-y-8">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          <Panel title="Imágenes" description="La portada aparece de fondo en la tarjeta del evento.">
-            <MediaEditor orgId={orgId} event={e} />
-          </Panel>
-          <Panel title="Contenido" description="Line-up, qué hay en el evento, datos útiles y enlaces.">
-            <ContentEditor orgId={orgId} event={e} />
-          </Panel>
-        </div>
+        <PageEditor orgId={orgId} event={e} />
         {e.status !== 'cancelled' && e.status !== 'finished' ? (
           <Panel title="Datos del evento" description="Título, categoría, fechas y lugar.">
             <EditEventForm orgId={orgId} event={e} />

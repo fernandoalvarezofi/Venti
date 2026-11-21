@@ -37,7 +37,7 @@ export async function mediaRoutes(app: FastifyInstance, s: Services): Promise<vo
     async (req, reply) => {
       const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.write');
       if (!Buffer.isBuffer(req.body)) throw new AppError(415, 'image_unsupported', 'Enviá la imagen como archivo (image/jpeg, image/png o image/webp).');
-      const info = inspectImage(req.body);
+      const info = inspectImage(req.body, req.query.kind === 'asset' ? 120 : undefined);
       const kind = req.query.kind;
       const result = await inOrg(s.db, access, async (tx) => {
         const [e] = await tx

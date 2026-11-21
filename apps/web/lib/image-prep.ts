@@ -4,7 +4,7 @@
  * Prepara una foto para subir: corrige la orientación, la achica a 2000 px como máximo y la re-codifica.
  * Re-codificar en un canvas elimina TODOS los metadatos (EXIF: ubicación GPS, cámara, fecha).
  */
-export async function prepareImage(file: File, maxSide = 2000): Promise<Blob> {
+export async function prepareImage(file: File, maxSide = 2000, minSide = 400): Promise<Blob> {
   if (!/^image\/(jpeg|png|webp|heic|heif|avif)$/i.test(file.type) && !/\.(jpe?g|png|webp|heic|avif)$/i.test(file.name)) {
     throw new Error('Elegí una imagen JPG, PNG o WebP.');
   }
@@ -16,9 +16,9 @@ export async function prepareImage(file: File, maxSide = 2000): Promise<Blob> {
     throw new Error('No pudimos abrir esa imagen. Probá con otra o exportala como JPG.');
   }
   const { width, height } = bitmap;
-  if (Math.min(width, height) < 400) {
+  if (Math.min(width, height) < minSide) {
     bitmap.close();
-    throw new Error('La imagen es muy chica: el lado menor tiene que medir al menos 400 px.');
+    throw new Error(`La imagen es muy chica: el lado menor tiene que medir al menos ${minSide} px.`);
   }
   const scale = Math.min(1, maxSide / Math.max(width, height));
   const w = Math.round(width * scale);
@@ -41,7 +41,7 @@ export async function prepareImage(file: File, maxSide = 2000): Promise<Blob> {
   return blob;
 }
 
-export async function uploadEventImage(orgId: string, eventId: string, blob: Blob, kind: 'cover' | 'gallery') {
+export async function uploadEventImage(orgId: string, eventId: string, blob: Blob, kind: 'cover' | 'gallery' | 'asset') {
   const res = await fetch(`/api/v1/organizations/${orgId}/events/${eventId}/media?kind=${kind}`, {
     method: 'POST',
     headers: { 'content-type': blob.type },

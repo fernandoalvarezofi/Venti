@@ -24,7 +24,20 @@ export interface LineupItem {
   role: LineupRole;
   startsAt: string | null;
   stage: string | null;
+  bio: string;
+  link: string | null;
+  /** Foto subida al evento (id de imagen). */
+  imageId: string | null;
 }
+
+export type SponsorTier = 'sponsor' | 'partner' | 'brand' | 'producer' | 'media';
+export interface Sponsor {
+  name: string;
+  tier: SponsorTier;
+  url: string | null;
+  logoId: string | null;
+}
+export type PageSectionKey = 'about' | 'lineup' | 'videos' | 'gallery' | 'amenities' | 'sponsors' | 'faq' | 'policies' | 'contact';
 
 /** Contenido del evento además de fecha y lugar. */
 export interface EventContent {
@@ -36,6 +49,13 @@ export interface EventContent {
   extraAmenities: string[];
   links: Partial<Record<'instagram' | 'tiktok' | 'spotify' | 'youtube' | 'website', string>>;
   policies: string;
+  summary: string;
+  videos: { url: string; title: string }[];
+  sponsors: Sponsor[];
+  faq: { q: string; a: string }[];
+  contact: { email?: string; whatsapp?: string };
+  seo: { title?: string; description?: string };
+  pageSections: { key: PageSectionKey; visible: boolean }[];
   coverImage: Media | null;
   gallery: Media[];
 }

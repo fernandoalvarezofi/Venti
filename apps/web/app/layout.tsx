@@ -8,6 +8,8 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'sw
 const caveat = Caveat({ subsets: ['latin'], weight: ['600'], variable: '--font-caveat', display: 'swap' });
 
 export const metadata: Metadata = {
+  // Base de las URLs absolutas de Open Graph (vista previa al compartir en WhatsApp y redes).
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://venti-web-eta.vercel.app'),
   title: { default: 'Lintick — Entradas para lo que pasa', template: '%s · Lintick' },
   description: 'Descubrí recitales, fiestas, festivales y obras en Argentina. Comprá tus entradas en Lintick.',
   robots: { index: false, follow: false },

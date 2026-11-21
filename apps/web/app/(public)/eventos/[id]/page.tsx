@@ -5,9 +5,10 @@ import { EventPoster } from '@/components/event-card';
 import { ArrowLeftIcon, CalendarIcon, PinIcon } from '@/components/icons';
 import { ErrorState } from '@/components/states';
 import { BuyPanel } from '@/components/checkout';
-import { Amenities, Gallery, Lineup, LinksAndMap, Policies, QuickFacts } from '@/components/event-content';
+import { LinksAndMap, QuickFacts } from '@/components/event-content';
+import { EventSections } from '@/components/event-sections';
 import { getCurrentUser, getEvent } from '@/lib/api';
-import { categoryLabel, dateParts } from '@/lib/format';
+import { categoryLabel, dateParts, mediaSrc } from '@/lib/format';
 
 type Params = Promise<{ id: string }>;
 const UUID = /^[0-9a-f-]{36}$/;
@@ -16,7 +17,20 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { id } = await params;
   if (!UUID.test(id)) return { title: 'Evento' };
   const r = await getEvent(id);
-  return { title: r.ok ? r.data.title : 'Evento' };
+  if (!r.ok) return { title: 'Evento' };
+  const e = r.data;
+  // Vista previa al compartir (WhatsApp, Instagram, X): título, descripción y portada del evento.
+  const title = e.seo.title || e.title;
+  const d = dateParts(e.startsAt);
+  const description = e.seo.description || e.summary || `${d.long} · ${e.venue ? `${e.venue.name}, ${e.venue.city}` : 'Lintick'}. Entradas en Lintick.`;
+  const image = e.coverImage ? mediaSrc(e.coverImage.url) : undefined;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/eventos/${e.id}` },
+    openGraph: { type: 'website', title, description, url: `/eventos/${e.id}`, siteName: 'Lintick', locale: 'es_AR', ...(image ? { images: [{ url: image, width: e.coverImage!.width, height: e.coverImage!.height, alt: e.title }] } : {}) },
+    twitter: { card: image ? 'summary_large_image' : 'summary', title, description, ...(image ? { images: [image] } : {}) },
+  };
 }
 
 export default async function EventPage({ params }: { params: Params }) {
@@ -85,19 +99,7 @@ export default async function EventPage({ params }: { params: Params }) {
             ) : null}
           </dl>
 
-          {e.description ? (
-            <section className="mt-8" aria-labelledby="sobre">
-              <h2 id="sobre" className="text-xl font-bold">
-                Sobre el evento
-              </h2>
-              <div className="mt-3 max-w-[65ch] whitespace-pre-line leading-relaxed text-ink-soft">{e.description}</div>
-            </section>
-          ) : null}
-
-          <Lineup items={e.lineup} />
-          <Amenities codes={e.amenities} extra={e.extraAmenities} />
-          <Gallery images={e.gallery} title={e.title} />
-          <Policies text={e.policies} />
+          <EventSections content={e} description={e.description} title={e.title} />
           <LinksAndMap links={e.links} venue={e.venue} />
         </div>
 
