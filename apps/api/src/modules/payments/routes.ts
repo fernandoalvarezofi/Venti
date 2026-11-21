@@ -16,7 +16,7 @@ const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 export async function paymentRoutes(app: FastifyInstance, s: Services): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   // La vuelta de Mercado Pago pasa por la web (/api/…) para que llegue la sesión de quien conecta.
-  const redirectUri = `${s.config.PUBLIC_WEB_URL}/api/v1/payments/mercadopago/callback`;
+  const redirectUri = `${(s.config.MP_REDIRECT_BASE_URL ?? s.config.PUBLIC_WEB_URL).replace(/\/+$/, '')}/api/v1/payments/mercadopago/callback`;
   const panel = (orgId: string, qs: string) => `${s.config.PUBLIC_WEB_URL}/business/${orgId}/cobros?${qs}`;
 
   // ─── Conexión de la cuenta de la productora ───

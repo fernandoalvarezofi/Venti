@@ -42,6 +42,13 @@ const ConfigSchema = z.object({
     .transform((v) => v === 'true'),
   /** URL pública de la web (para los enlaces de los emails). */
   PUBLIC_WEB_URL: z.string().url().default('http://localhost:3000'),
+  /** Dominio propio de la web (ej. https://lintick.com). Si está, reemplaza a PUBLIC_WEB_URL. */
+  SITE_URL: z.string().url().optional(),
+  /**
+   * Dirección base que Mercado Pago tiene registrada para volver después de conectar la cuenta.
+   * Si la web cambió de dominio y el viejo redirige al nuevo, se puede seguir usando la registrada.
+   */
+  MP_REDIRECT_BASE_URL: z.string().url().optional(),
   /**
    * resend: envío real. outbox: buzón en memoria, SÓLO desarrollo y tests (se rechaza en producción).
    * disabled: no hay proveedor; las funciones que necesitan email responden 503 explicando por qué.
@@ -109,5 +116,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Configuración inválida:\n${issues}`);
   }
-  return parsed.data;
+  const c = parsed.data;
+  // SITE_URL manda: así se cambia el dominio de la web sin tocar la variable original.
+  return c.SITE_URL ? { ...c, PUBLIC_WEB_URL: c.SITE_URL.replace(/\/+$/, '') } : c;
 }

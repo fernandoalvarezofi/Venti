@@ -3,7 +3,7 @@
  * Cada bloque prueba la corrección de un hallazgo concreto (H1, H3, H4, H7).
  */
 import { randomUUID } from 'node:crypto';
-import { auditLogs, eq, sql, tickets, withContext } from '@venti/db';
+import { auditLogs, eq, sql, tickets, withContext, and, inArray } from '@venti/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { call, confirmEmail, inDays, publishedEvent, registerUser, setupApp, type TestContext } from './helpers.ts';
 
@@ -74,7 +74,7 @@ describe('H3 — el DNI nunca se guarda en claro', () => {
 
     const cols = await ctx.owner.pool.query(`select column_name from information_schema.columns where table_name = 'tickets' and column_name like 'holder_doc%'`);
     expect(cols.rows.map((r) => r.column_name).sort()).toEqual(['holder_doc_hmac', 'holder_doc_last3']);
-    const rows = await ctx.owner.db.select({ hmac: tickets.holderDocHmac, last3: tickets.holderDocLast3, org: tickets.organizationId }).from(tickets).where(eq(tickets.holderEmail, 'lucia@ejemplo.com'));
+    const rows = await ctx.owner.db.select({ hmac: tickets.holderDocHmac, last3: tickets.holderDocLast3, org: tickets.organizationId }).from(tickets).where(and(eq(tickets.holderEmail, 'lucia@ejemplo.com'), inArray(tickets.organizationId, [a.orgId, b.orgId])));
     expect(rows).toHaveLength(2);
     for (const r of rows) {
       expect(r.hmac).toMatch(/^[0-9a-f]{64}$/);
