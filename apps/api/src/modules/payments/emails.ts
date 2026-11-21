@@ -1,4 +1,6 @@
-import { and, eq, events, inArray, orders, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
+import { randomUUID } from 'node:crypto';
+import { commissionCents } from '@venti/domain';
+import { and, asc, eq, events, inArray, orders, priceStages, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
 import type { Services } from '../../lib/context.ts';
 import { C, button, esc, layout } from '../../lib/email-layout.ts';
 
@@ -30,10 +32,12 @@ interface TicketsMail {
   items: { id: string; type: string; priceCents: number }[];
   /** Compra: resumen del pago. Cortesía: sin pago. */
   payment: { orderId: string; subtotalCents: number; feeCents: number; totalCents: number } | null;
+  /** Mail de ejemplo (vista previa para la productora): lleva un aviso arriba. */
+  preview?: boolean;
 }
 
 /** Mail con las entradas (compra o cortesía): portada, datos del evento, talones, cómo entrar y, si hubo pago, el resumen. */
-function renderTicketsMail(web: string, d: TicketsMail): { html: string; text: string } {
+export function renderTicketsMail(web: string, d: TicketsMail): { html: string; text: string } {
   const link = `${web}/mis-entradas`;
   const dateFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(d.startsAt);
   const date = dateFmt.charAt(0).toUpperCase() + dateFmt.slice(1);
@@ -116,7 +120,11 @@ function renderTicketsMail(web: string, d: TicketsMail): { html: string; text: s
     : `¡Listo${first ? `, ${esc(first)}` : ''}! Ya tenés ${n === 1 ? 'tu entrada' : `tus ${n} entradas`}.`;
   const sub = isGift ? 'La productora te invitó. Ya están en tu cuenta, listas para usar.' : 'Te esperamos. Guardá este mail: tiene el detalle de tu compra.';
 
+  const previewBar = d.preview
+    ? `<tr><td style="padding:0"><div style="background:#fff4d6;border-bottom:1px solid #f0dfa8;border-radius:22px 22px 0 0;padding:12px 24px;font-family:${C.font};font-size:13px;line-height:19px;color:#6b5310;text-align:center"><strong>Vista previa:</strong> así le llega el mail a quien compra. Es un ejemplo, no es una compra real.</div></td></tr>`
+    : '';
   const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+${previewBar}
 <tr><td class="px" style="padding:32px 36px 0;font-family:${C.font}">
   ${pill}
   <h1 class="h1" style="margin:14px 0 0;font-size:30px;line-height:1.12;font-weight:800;letter-spacing:-0.8px;color:${C.ink}">${heading}</h1>
@@ -215,4 +223,40 @@ export async function sendCourtesyTickets(s: Services, orgId: string, ticketIds:
   const { html, text } = renderTicketsMail(web, { ...data, name, payment: null });
   const n = data.items.length;
   await s.email.send({ to, kind: 'tickets_assigned', subject: `Tenés ${n === 1 ? 'una entrada' : `${n} entradas`} para ${data.title}`, text, html, meta: { link: `${web}/mis-entradas` } });
+}
+
+/**
+ * Vista previa del mail de compra de un evento (para que la productora vea cómo le llega a su público).
+ * Usa los datos reales del evento y un pedido de ejemplo (2 entradas del primer tipo, con el cargo por servicio real).
+ */
+export async function sendPurchasePreview(s: Services, orgId: string, eventId: string, to: string, name: string, feeBps: number): Promise<boolean> {
+  if (!s.email.enabled) return false;
+  const data = await withContext(s.db, { orgId }, async (tx) => {
+    const [e] = await tx.select(eventCols).from(events).leftJoin(venues, eq(venues.id, events.venueId)).where(and(eq(events.id, eventId), eq(events.organizationId, orgId)));
+    if (!e) return null;
+    const [tt] = await tx
+      .select({ name: ticketTypes.name, currency: ticketTypes.currency, price: priceStages.priceCents })
+      .from(ticketTypes)
+      .leftJoin(priceStages, eq(priceStages.ticketTypeId, ticketTypes.id))
+      .where(eq(ticketTypes.eventId, eventId))
+      .orderBy(asc(priceStages.priceCents))
+      .limit(1);
+    return { ...e, tt };
+  });
+  if (!data) return false;
+  const web = s.config.PUBLIC_WEB_URL.replace(/\/+$/, '');
+  const unit = data.tt?.price && data.tt.price > 0 ? data.tt.price : 1_000_000;
+  const subtotal = unit * 2;
+  const fee = commissionCents(subtotal, feeBps);
+  const type = data.tt?.name ?? 'General';
+  const { html, text } = renderTicketsMail(web, {
+    ...data,
+    name,
+    currency: data.tt?.currency ?? 'ARS',
+    items: [{ id: randomUUID(), type, priceCents: unit }, { id: randomUUID(), type, priceCents: unit }],
+    payment: { orderId: randomUUID(), subtotalCents: subtotal, feeCents: fee, totalCents: subtotal + fee },
+    preview: true,
+  });
+  await s.email.send({ to, kind: 'purchase_preview', subject: `[Vista previa] Tus entradas para ${data.title}`, text: `VISTA PREVIA (no es una compra real)\n\n${text}`, html });
+  return true;
 }

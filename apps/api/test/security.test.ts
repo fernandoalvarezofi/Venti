@@ -233,3 +233,19 @@ describe('CSRF — un cambio pedido desde otra web se rechaza', () => {
     expect(noOrigin.statusCode).toBe(201);
   });
 });
+
+describe('Vista previa del mail de compra', () => {
+  it('la productora puede mandarse un ejemplo; alguien de afuera no', async () => {
+    const owner = await registerUser(ctx);
+    const { orgId, eventId } = await publishedEvent(ctx, owner.token);
+    const res = await call(ctx, 'POST', `/v1/organizations/${orgId}/events/${eventId}/email-preview`, { token: owner.token, body: { to: owner.email, name: 'Ana' } });
+    expect(res.status).toBe(202);
+    const mail = ctx.outbox.last(owner.email, 'purchase_preview');
+    expect(mail?.subject).toMatch(/^\[Vista previa\] Tus entradas para /);
+    expect(mail?.html).toContain('Vista previa:');
+    expect(mail?.html).toContain('Resumen del pago');
+    const intruder = await registerUser(ctx);
+    const bad = await call(ctx, 'POST', `/v1/organizations/${orgId}/events/${eventId}/email-preview`, { token: intruder.token, body: { to: intruder.email } });
+    expect([403, 404]).toContain(bad.status);
+  });
+});

@@ -1,6 +1,6 @@
 import { createPublicKey, randomUUID } from 'node:crypto';
 import { TICKET_STATUSES, isTerminal, signTicketQr, transitionTicket, verifyTicketQr } from '@venti/domain';
-import { and, desc, eq, events, gt, isNotNull, lte, sql, staffAssignments, ticketClaims, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
+import { and, desc, eq, events, gt, isNotNull, lte, organizations, sql, staffAssignments, ticketClaims, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -8,7 +8,8 @@ import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
 import { simpleEmail } from '../../lib/email-layout.ts';
-import { sendCourtesyTickets } from '../payments/emails.ts';
+import { sendCourtesyTickets, sendPurchasePreview } from '../payments/emails.ts';
+import { commissionBpsFromSettings } from '../inventory/service.ts';
 import { assertCanScanEvent } from '../../lib/access.ts';
 import { protectDocument } from '../../lib/identity.ts';
 
@@ -85,6 +86,31 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
     usedAt: row.t.usedAt,
     qr: row.t.status === 'valid' ? signTicketQr({ ticketId: row.t.id, version: row.t.qrVersion, eventId: row.t.eventId }, s.qrPrivateKey) : null,
   });
+
+  // ─── Vista previa del mail de compra (panel): la productora ve cómo le llega a su público ───
+  r.post(
+    '/v1/organizations/:orgId/events/:eventId/email-preview',
+    {
+      config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+      schema: {
+        tags: ['tickets'],
+        summary: 'Enviar un mail de compra de ejemplo',
+        description: 'Manda el mail de confirmación de compra de este evento con un pedido de ejemplo (marcado como vista previa). No crea entradas ni pagos.',
+        params: z.object({ orgId: z.string().uuid(), eventId: z.string().uuid() }),
+        body: z.object({ to: z.string().trim().toLowerCase().email(), name: z.string().trim().min(1).max(60).default('Ana') }),
+        response: { 202: z.object({ sent: z.boolean() }) },
+      },
+    },
+    async (req, reply) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'tickets.courtesy');
+      if (!s.email.enabled) throw new AppError(503, 'email_unavailable', 'El envío de mails no está configurado.');
+      const [org] = await inOrg(s.db, access, (tx) => tx.select({ settings: organizations.settings }).from(organizations).where(eq(organizations.id, access.orgId)));
+      const sent = await sendPurchasePreview(s, access.orgId, req.params.eventId, req.body.to, req.body.name, commissionBpsFromSettings(org?.settings));
+      if (!sent) throw notFound('Evento');
+      await inOrg(s.db, access, (tx) => audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'event.email_preview_sent', entityType: 'event', entityId: req.params.eventId, data: { to: req.body.to }, ip: req.ip }));
+      return reply.status(202).send({ sent: true });
+    },
+  );
 
   // ─── Cortesías (panel) ───
   r.post(
