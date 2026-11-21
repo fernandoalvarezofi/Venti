@@ -117,7 +117,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Configuración inválida:\n${issues}`);
   }
   const c = parsed.data;
-  // Si se cargó la clave de Resend y el proveedor estaba apagado, se usa Resend (así no hace falta editar EMAIL_PROVIDER).
+  // Si se cargó la clave de Resend y el proveedor estaba apagado, se usa Resend (no hace falta editar EMAIL_PROVIDER).
   if (c.RESEND_API_KEY && c.EMAIL_PROVIDER === 'disabled') c.EMAIL_PROVIDER = 'resend';
   // SITE_URL manda: así se cambia el dominio de la web sin tocar la variable original.
   return c.SITE_URL ? { ...c, PUBLIC_WEB_URL: c.SITE_URL.replace(/\/+$/, '') } : c;

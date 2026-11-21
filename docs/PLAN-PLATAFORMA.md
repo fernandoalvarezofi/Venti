@@ -4,7 +4,7 @@ Pedido del dueño del producto (2026-11-20). Guardado acá para no perderlo; se 
 la app instalable sin internet (ver `docs/ROADMAP.md`), salvo que se indique otro orden.
 
 - Referencia visual del panel: [`docs/referencias/panel-administracion.jpg`](referencias/panel-administracion.jpg)
-  — "exactamente así tiene que quedar, ni más ni menos" (estructura y disposición; marca, colores y textos de Lintick).
+  — es una **referencia** de estilo y disposición (no una copia exacta). Menú: los 5 grupos del pedido, mostrando sólo secciones que funcionan.
 - Referencias funcionales: Eventbrite, Fever, Ticketek, Passline. Analizar patrones, **no copiar diseños**.
 
 ## Regla principal: no romper nada
