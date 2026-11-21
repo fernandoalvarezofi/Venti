@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
@@ -88,5 +90,74 @@ export function InstallApp({ className = '' }: { className?: string }) {
         </ol>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Detalles de app: aviso de "sin conexión", páginas clave guardadas de antemano y
+ * barra de pestañas abajo cuando Lintick está instalada en el celular.
+ */
+export function AppChrome() {
+  const [offline, setOffline] = useState(false);
+  const path = usePathname() ?? '';
+
+  useEffect(() => {
+    const update = () => setOffline(!navigator.onLine);
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    // Con conexión: guardar Mis entradas y Control de ingreso para tenerlas aunque nunca se hayan abierto.
+    const warm = () => {
+      try {
+        if (sessionStorage.getItem('lintick:warm')) return;
+        sessionStorage.setItem('lintick:warm', '1');
+      } catch {
+        /* sin almacenamiento: igual se intenta */
+      }
+      navigator.serviceWorker?.controller?.postMessage({ type: 'lintick:warm', urls: ['/mis-entradas', '/acceso'] });
+    };
+    if (navigator.onLine && 'serviceWorker' in navigator) navigator.serviceWorker.ready.then(() => setTimeout(warm, 2500)).catch(() => {});
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+
+  return (
+    <>
+      {offline ? (
+        <div role="status" className="fixed inset-x-0 top-0 z-[60] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))]">
+          <p className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-paper shadow-lg">Sin conexión · estás viendo lo guardado en tu teléfono</p>
+        </div>
+      ) : null}
+      {!path.startsWith('/business') ? <AppTabBar /> : null}
+    </>
+  );
+}
+
+const TABS = [
+  { href: '/', label: 'Inicio', d: 'M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z' },
+  { href: '/eventos', label: 'Explorar', d: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zm9 2-4-4' },
+  { href: '/mis-entradas', label: 'Entradas', d: 'M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 0 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4 2 2 0 0 0 0-4z' },
+  { href: '/acceso', label: 'Puerta', d: 'M4 8V5a1 1 0 0 1 1-1h3m8 0h3a1 1 0 0 1 1 1v3m0 8v3a1 1 0 0 1-1 1h-3m-8 0H5a1 1 0 0 1-1-1v-3M4 12h16' },
+];
+
+/** Barra de pestañas (sólo con la app instalada, en pantallas de celular; en el navegador no aparece). */
+function AppTabBar() {
+  const path = usePathname() ?? '';
+  return (
+    <nav aria-label="Secciones de la app" className="app-tabbar">
+      {TABS.map((t) => {
+        const active = t.href === '/' ? path === '/' : path === t.href || path.startsWith(`${t.href}/`);
+        return (
+          <Link key={t.href} href={t.href} aria-current={active ? 'page' : undefined} className={active ? 'is-active' : ''}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d={t.d} />
+            </svg>
+            {t.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

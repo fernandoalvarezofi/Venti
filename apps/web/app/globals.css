@@ -1579,3 +1579,38 @@
   background: linear-gradient(180deg, #fffdf8, #f6efe2);
   box-shadow: 0 0 0 1px rgb(23 20 17 / 0.06), 0 1px 0 rgb(0 0 0 / 0.06), 0 16px 26px -16px rgb(23 20 17 / 0.45);
 }
+
+/* ───────── App instalada (modo standalone) ───────── */
+.app-tabbar { display: none; }
+@media (display-mode: standalone) and (max-width: 768px) {
+  .app-tabbar {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 55;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 6px 8px max(6px, env(safe-area-inset-bottom));
+    background: rgb(251 248 242 / 0.94);
+    backdrop-filter: blur(14px) saturate(1.4);
+    border-top: 1px solid rgb(23 20 17 / 0.08);
+  }
+  .app-tabbar a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 0;
+    border-radius: 12px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: rgb(23 20 17 / 0.55);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app-tabbar a svg { width: 24px; height: 24px; }
+  .app-tabbar a.is-active { color: var(--color-ink); }
+  .app-tabbar a.is-active svg { color: var(--color-accent); }
+  /* Que el contenido no quede tapado por la barra. */
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  /* Sin selección accidental ni "rebote" de la página como en una app nativa. */
+  html { overscroll-behavior-y: none; }
+}

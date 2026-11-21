@@ -6,7 +6,7 @@
  * - Datos de la API: nunca se guardan acá (el control de ingreso usa su propia base local cifrada por evento).
  * - Al cerrar sesión, la web pide borrar las páginas guardadas (tienen datos personales).
  */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const STATIC = `lintick-static-${VERSION}`;
 const PAGES = `lintick-pages-${VERSION}`;
 const IMAGES = `lintick-images-${VERSION}`;
@@ -36,6 +36,24 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data === 'lintick:logout') event.waitUntil(caches.delete(PAGES));
+  // Guardar de antemano las páginas clave (sólo si responden bien: sin sesión redirigen al login y no se guardan).
+  if (event.data && event.data.type === 'lintick:warm' && Array.isArray(event.data.urls)) {
+    event.waitUntil(
+      (async () => {
+        const cache = await caches.open(PAGES);
+        for (const u of event.data.urls.slice(0, 6)) {
+          try {
+            const url = new URL(u, self.location.origin);
+            if (url.origin !== self.location.origin || !PAGE_ALLOW.some((re) => re.test(url.pathname))) continue;
+            const res = await fetch(url.pathname, { credentials: 'same-origin' });
+            if (res.ok && !res.redirected) await cache.put(url.pathname, res);
+          } catch {
+            /* sin conexión: se guarda la próxima vez */
+          }
+        }
+      })(),
+    );
+  }
 });
 
 const isStaticAsset = (url) => url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/app/') || url.pathname.startsWith('/mascota/') || /\.(woff2?|ttf)$/.test(url.pathname);
