@@ -1,6 +1,6 @@
 import { createPublicKey, randomUUID } from 'node:crypto';
 import { TICKET_STATUSES, isTerminal, signTicketQr, transitionTicket, verifyTicketQr } from '@venti/domain';
-import { and, desc, eq, events, gt, ne, isNotNull, lte, organizations, sql, staffAssignments, ticketClaims, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
+import { and, desc, eq, events, gt, ne, or, isNotNull, lte, organizations, sql, staffAssignments, ticketClaims, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -33,13 +33,23 @@ const ScanResult = z.object({
   result: z.enum(['admitted', 'already_used', 'invalid_signature', 'malformed', 'wrong_event', 'not_found', 'outdated_qr', 'not_valid']),
   message: z.string(),
   ticket: z
-    .object({ id: z.string().uuid(), holderName: z.string(), holderDocLast3: z.string().nullable(), ticketTypeName: z.string(), status: z.enum(TICKET_STATUSES), usedAt: z.date().nullable() })
+    .object({
+      id: z.string().uuid(),
+      holderName: z.string(),
+      holderDocLast3: z.string().nullable(),
+      ticketTypeName: z.string(),
+      status: z.enum(TICKET_STATUSES),
+      usedAt: z.date().nullable(),
+      /** Si ya entró: nombre de quien lo dejó pasar y por qué puerta. */
+      usedByName: z.string().nullable().optional(),
+      usedGate: z.string().nullable().optional(),
+    })
     .nullable(),
 });
 
 type ScanResultCode = z.infer<typeof ScanResult>['result'];
 
-const SCAN_MESSAGES: Record<ScanResultCode, string> = {
+const SCAN_MESSAGES: Record<ScanResultCode | 'transfer_pending', string> = {
   admitted: 'Ingreso habilitado.',
   already_used: 'Esta entrada ya ingresó.',
   invalid_signature: 'QR falsificado o alterado.',
@@ -48,7 +58,20 @@ const SCAN_MESSAGES: Record<ScanResultCode, string> = {
   not_found: 'Entrada inexistente.',
   outdated_qr: 'QR desactualizado: el titular regeneró su entrada. Pedí el QR vigente.',
   not_valid: 'La entrada fue anulada, devuelta o transferida.',
+  transfer_pending: 'Transferencia en curso: quien la recibió todavía no la aceptó. Pedile que la acepte (o que se cancele) y que muestre el QR nuevo.',
 };
+
+/** Quién dejó pasar una entrada (último ingreso registrado): nombre del personal y puerta. */
+async function admittedBy(tx: Parameters<Parameters<typeof withContext>[2]>[0], ticketId: string): Promise<{ usedByName: string | null; usedGate: string | null }> {
+  const [ev] = await tx
+    .select({ name: users.fullName, data: ticketEvents.data })
+    .from(ticketEvents)
+    .leftJoin(users, eq(users.id, ticketEvents.actorUserId))
+    .where(and(eq(ticketEvents.ticketId, ticketId), eq(ticketEvents.type, 'checked_in')))
+    .orderBy(desc(ticketEvents.occurredAt))
+    .limit(1);
+  return { usedByName: ev?.name ?? null, usedGate: ((ev?.data as { gate?: string | null } | undefined)?.gate ?? null) as string | null };
+}
 
 export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -344,7 +367,8 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
         if (!row) return { result: 'not_found' as const, message: SCAN_MESSAGES.not_found, ticket: null };
         const view = (t: typeof tickets.$inferSelect) => ({ id: t.id, holderName: t.holderName, holderDocLast3: t.holderDocLast3, ticketTypeName: row.typeName, status: t.status, usedAt: t.usedAt });
         const t = row.t;
-        if (t.status === 'used') return { result: 'already_used' as const, message: SCAN_MESSAGES.already_used, ticket: view(t) };
+        if (t.status === 'used') return { result: 'already_used' as const, message: SCAN_MESSAGES.already_used, ticket: { ...view(t), ...(await admittedBy(tx, t.id)) } };
+        if (t.status === 'locked') return { result: 'not_valid' as const, message: SCAN_MESSAGES.transfer_pending, ticket: view(t) };
         if (isTerminal(t.status) || t.status !== 'valid') return { result: 'not_valid' as const, message: SCAN_MESSAGES.not_valid, ticket: view(t) };
         if (t.qrVersion !== claims.version) return { result: 'outdated_qr' as const, message: SCAN_MESSAGES.outdated_qr, ticket: view(t) };
 
@@ -356,6 +380,108 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
           .returning();
         await recordTicketEvents(tx, [
           { orgId: access.orgId, ticketId: t.id, type: 'checked_in', actorUserId: access.userId, data: { gate: req.body.gate ?? null, deviceId: req.body.deviceId ?? null } },
+        ]);
+        return { result: 'admitted' as const, message: SCAN_MESSAGES.admitted, ticket: view(used!) };
+      });
+    },
+  );
+
+  // ─── Búsqueda manual en la puerta (por nombre, email, número de entrada o últimos 3 del DNI) ───
+  r.get(
+    '/v1/organizations/:orgId/events/:eventId/check-in/search',
+    {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: {
+        tags: ['access'],
+        summary: 'Buscar entradas del evento a mano',
+        params: z.object({ orgId: z.string().uuid(), eventId: z.string().uuid() }),
+        querystring: z.object({ q: z.string().trim().min(2).max(80) }),
+        response: {
+          200: z.object({
+            items: z.array(
+              z.object({ id: z.string().uuid(), holderName: z.string(), email: z.string(), holderDocLast3: z.string().nullable(), ticketTypeName: z.string(), status: z.enum(TICKET_STATUSES), usedAt: z.date().nullable(), usedByName: z.string().nullable(), usedGate: z.string().nullable() }),
+            ),
+          }),
+        },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'access.scan');
+      await assertCanScanEvent(s.db, access, req.params.eventId, s.now());
+      const q = req.query.q;
+      const code = q.replace(/[^0-9a-f]/gi, '').toLowerCase();
+      const like = `%${q.replace(/[%_\\]/g, (m) => '\\' + m)}%`;
+      return inOrg(s.db, access, async (tx) => {
+        const rows = await tx
+          .select({ t: tickets, typeName: ticketTypes.name })
+          .from(tickets)
+          .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
+          .where(
+            and(
+              eq(tickets.eventId, req.params.eventId),
+              ne(tickets.status, 'void'),
+              or(
+                sql`${tickets.holderName} ilike ${like}`,
+                sql`lower(${tickets.holderEmail}) like lower(${like})`,
+                code.length >= 4 ? sql`replace(${tickets.id}::text, '-', '') like ${code + '%'}` : sql`false`,
+                /^\d{3}$/.test(q) ? eq(tickets.holderDocLast3, q) : sql`false`,
+              ),
+            ),
+          )
+          .orderBy(tickets.holderName)
+          .limit(15);
+        const items = [];
+        for (const r0 of rows) {
+          const by = r0.t.status === 'used' ? await admittedBy(tx, r0.t.id) : { usedByName: null, usedGate: null };
+          items.push({
+            id: r0.t.id,
+            holderName: r0.t.holderName,
+            email: r0.t.holderEmail.replace(/^(.)(.*)(@.*)$/, (_m, a: string, b: string, c: string) => a + '•'.repeat(Math.min(b.length, 5)) + c),
+            holderDocLast3: r0.t.holderDocLast3,
+            ticketTypeName: r0.typeName,
+            status: r0.t.status,
+            usedAt: r0.t.usedAt,
+            ...by,
+          });
+        }
+        return { items };
+      });
+    },
+  );
+
+  // ─── Ingreso manual (sin QR: celular sin batería, pantalla rota…). Queda registrado como manual. ───
+  r.post(
+    '/v1/organizations/:orgId/events/:eventId/check-in/manual',
+    {
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      schema: {
+        tags: ['access'],
+        summary: 'Dejar pasar una entrada buscada a mano',
+        params: z.object({ orgId: z.string().uuid(), eventId: z.string().uuid() }),
+        body: z.object({ ticketId: z.string().uuid(), gate: z.string().trim().max(60).optional(), deviceId: z.string().trim().max(80).optional() }),
+        response: { 200: ScanResult },
+      },
+    },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'access.scan');
+      await assertCanScanEvent(s.db, access, req.params.eventId, s.now());
+      return inOrg(s.db, access, async (tx) => {
+        const [row] = await tx
+          .select({ t: tickets, typeName: ticketTypes.name })
+          .from(tickets)
+          .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
+          .where(and(eq(tickets.id, req.body.ticketId), eq(tickets.eventId, req.params.eventId)))
+          .for('update', { of: tickets });
+        if (!row) return { result: 'not_found' as const, message: SCAN_MESSAGES.not_found, ticket: null };
+        const view = (t: typeof tickets.$inferSelect) => ({ id: t.id, holderName: t.holderName, holderDocLast3: t.holderDocLast3, ticketTypeName: row.typeName, status: t.status, usedAt: t.usedAt });
+        const t = row.t;
+        if (t.status === 'used') return { result: 'already_used' as const, message: SCAN_MESSAGES.already_used, ticket: { ...view(t), ...(await admittedBy(tx, t.id)) } };
+        if (t.status === 'locked') return { result: 'not_valid' as const, message: SCAN_MESSAGES.transfer_pending, ticket: view(t) };
+        if (t.status !== 'valid') return { result: 'not_valid' as const, message: SCAN_MESSAGES.not_valid, ticket: view(t) };
+        const now = s.now();
+        const [used] = await tx.update(tickets).set({ status: transitionTicket(t.status, 'check_in'), usedAt: now, updatedAt: now }).where(eq(tickets.id, t.id)).returning();
+        await recordTicketEvents(tx, [
+          { orgId: access.orgId, ticketId: t.id, type: 'checked_in', actorUserId: access.userId, data: { gate: req.body.gate ?? null, deviceId: req.body.deviceId ?? null, method: 'manual' } },
         ]);
         return { result: 'admitted' as const, message: SCAN_MESSAGES.admitted, ticket: view(used!) };
       });

@@ -324,7 +324,11 @@ export interface AccessEvent {
 export interface CheckinSummary {
   admitted: number;
   expected: number;
-  recent: { ticketId: string; holderName: string; ticketTypeName: string; at: string; gate: string | null }[];
+  recent: { ticketId: string; holderName: string; ticketTypeName: string; at: string; gate: string | null; byName?: string | null }[];
+  lastMinute?: number;
+  last10Minutes?: number;
+  byGate?: { gate: string | null; count: number }[];
+  byStaff?: { name: string | null; count: number }[];
 }
 
 export type ScanResultCode = 'admitted' | 'already_used' | 'invalid_signature' | 'malformed' | 'wrong_event' | 'not_found' | 'outdated_qr' | 'not_valid';
@@ -332,7 +336,7 @@ export type ScanResultCode = 'admitted' | 'already_used' | 'invalid_signature' |
 export interface ScanResponse {
   result: ScanResultCode;
   message: string;
-  ticket: { id: string; holderName: string; holderDocLast3: string | null; ticketTypeName: string; status: string; usedAt: string | null } | null;
+  ticket: { id: string; holderName: string; holderDocLast3: string | null; ticketTypeName: string; status: string; usedAt: string | null; usedByName?: string | null; usedGate?: string | null } | null;
 }
 
 export interface PaymentAccountStatus {

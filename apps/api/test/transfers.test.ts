@@ -102,3 +102,45 @@ describe('transferencias', () => {
     expect(ajena.status).toBe(404);
   });
 });
+
+describe('puerta: quién dejó pasar, búsqueda manual, ingreso manual y estadísticas', () => {
+  it('ya usada muestra quién y por qué puerta; búsqueda y manual funcionan; el resumen trae ritmo y reparto', async () => {
+    const s = await setup(3);
+    const base = `/v1/organizations/${s.ev.orgId}/events/${s.ev.eventId}`;
+    const first = await call(ctx, 'POST', `${base}/check-in`, { token: s.owner.token, body: { qr: s.tickets[0]!.qr, gate: 'Norte' } });
+    expect(first.body.result).toBe('admitted');
+    const again = await call(ctx, 'POST', `${base}/check-in`, { token: s.owner.token, body: { qr: s.tickets[0]!.qr } });
+    expect(again.body.result).toBe('already_used');
+    expect(again.body.ticket.usedByName).toBe('Productora Dueña');
+    expect(again.body.ticket.usedGate).toBe('Norte');
+
+    const found = await call(ctx, 'GET', `${base}/check-in/search?q=${encodeURIComponent('Ana Comp')}`, { token: s.owner.token });
+    expect(found.status).toBe(200);
+    expect(found.body.items).toHaveLength(3);
+    expect(found.body.items[0].email).toContain('•');
+    const byCode = await call(ctx, 'GET', `${base}/check-in/search?q=${s.tickets[1]!.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`, { token: s.owner.token });
+    expect(byCode.body.items.map((x: { id: string }) => x.id)).toContain(s.tickets[1]!.id);
+
+    const manual = await call(ctx, 'POST', `${base}/check-in/manual`, { token: s.owner.token, body: { ticketId: s.tickets[1]!.id, gate: 'Sur' } });
+    expect(manual.body.result).toBe('admitted');
+    expect((await call(ctx, 'POST', `${base}/check-in/manual`, { token: s.owner.token, body: { ticketId: s.tickets[1]!.id } })).body.result).toBe('already_used');
+
+    // Transferencia pendiente → mensaje específico en la puerta.
+    const beto = await registerUser(ctx, 'Beto');
+    await call(ctx, 'POST', `/v1/me/tickets/${s.tickets[2]!.id}/transfer`, { token: s.ana.token, body: { toEmail: beto.email, toName: 'Beto' } });
+    const locked = await call(ctx, 'POST', `${base}/check-in`, { token: s.owner.token, body: { qr: s.tickets[2]!.qr } });
+    expect(locked.body.result).toBe('not_valid');
+    expect(locked.body.message).toMatch(/Transferencia en curso/);
+
+    const sum = await call(ctx, 'GET', `${base}/check-in/summary`, { token: s.owner.token });
+    expect(sum.body.admitted).toBe(2);
+    expect(sum.body.lastMinute).toBe(2);
+    expect(sum.body.byGate.map((g: { gate: string }) => g.gate).sort()).toEqual(['Norte', 'Sur']);
+    expect(sum.body.byStaff[0]).toMatchObject({ name: 'Productora Dueña', count: 2 });
+
+    // Alguien sin permiso no puede buscar ni dejar pasar.
+    const extra = await registerUser(ctx, 'Extraño');
+    expect([403, 404]).toContain((await call(ctx, 'GET', `${base}/check-in/search?q=Ana`, { token: extra.token })).status);
+    expect([403, 404]).toContain((await call(ctx, 'POST', `${base}/check-in/manual`, { token: extra.token, body: { ticketId: s.tickets[2]!.id } })).status);
+  });
+});

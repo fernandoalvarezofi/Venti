@@ -74,11 +74,24 @@ function writeLocal(key: string, value: string) {
   }
 }
 
+/** Un único contexto de audio: Safari (iPhone) sólo deja sonar después de un toque, así que se desbloquea una vez. */
+let audioCtx: AudioContext | null = null;
+function audio(): AudioContext | null {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    audioCtx ??= new Ctx();
+    if (audioCtx.state === 'suspended') void audioCtx.resume();
+    return audioCtx;
+  } catch {
+    return null;
+  }
+}
+
 /** Pitido corto con Web Audio: agudo = pasa, dos graves = no pasa. Sin archivos de sonido. */
 function beep(ok: boolean) {
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
+    const ctx = audio();
+    if (!ctx) throw new Error('sin audio');
     const notes = ok ? [[1320, 0, 0.12]] : [[220, 0, 0.16], [180, 0.2, 0.22]];
     for (const [freq, start, dur] of notes) {
       const o = ctx.createOscillator();
@@ -92,7 +105,6 @@ function beep(ok: boolean) {
       o.start(ctx.currentTime + start!);
       o.stop(ctx.currentTime + start! + dur! + 0.02);
     }
-    setTimeout(() => ctx.close(), 800);
   } catch {
     /* sin audio */
   }
@@ -118,6 +130,8 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
   const [packInfo, setPackInfo] = useState<{ count: number; syncedAt: string } | null>(null);
   const [pending, setPending] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
 
   const refreshSummary = useCallback(async () => {
     const res = await fetchWithTimeout(`${base}/check-in/summary`, { cache: 'no-store' }, 5000);
@@ -194,7 +208,7 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
     const tick = setInterval(() => {
       void syncNow();
       void refreshSummary();
-    }, 15_000);
+    }, 8_000);
     const goOnline = () => {
       setOnline(true);
       void syncNow();
@@ -209,6 +223,25 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
       window.removeEventListener('offline', goOffline);
     };
   }, [eventId, syncNow, refreshSummary]);
+
+  useEffect(() => {
+    const unlock = () => {
+      const ctx = audio();
+      if (ctx) {
+        // Un sonido mudo de 1 ms deja el audio habilitado para el resto del turno.
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        g.gain.value = 0.0001;
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.001);
+      }
+      setAudioReady(true);
+      window.removeEventListener('pointerdown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock);
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
 
   /** Sin señal: valida con la lista guardada en el celular. */
   const validateLocally = useCallback(
@@ -291,10 +324,11 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
     }, 600);
   }, []);
 
-  // "Adelante" se cierra solo; los rechazos esperan un toque (para que nadie los pase por alto).
+  // Escaneo continuo, sin tocar nada: "Adelante" se cierra a los 1,5 s; un rechazo queda 3,5 s en rojo (se ve de lejos)
+  // y también se cierra solo. Tocar la pantalla lo cierra antes. "Sin conexión" espera una decisión.
   useEffect(() => {
-    if (outcome?.kind === 'result' && outcome.data.result === 'admitted') {
-      const id = setTimeout(dismiss, 1700);
+    if (outcome?.kind === 'result') {
+      const id = setTimeout(dismiss, outcome.data.result === 'admitted' ? 1500 : 3500);
       return () => clearTimeout(id);
     }
   }, [outcome, dismiss]);
@@ -361,7 +395,7 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
           if (value) {
             const last = lastRef.current;
             const now = Date.now();
-            if (!(last && last.qr === value && now - last.at < 3000)) {
+            if (!(last && last.qr === value && now - last.at < 6000)) {
               lastRef.current = { qr: value, at: now };
               void validate(value);
             }
@@ -479,8 +513,11 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
               Linterna
             </button>
           ) : null}
+          <button type="button" onClick={() => setSearchOpen(true)} className="h-11 rounded-full bg-paper/10 px-4 text-sm font-semibold">
+            Buscar
+          </button>
           <button type="button" onClick={() => setShowRecent((v) => !v)} aria-expanded={showRecent} className="h-11 rounded-full bg-paper/10 px-4 text-sm font-semibold">
-            Últimos
+            Datos
           </button>
         </div>
         <div className="flex items-center justify-between gap-3 text-[0.72rem] text-paper/50">
@@ -498,6 +535,34 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
             </button>
           ) : null}
         </div>
+        {showRecent && summary ? (
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded-lg bg-paper/5 px-2 py-2">
+              <p className="font-display text-xl font-extrabold tabular-nums">{summary.lastMinute ?? 0}</p>
+              <p className="text-paper/60">último minuto</p>
+            </div>
+            <div className="rounded-lg bg-paper/5 px-2 py-2">
+              <p className="font-display text-xl font-extrabold tabular-nums">{summary.last10Minutes ?? 0}</p>
+              <p className="text-paper/60">últimos 10 min</p>
+            </div>
+            <div className="rounded-lg bg-paper/5 px-2 py-2">
+              <p className="font-display text-xl font-extrabold tabular-nums">{Math.max(0, summary.expected - summary.admitted).toLocaleString('es-AR')}</p>
+              <p className="text-paper/60">faltan entrar</p>
+            </div>
+            {summary.byGate?.length ? (
+              <div className="col-span-3 rounded-lg bg-paper/5 px-3 py-2 text-left">
+                <p className="text-paper/60">Por puerta</p>
+                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">{summary.byGate.map((g) => <span key={g.gate ?? '-'}><b>{g.count}</b> {g.gate ?? 'sin puerta'}</span>)}</p>
+              </div>
+            ) : null}
+            {summary.byStaff?.length ? (
+              <div className="col-span-3 rounded-lg bg-paper/5 px-3 py-2 text-left">
+                <p className="text-paper/60">Por persona</p>
+                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1">{summary.byStaff.map((p) => <span key={p.name ?? '-'}><b>{p.count}</b> {p.name ?? '—'}</span>)}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {showRecent ? (
           <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
             {summary?.recent.length ? (
@@ -509,6 +574,7 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
                   <span className="shrink-0 tabular-nums text-paper/60">
                     {dateParts(r.at).time}
                     {r.gate ? ` · ${r.gate}` : ''}
+                    {r.byName ? ` · ${r.byName.split(' ')[0]}` : ''}
                   </span>
                 </li>
               ))
@@ -518,6 +584,22 @@ export function Scanner({ orgId, eventId, title, venueName }: { orgId: string; e
           </ul>
         ) : null}
       </footer>
+
+      {!audioReady ? (
+        <p className="pointer-events-none fixed inset-x-0 bottom-28 z-20 mx-auto w-max rounded-full bg-paper px-4 py-2 text-xs font-bold text-ink shadow">Tocá la pantalla una vez para activar el sonido</p>
+      ) : null}
+      {searchOpen ? (
+        <ManualSearch
+          base={base}
+          onClose={() => setSearchOpen(false)}
+          onResult={(data) => {
+            setSearchOpen(false);
+            beep(data.result === 'admitted');
+            setOutcome({ kind: 'result', data, at: Date.now() });
+            void refreshSummary();
+          }}
+        />
+      ) : null}
 
       {/* Resultado a pantalla completa */}
       {outcome ? <ResultOverlay outcome={outcome} onDismiss={dismiss} onRetry={(qr) => { setOutcome(null); void validate(qr); }} /> : null}
@@ -555,8 +637,10 @@ function ResultOverlay({ outcome, onDismiss, onRetry }: { outcome: Outcome; onDi
       <span className="mt-6 font-display text-6xl font-extrabold uppercase tracking-[-0.03em]">{TITLE[data.result]}</span>
       <span className="mt-3 max-w-sm text-lg opacity-90">{data.message}</span>
       {data.result === 'already_used' && t?.usedAt ? (
-        <span className="mt-4 rounded-full bg-black/20 px-4 py-2 text-lg font-bold">
+        <span className="mt-4 rounded-2xl bg-black/20 px-4 py-2 text-lg font-bold">
           Entró a las {dateParts(t.usedAt).time} h
+          {t.usedGate ? ` · puerta ${t.usedGate}` : ''}
+          {t.usedByName ? <span className="block text-base font-semibold opacity-90">Lo dejó pasar {t.usedByName}</span> : null}
         </span>
       ) : null}
       {t ? (
@@ -570,7 +654,104 @@ function ResultOverlay({ outcome, onDismiss, onRetry }: { outcome: Outcome; onDi
         </span>
       ) : null}
       {offline ? <span className="mt-6 rounded-full bg-black/25 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em]">Validado sin señal · se sube al volver la conexión</span> : null}
-      <span className="mt-6 text-sm opacity-75">{data.result === 'admitted' ? 'Siguiente…' : 'Tocá para seguir escaneando'}</span>
+      <span className="mt-6 text-sm opacity-75">{data.result === 'admitted' ? 'Siguiente…' : 'Sigue solo en unos segundos · tocá para seguir ya'}</span>
     </button>
+  );
+}
+
+type FoundTicket = { id: string; holderName: string; email: string; holderDocLast3: string | null; ticketTypeName: string; status: string; usedAt: string | null; usedByName: string | null; usedGate: string | null };
+
+/** Búsqueda a mano: por nombre, email, número de entrada o últimos 3 del DNI. Para quien no puede mostrar el QR. */
+function ManualSearch({ base, onClose, onResult }: { base: string; onClose: () => void; onResult: (r: ScanResponse) => void }) {
+  const [q, setQ] = useState('');
+  const [items, setItems] = useState<FoundTicket[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<FoundTicket | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) {
+      setItems(null);
+      return;
+    }
+    const id = setTimeout(async () => {
+      const res = await fetchWithTimeout(`${base}/check-in/search?q=${encodeURIComponent(term)}`, { cache: 'no-store' }, 5000);
+      if (!res?.ok) {
+        setError(res ? 'No se pudo buscar.' : 'Sin conexión: la búsqueda necesita señal.');
+        return;
+      }
+      setError(null);
+      setItems(((await res.json()) as { items: FoundTicket[] }).items);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [q, base]);
+
+  async function admit(t: FoundTicket) {
+    setBusy(true);
+    const res = await fetchWithTimeout(
+      `${base}/check-in/manual`,
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ticketId: t.id, gate: readLocal('lintick.gate', '') || undefined, deviceId: readLocal('lintick.device', '') || undefined }) },
+      5000,
+    );
+    setBusy(false);
+    if (!res?.ok) {
+      setError(res ? 'No se pudo registrar el ingreso.' : 'Sin conexión: el ingreso manual necesita señal.');
+      return;
+    }
+    onResult((await res.json()) as ScanResponse);
+  }
+
+  const label: Record<string, string> = { valid: 'Puede entrar', used: 'Ya entró', locked: 'Transferencia pendiente', void: 'Anulada', cancelled: 'Cancelada', refunded: 'Devuelta' };
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Buscar entrada" className="fixed inset-0 z-40 flex flex-col bg-ink/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="flex items-center gap-2">
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Nombre, email, Nº de entrada o DNI (3 últimos)"
+          className="h-12 min-w-0 flex-1 rounded-full bg-paper px-5 text-base text-ink outline-none"
+        />
+        <button type="button" onClick={onClose} className="h-12 rounded-full bg-paper/10 px-4 font-semibold">
+          Cerrar
+        </button>
+      </div>
+      {error ? <p className="mt-3 rounded-lg bg-danger/90 px-3 py-2 text-sm font-semibold text-white">{error}</p> : null}
+      <ul className="mt-4 flex-1 space-y-2 overflow-y-auto">
+        {items?.length === 0 ? <li className="text-paper/60">No hay entradas que coincidan.</li> : null}
+        {items?.map((t) => (
+          <li key={t.id} className="rounded-2xl bg-paper/5 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-lg font-bold">{t.holderName}</p>
+                <p className="truncate text-sm text-paper/60">{t.email} · {t.ticketTypeName}</p>
+                <p className="mt-1 font-mono text-xs text-paper/60">Nº {ticketCode(t.id)}{t.holderDocLast3 ? ` · DNI …${t.holderDocLast3}` : ''}</p>
+                {t.status === 'used' && t.usedAt ? (
+                  <p className="mt-1 text-sm text-[#ffb4a6]">Entró {dateParts(t.usedAt).time} h{t.usedGate ? ` · ${t.usedGate}` : ''}{t.usedByName ? ` · ${t.usedByName}` : ''}</p>
+                ) : null}
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${t.status === 'valid' ? 'bg-success text-white' : 'bg-paper/15'}`}>{label[t.status] ?? t.status}</span>
+            </div>
+            {t.status === 'valid' ? (
+              confirm?.id === t.id ? (
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={() => setConfirm(null)} className="h-11 flex-1 rounded-full bg-paper/10 font-semibold">
+                    No
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => admit(t)} className="h-11 flex-1 rounded-full bg-success font-bold text-white">
+                    {busy ? '…' : 'Sí, dejar pasar'}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirm(t)} className="mt-3 h-11 w-full rounded-full bg-paper font-bold text-ink">
+                  Dejar pasar (verificá el DNI)
+                </button>
+              )
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createPublicKey } from 'node:crypto';
 import { roleHas, transitionTicket } from '@venti/domain';
-import { and, asc, desc, eq, events, gt, inArray, memberships, organizations, sql, staffAssignments, ticketEvents, ticketTypes, tickets, venues, withContext } from '@venti/db';
+import { and, asc, desc, eq, events, gt, inArray, memberships, organizations, sql, staffAssignments, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -24,7 +24,12 @@ const AccessEvent = z.object({
 const Summary = z.object({
   admitted: z.number(),
   expected: z.number(),
-  recent: z.array(z.object({ ticketId: z.string().uuid(), holderName: z.string(), ticketTypeName: z.string(), at: z.date(), gate: z.string().nullable() })),
+  recent: z.array(z.object({ ticketId: z.string().uuid(), holderName: z.string(), ticketTypeName: z.string(), at: z.date(), gate: z.string().nullable(), byName: z.string().nullable().optional() })),
+  /** Ritmo: ingresos en el último minuto y en los últimos 10 minutos. */
+  lastMinute: z.number().optional(),
+  last10Minutes: z.number().optional(),
+  byGate: z.array(z.object({ gate: z.string().nullable(), count: z.number() })).optional(),
+  byStaff: z.array(z.object({ name: z.string().nullable(), count: z.number() })).optional(),
 });
 
 /** Lintick Access: qué eventos puede controlar cada persona y cómo va el ingreso. */
@@ -102,17 +107,35 @@ export async function accessRoutes(app: FastifyInstance, s: Services): Promise<v
           .from(tickets)
           .where(eq(tickets.eventId, req.params.eventId));
         const recent = await tx
-          .select({ ticketId: tickets.id, holderName: tickets.holderName, ticketTypeName: ticketTypes.name, at: ticketEvents.occurredAt, data: ticketEvents.data })
+          .select({ ticketId: tickets.id, holderName: tickets.holderName, ticketTypeName: ticketTypes.name, at: ticketEvents.occurredAt, data: ticketEvents.data, byName: users.fullName })
           .from(ticketEvents)
           .innerJoin(tickets, eq(tickets.id, ticketEvents.ticketId))
+          .leftJoin(users, eq(users.id, ticketEvents.actorUserId))
           .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
           .where(and(eq(tickets.eventId, req.params.eventId), eq(ticketEvents.type, 'checked_in')))
           .orderBy(desc(ticketEvents.occurredAt))
           .limit(8);
+        // Ritmo y reparto por puerta y por persona (ingresos vigentes: el último check-in de cada entrada usada).
+        const scope = sql`${ticketEvents.type} = 'checked_in' and ${tickets.eventId} = ${req.params.eventId} and ${tickets.status} = 'used'`;
+        const [rate] = await tx
+          .select({
+            lastMinute: sql<number>`count(*) filter (where ${ticketEvents.occurredAt} > now() - interval '1 minute')`.mapWith(Number),
+            last10: sql<number>`count(*) filter (where ${ticketEvents.occurredAt} > now() - interval '10 minutes')`.mapWith(Number),
+          })
+          .from(ticketEvents)
+          .innerJoin(tickets, eq(tickets.id, ticketEvents.ticketId))
+          .where(scope);
+        const gateExpr = sql<string | null>`nullif(${ticketEvents.data}->>'gate', '')`;
+        const byGate = await tx.select({ gate: gateExpr, count: sql<number>`count(*)`.mapWith(Number) }).from(ticketEvents).innerJoin(tickets, eq(tickets.id, ticketEvents.ticketId)).where(scope).groupBy(gateExpr).orderBy(desc(sql`count(*)`)).limit(12);
+        const byStaff = await tx.select({ name: users.fullName, count: sql<number>`count(*)`.mapWith(Number) }).from(ticketEvents).innerJoin(tickets, eq(tickets.id, ticketEvents.ticketId)).leftJoin(users, eq(users.id, ticketEvents.actorUserId)).where(scope).groupBy(users.fullName).orderBy(desc(sql`count(*)`)).limit(20);
         return {
+          lastMinute: rate?.lastMinute ?? 0,
+          last10Minutes: rate?.last10 ?? 0,
+          byGate,
+          byStaff,
           admitted: counts?.admitted ?? 0,
           expected: counts?.expected ?? 0,
-          recent: recent.map((x) => ({ ticketId: x.ticketId, holderName: x.holderName, ticketTypeName: x.ticketTypeName, at: x.at, gate: ((x.data as { gate?: string | null }).gate ?? null) as string | null })),
+          recent: recent.map((x) => ({ ticketId: x.ticketId, holderName: x.holderName, ticketTypeName: x.ticketTypeName, at: x.at, gate: ((x.data as { gate?: string | null }).gate ?? null) as string | null, byName: x.byName ?? null })),
         };
       });
     },
