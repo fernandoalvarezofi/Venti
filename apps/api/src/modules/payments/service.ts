@@ -129,14 +129,13 @@ export async function startCheckout(s: Services, userId: string, holdId: string)
         unitPrice: i.unitPriceCents / 100,
         currency: i.currency,
       })).concat(
-        // El cargo por servicio va como ítem aparte: cubre la comisión de Lintick y el costo de Mercado Pago.
+        // El cargo por servicio va como ítem aparte: el comprador lo ve en Mercado Pago y es lo que retiene Lintick.
         prepared.order.feeCents > 0
           ? [{ id: 'cargo-servicio', title: 'Cargo por servicio Lintick', quantity: 1, unitPrice: prepared.order.feeCents / 100, currency: prepared.order.currency }]
           : [],
       ),
-      // Lintick retiene sólo su comisión; el resto del cargo cubre lo que descuenta Mercado Pago,
-      // así la productora recibe el precio completo de las entradas.
-      marketplaceFee: prepared.order.commissionCents / 100,
+      // Lintick retiene exactamente el cargo por servicio: la productora recibe el precio completo de las entradas.
+      marketplaceFee: prepared.order.feeCents / 100,
       externalReference: prepared.order.id,
       notificationUrl: `${s.config.PUBLIC_API_URL}/v1/webhooks/mercadopago?org=${h.organizationId}&order=${prepared.order.id}`,
       backUrl: `${s.config.PUBLIC_WEB_URL}/compra/${prepared.order.id}`,

@@ -25,7 +25,7 @@ export function MoneyBreakdown({ s }: { s: EventStats }) {
           <dd className="tabular-nums">{formatMoney(s.grossCents + s.commissionCents)}</dd>
         </div>
       </dl>
-      <p className="mt-4 text-xs text-muted">Recibís el precio completo de cada entrada. El cargo por servicio lo paga el comprador y cubre la comisión de Lintick y la de Mercado Pago; las cortesías no tienen cargo.</p>
+      <p className="mt-4 text-xs text-muted">Cobrás el precio completo de cada entrada. El cargo por servicio lo paga el comprador y es el ingreso de Lintick; las cortesías no tienen cargo.</p>
     </div>
   );
 }

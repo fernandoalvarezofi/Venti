@@ -44,7 +44,7 @@ export default function TermsPage() {
           title: 'Compra de entradas',
           body: (
             <ul>
-              <li>Al precio de la entrada se suma un cargo por servicio, que incluye la comisión de Lintick (10%, salvo que se indique otro) y el costo de procesamiento de Mercado Pago. Antes de pagar ves el detalle: precio, cargo por servicio y total.</li>
+              <li>Al precio de la entrada se suma un cargo por servicio de Lintick (10%, salvo que se indique otro). Antes de pagar ves el detalle: precio, cargo por servicio y total.</li>
               <li>Al iniciar la compra, las entradas quedan reservadas por un tiempo limitado; si no se completa el pago, se liberan.</li>
               <li>Los pagos se procesan con Mercado Pago. La entrada se emite cuando Mercado Pago confirma el pago.</li>
             </ul>
@@ -86,7 +86,7 @@ export default function TermsPage() {
           title: 'Productoras',
           body: (
             <ul>
-              <li>Las productoras cobran sus ventas en su propia cuenta de Mercado Pago, por el precio completo de cada entrada. El cargo por servicio lo paga el comprador: cubre la comisión de Lintick y lo que descuenta Mercado Pago por procesar el pago.</li>
+              <li>Las productoras cobran sus ventas en su propia cuenta de Mercado Pago, por el precio completo de cada entrada. El cargo por servicio lo paga el comprador y es el ingreso de Lintick.</li>
               <li>Son responsables de la información de sus eventos, del cumplimiento de habilitaciones y de las devoluciones cuando correspondan.</li>
               <li>Sólo pueden usar los datos de sus asistentes para gestionar sus eventos.</li>
             </ul>

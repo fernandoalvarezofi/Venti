@@ -590,7 +590,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
                 </li>
               ))}
             </ul>
-            <p className="text-sm text-muted">Recibís el precio completo de cada entrada, limpio. El comprador paga además un cargo por servicio (comisión de Lintick + costo de Mercado Pago), que ve antes de pagar.</p>
+            <p className="text-sm text-muted">Cobrás el precio completo de cada entrada. El comprador paga además el cargo por servicio de Lintick (10%), que ve antes de pagar.</p>
             {submitError ? (
               <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
                 {submitError}

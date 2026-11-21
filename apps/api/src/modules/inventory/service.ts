@@ -38,14 +38,14 @@ export interface Quote {
   currency: string;
   lines: QuoteLine[];
   subtotalCents: number;
-  /** Cargo por servicio (comisión de Lintick + costo de Mercado Pago), como porcentaje aproximado del subtotal. */
+  /** Cargo por servicio de Lintick (porcentaje sobre el subtotal). */
   feeBps: number;
   feeCents: number;
   /** Lo que paga el comprador: entradas + cargo por servicio. */
   totalCents: number;
 }
 
-/** Ingreso de Lintick por la venta (la parte del cargo por servicio que retiene Lintick). */
+/** Ingreso de Lintick por la venta (igual al cargo por servicio). */
 interface Commission {
   commissionBps: number;
   commissionCents: number;
@@ -72,28 +72,6 @@ export function commissionBpsFromSettings(settings: unknown): number {
   return typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 && raw <= MAX_COMMISSION_BPS ? raw : DEFAULT_COMMISSION_BPS;
 }
 
-/**
- * Lo que Mercado Pago le descuenta a la productora por procesar el cobro, en puntos básicos (IVA incluido).
- * Por defecto 761 = 6,29% + IVA (plata disponible al instante). Se puede ajustar por productora
- * (organizations.settings.mpFeeBps) si eligió recibir la plata a 10, 18 o 35 días en Mercado Pago.
- */
-export const DEFAULT_MP_FEE_BPS = 761;
-export function mpFeeBpsFromSettings(settings: unknown): number {
-  const raw = (settings as { mpFeeBps?: unknown } | null)?.mpFeeBps;
-  return typeof raw === 'number' && Number.isSafeInteger(raw) && raw >= 0 && raw <= 1500 ? raw : DEFAULT_MP_FEE_BPS;
-}
-
-/**
- * Cargo por servicio que paga el comprador, calculado para que la productora reciba el precio de las entradas
- * completo: cubre la comisión de Lintick y lo que cobra Mercado Pago por procesar el pago (que se calcula sobre el total).
- * total = (precio + comisión Lintick) / (1 − tasa MP), redondeado hacia arriba al centavo.
- */
-export function serviceChargeCents(subtotalCents: number, lintickCents: number, mpFeeBps: number): number {
-  if (subtotalCents <= 0) return 0;
-  const total = Math.ceil(((subtotalCents + lintickCents) * 10_000) / (10_000 - mpFeeBps));
-  return total - subtotalCents;
-}
-
 function validateItems(items: readonly HoldRequestItem[]): string[] {
   const totalUnits = items.reduce((a, i) => a + i.quantity, 0);
   if (totalUnits > MAX_UNITS_PER_HOLD) throw new AppError(422, 'hold.too_many_units', `Máximo ${MAX_UNITS_PER_HOLD} entradas por compra.`);
@@ -106,7 +84,6 @@ interface SaleEvent {
   id: string;
   organizationId: string;
   commissionBps: number;
-  mpFeeBps: number;
 }
 
 /** Evento vendible + comisión acordada con su productora. La organización la decide el servidor. */
@@ -120,7 +97,7 @@ async function loadSaleEvent(db: Db, eventId: string, userId: string | null, now
   );
   if (!row) throw notFound('Evento');
   if (row.status !== 'published' || row.endsAt <= now) throw conflict('event_not_on_sale', 'El evento no está a la venta.');
-  return { id: row.id, organizationId: row.organizationId, commissionBps: commissionBpsFromSettings(row.settings), mpFeeBps: mpFeeBpsFromSettings(row.settings) };
+  return { id: row.id, organizationId: row.organizationId, commissionBps: commissionBpsFromSettings(row.settings) };
 }
 
 /**
@@ -163,18 +140,17 @@ async function priceSelection(tx: Tx, event: SaleEvent, items: readonly HoldRequ
   if (currencies.size > 1) throw new DomainError('hold.mixed_currency', 'No se pueden combinar entradas en distintas monedas.');
 
   const subtotalCents = lines.reduce((a, l) => a + l.lineTotalCents, 0);
-  const lintickCents = commissionCents(subtotalCents, event.commissionBps);
-  const feeCents = serviceChargeCents(subtotalCents, lintickCents, event.mpFeeBps);
+  const feeCents = commissionCents(subtotalCents, event.commissionBps);
   return {
     eventId: event.id,
     currency: [...currencies][0] ?? 'ARS',
     lines,
     subtotalCents,
-    feeBps: subtotalCents > 0 ? Math.round((feeCents * 10_000) / subtotalCents) : 0,
+    feeBps: event.commissionBps,
     feeCents,
     totalCents: subtotalCents + feeCents,
     commissionBps: event.commissionBps,
-    commissionCents: lintickCents,
+    commissionCents: feeCents,
   };
 }
 
