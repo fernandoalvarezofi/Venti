@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { InstallApp } from '@/components/app-install';
 import { MascotFace } from '@/components/header';
 import { getAccessEvents } from '@/lib/api';
 import { dateParts } from '@/lib/format';
@@ -23,6 +24,7 @@ export default async function AccessHome() {
 
       <h1 className="mt-10 text-4xl font-extrabold leading-tight">Control de ingreso</h1>
       <p className="mt-2 text-paper/60">Elegí el evento y escaneá el QR de cada entrada. Cada entrada entra una sola vez.</p>
+      <InstallApp className="mt-6 text-ink" />
 
       {!res.ok ? (
         <p role="alert" className="mt-8 rounded-2xl bg-danger/20 px-4 py-3 text-sm">

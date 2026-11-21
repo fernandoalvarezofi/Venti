@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, Caveat, Geist } from 'next/font/google';
 import './globals.css';
+import { ServiceWorkerRegister } from '@/components/app-install';
 
 const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-bricolage', display: 'swap' });
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist', display: 'swap' });
@@ -13,6 +14,8 @@ export const metadata: Metadata = {
   title: { default: 'Lintick — Entradas para lo que pasa', template: '%s · Lintick' },
   description: 'Descubrí recitales, fiestas, festivales y obras en Argentina. Comprá tus entradas en Lintick.',
   robots: { index: false, follow: false },
+  icons: { icon: [{ url: '/app/favicon-32.png', sizes: '32x32', type: 'image/png' }], apple: '/app/apple-touch-icon.png' },
+  appleWebApp: { capable: true, title: 'Lintick', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
@@ -29,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Saltar al contenido
         </a>
         {children}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

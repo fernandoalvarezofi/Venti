@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { forgetOfflinePages } from './app-install';
 import { useTransition } from 'react';
 
 export function LogoutButton() {
@@ -13,6 +14,7 @@ export function LogoutButton() {
       onClick={() =>
         start(async () => {
           await fetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => null);
+      forgetOfflinePages();
           router.push('/');
           router.refresh();
         })

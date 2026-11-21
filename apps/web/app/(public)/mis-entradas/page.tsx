@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { InstallApp } from '@/components/app-install';
 import { redirect } from 'next/navigation';
 import QRCode from 'qrcode';
 import { TicketPass } from '@/components/ticket-pass';
@@ -29,6 +30,7 @@ export default async function MyTicketsPage() {
     <div className="mx-auto max-w-3xl px-4 pt-10 sm:px-6">
       <h1 className="text-[clamp(2.2rem,5vw,3.4rem)] font-extrabold leading-none">Mis entradas</h1>
       <p className="mt-2 text-muted">Mostrá el QR en la puerta. Funciona con el brillo de la pantalla al máximo.</p>
+      <InstallApp className="mt-6" />
       <div className="mt-10">
         {!r.ok ? (
           <ErrorState message={r.error?.message ?? 'El servicio no respondió.'} />

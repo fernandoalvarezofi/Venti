@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { SearchIcon, TicketIcon } from './icons';
+import { forgetOfflinePages } from './app-install';
 
 /**
  * Menú principal sobrio: enlaces de texto con subrayado que se dibuja al pasar el mouse,
@@ -81,6 +82,7 @@ function AccountMenu({ user }: { user: { firstName: string; fullName: string; em
   function logout() {
     start(async () => {
       await fetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => null);
+      forgetOfflinePages();
       setOpen(false);
       router.push('/');
       router.refresh();
