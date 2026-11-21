@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { audit, recordTicketEvents } from '../../lib/audit.ts';
-import { inOrg, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
+import { inOrg, keyByStaffSession, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
 import { simpleEmail } from '../../lib/email-layout.ts';
 import { sendCourtesyTickets, sendPurchasePreview } from '../payments/emails.ts';
@@ -336,7 +336,7 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
   r.post(
     '/v1/organizations/:orgId/events/:eventId/check-in',
     {
-      config: { rateLimit: { max: 600, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 1200, timeWindow: '1 minute', keyGenerator: keyByStaffSession } },
       schema: {
         tags: ['access'],
         summary: 'Validar un QR y registrar el ingreso',
@@ -390,7 +390,7 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
   r.get(
     '/v1/organizations/:orgId/events/:eventId/check-in/search',
     {
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute', keyGenerator: keyByStaffSession } },
       schema: {
         tags: ['access'],
         summary: 'Buscar entradas del evento a mano',
@@ -453,7 +453,7 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
   r.post(
     '/v1/organizations/:orgId/events/:eventId/check-in/manual',
     {
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute', keyGenerator: keyByStaffSession } },
       schema: {
         tags: ['access'],
         summary: 'Dejar pasar una entrada buscada a mano',

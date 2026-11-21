@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { assertCanScanEvent } from '../../lib/access.ts';
 import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { notFound } from '../../lib/errors.ts';
-import { requireAuth, requireOrgPermission, inOrg, type Services } from '../../lib/context.ts';
+import { keyByStaffSession, requireAuth, requireOrgPermission, inOrg, type Services } from '../../lib/context.ts';
 
 const AccessEvent = z.object({
   orgId: z.string().uuid(),
@@ -87,7 +87,7 @@ export async function accessRoutes(app: FastifyInstance, s: Services): Promise<v
   r.get(
     '/v1/organizations/:orgId/events/:eventId/check-in/summary',
     {
-      config: { rateLimit: { max: 240, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 240, timeWindow: '1 minute', keyGenerator: keyByStaffSession } },
       schema: {
         tags: ['access'],
         summary: 'Contador de ingresos y últimos ingresos (para la pantalla de control)',
@@ -164,7 +164,7 @@ export async function accessRoutes(app: FastifyInstance, s: Services): Promise<v
   r.get(
     '/v1/organizations/:orgId/events/:eventId/access-pack',
     {
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute', keyGenerator: keyByStaffSession } },
       schema: {
         tags: ['access'],
         summary: 'Lista de entradas para validar sin señal',
@@ -207,7 +207,7 @@ export async function accessRoutes(app: FastifyInstance, s: Services): Promise<v
   r.post(
     '/v1/organizations/:orgId/events/:eventId/check-in/sync',
     {
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+      config: { rateLimit: { max: 240, timeWindow: '1 minute', keyGenerator: keyByStaffSession } },
       schema: {
         tags: ['access'],
         summary: 'Subir los ingresos registrados sin señal',

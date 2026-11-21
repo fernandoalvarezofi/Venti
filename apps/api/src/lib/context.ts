@@ -1,4 +1,4 @@
-import type { KeyObject } from 'node:crypto';
+import { createHash, type KeyObject } from 'node:crypto';
 import type { GoogleClient } from './google.ts';
 import type { MercadoPagoClient } from './mercadopago.ts';
 import type { SecretBox } from './secret-box.ts';
@@ -69,4 +69,16 @@ export async function requireOrgPermission(db: Db, req: FastifyRequest, orgId: s
 /** Atajo: transacción en el contexto de una organización a la que ya se verificó acceso. */
 export function inOrg<T>(db: Db, access: OrgAccess, fn: (tx: Tx) => Promise<T>): Promise<T> {
   return withContext(db, { orgId: access.orgId, userId: access.userId }, fn);
+}
+
+/**
+ * Límite de pedidos por SESIÓN del personal (no por IP): en un evento, todos los celulares conectados al mismo WiFi
+ * salen por la misma IP pública y un límite por IP frenaría la puerta en el pico. Sin sesión, se usa la IP.
+ */
+export function keyByStaffSession(req: { headers: Record<string, string | string[] | undefined>; ip: string }): string {
+  const auth = req.headers.authorization;
+  const bearer = typeof auth === 'string' && auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const cookie = typeof req.headers.cookie === 'string' ? /(?:^|;\s*)venti_session=([^;]+)/.exec(req.headers.cookie)?.[1] ?? null : null;
+  const token = bearer ?? cookie;
+  return token ? `s:${createHash('sha256').update(token).digest('base64url').slice(0, 22)}` : `ip:${req.ip}`;
 }
