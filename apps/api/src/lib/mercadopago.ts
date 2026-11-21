@@ -5,7 +5,7 @@ import { AppError } from './errors.ts';
  * Cliente de Mercado Pago (Checkout Pro, modelo marketplace).
  *
  * Fuentes verificadas (developers.mercadopago.com, 2026-11):
- *  - OAuth: GET https://auth.mercadopago.com/authorization?client_id&response_type=code&platform_id=mp&state&redirect_uri
+ *  - OAuth: GET https://auth.mercadopago.com.ar/authorization?client_id&response_type=code&platform_id=mp&state&redirect_uri
  *           POST https://api.mercadopago.com/oauth/token (authorization_code | refresh_token, test_token)
  *  - Preferencia: POST /checkout/preferences con el access_token DEL VENDEDOR y marketplace_fee (monto, no %).
  *  - Pagos: GET /v1/payments/{id}, GET /v1/payments/search?external_reference=…, POST /v1/payments/{id}/refunds.
@@ -97,7 +97,8 @@ export class HttpMercadoPago implements MercadoPagoClient {
 
   authorizeUrl(state: string, redirectUri: string): string {
     const qs = new URLSearchParams({ client_id: this.clientId, response_type: 'code', platform_id: 'mp', state, redirect_uri: redirectUri });
-    return `https://auth.mercadopago.com/authorization?${qs}`;
+    // Mercado Pago Argentina directo: con el dominio genérico, primero pide elegir el país.
+    return `https://auth.mercadopago.com.ar/authorization?${qs}`;
   }
 
   protected async call(path: string, init: RequestInit & { token?: string; idem?: string }, okStatuses = [200, 201]): Promise<{ status: number; body: Record<string, unknown> }> {
