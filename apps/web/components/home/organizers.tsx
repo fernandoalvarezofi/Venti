@@ -84,7 +84,7 @@ export function Essentials() {
                       <p className="mt-1.5 text-[0.8rem] font-bold leading-tight">Noche de Otoño</p>
                       <p className="text-[0.58rem] text-muted">Sáb 14/03 · 22:00 · Sala Norte</p>
                       <div className="relative mx-auto mt-2 w-[86%]">
-                        <BrandedQr value="https://venti-web-eta.vercel.app" className="block h-auto w-full" />
+                        <BrandedQr value="https://lintick.com" className="block h-auto w-full" />
                       </div>
                       <p className="mt-1.5 text-center">
                         <span className="block text-[0.45rem] font-semibold uppercase tracking-[0.16em] text-muted">Entrada Nº</span>

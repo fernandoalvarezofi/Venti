@@ -603,7 +603,7 @@ export function PageEditor({ orgId, event }: { orgId: string; event: AdminEvent 
                       <div className="p-2.5">
                         <p className="line-clamp-1 text-sm font-semibold">{d.seo.title || event.title}</p>
                         <p className="line-clamp-2 text-xs text-ink-soft">{d.seo.description || d.summary || `${start_.long} · Entradas en Lintick`}</p>
-                        <p className="mt-1 text-[0.7rem] text-muted">venti-web-eta.vercel.app</p>
+                        <p className="mt-1 text-[0.7rem] text-muted">lintick.com</p>
                       </div>
                     </div>
                   </div>
