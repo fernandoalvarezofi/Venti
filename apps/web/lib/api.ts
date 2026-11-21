@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { API_URL } from './config';
-import type { AccessEvent, AdminEvent, PaymentAccountStatus, ApiErrorBody, Attendee, EventStats, Hold, Member, Org, Overview, PublicEvent, PublicEventDetail, StaffShift, Ticket, User, Venue } from './types';
+import type { Transfer, AccessEvent, AdminEvent, PaymentAccountStatus, ApiErrorBody, Attendee, EventStats, Hold, Member, Org, Overview, PublicEvent, PublicEventDetail, StaffShift, Ticket, User, Venue } from './types';
 
 /** Llamada a la API desde el servidor, reenviando la cookie de sesión del visitante. */
 async function apiGet<T>(path: string, opts: { auth?: boolean; revalidate?: number } = {}): Promise<{ ok: true; data: T } | { ok: false; status: number; error: ApiErrorBody['error'] | null }> {
@@ -53,6 +53,10 @@ export async function getCurrentUser(): Promise<User | null> {
 
 export function getMyTickets() {
   return apiGet<{ items: Ticket[] }>('/v1/me/tickets', { auth: true });
+}
+
+export function getMyTransfers() {
+  return apiGet<{ incoming: Transfer[]; outgoing: Transfer[] }>('/v1/me/transfers', { auth: true });
 }
 
 export function getHold(id: string) {

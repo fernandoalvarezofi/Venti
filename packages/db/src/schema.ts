@@ -614,6 +614,39 @@ export const ticketClaims = pgTable(
   ],
 );
 
+// ───────────────────────────── Transferencia de entradas entre personas ─────────────────────────────
+
+export const ticketTransfers = pgTable(
+  'ticket_transfers',
+  {
+    id: uuid('id').primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => tickets.id, { onDelete: 'cascade' }),
+    fromUserId: uuid('from_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    toEmailLower: text('to_email_lower').notNull(),
+    toName: text('to_name').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    status: text('status', { enum: ['pending', 'accepted', 'cancelled', 'expired'] }).notNull().default('pending'),
+    newTicketId: uuid('new_ticket_id').references(() => tickets.id, { onDelete: 'set null' }),
+    acceptedBy: uuid('accepted_by').references(() => users.id, { onDelete: 'set null' }),
+    expiresAt: ts('expires_at').notNull(),
+    resolvedAt: ts('resolved_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('ticket_transfers_token_uq').on(t.tokenHash),
+    uniqueIndex('ticket_transfers_pending_uq').on(t.ticketId).where(sql`${t.status} = 'pending'`),
+    index('ticket_transfers_to_idx').on(t.toEmailLower),
+    index('ticket_transfers_from_idx').on(t.fromUserId),
+  ],
+);
+
 // ───────────────────────────── Personal de acceso asignado por evento y turno ─────────────────────────────
 
 export const staffAssignments = pgTable(

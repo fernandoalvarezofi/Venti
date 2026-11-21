@@ -4,18 +4,25 @@ import { redirect } from 'next/navigation';
 import QRCode from 'qrcode';
 import { TicketPass } from '@/components/ticket-pass';
 import { EmptyState, ErrorState } from '@/components/states';
-import { getMyTickets } from '@/lib/api';
+import { getMyTickets, getMyTransfers } from '@/lib/api';
+import { IncomingTransfers } from '@/components/incoming-transfers';
 
 export const metadata: Metadata = { title: 'Mis entradas', robots: { index: false, follow: false } };
 
 export default async function MyTicketsPage() {
-  const r = await getMyTickets();
+  const [r, tr] = await Promise.all([getMyTickets(), getMyTransfers()]);
   if (!r.ok && r.status === 401) redirect('/ingresar?next=/mis-entradas');
 
   const now = Date.now();
   const tickets = r.ok ? r.data.items : [];
   const upcoming = tickets.filter((t) => new Date(t.event.endsAt).getTime() > now);
   const past = tickets.filter((t) => new Date(t.event.endsAt).getTime() <= now);
+  const incoming = tr.ok ? tr.data.incoming : [];
+  const outgoingByTicket = new Map((tr.ok ? tr.data.outgoing : []).map((x) => [x.ticketId, x]));
+  // Varias entradas para el mismo evento: "Entrada 1 de 4", "2 de 4"…
+  const byEvent = new Map<string, string[]>();
+  for (const t of upcoming) byEvent.set(t.event.id, [...(byEvent.get(t.event.id) ?? []), t.id]);
+  const positionOf = (t: (typeof upcoming)[number]) => { const ids = byEvent.get(t.event.id) ?? []; return { i: ids.indexOf(t.id) + 1, n: ids.length }; };
 
   // El QR se dibuja en el servidor como SVG: nítido en cualquier pantalla y sin depender de JavaScript.
   const qrSvgs = Object.fromEntries(
@@ -31,6 +38,7 @@ export default async function MyTicketsPage() {
       <h1 className="text-[clamp(2.2rem,5vw,3.4rem)] font-extrabold leading-none">Mis entradas</h1>
       <p className="mt-2 text-muted">Mostrá el QR en la puerta. Funciona con el brillo de la pantalla al máximo.</p>
       <InstallApp className="mt-6" />
+      <IncomingTransfers items={incoming} />
       <div className="mt-10">
         {!r.ok ? (
           <ErrorState message={r.error?.message ?? 'El servicio no respondió.'} />
@@ -42,7 +50,7 @@ export default async function MyTicketsPage() {
               <ul className="space-y-6">
                 {upcoming.map((t) => (
                   <li key={t.id}>
-                    <TicketPass ticket={t} qrSvg={qrSvgs[t.id] ?? null} />
+                    <TicketPass ticket={t} qrSvg={qrSvgs[t.id] ?? null} position={positionOf(t)} transfer={outgoingByTicket.get(t.id) ?? null} />
                   </li>
                 ))}
               </ul>

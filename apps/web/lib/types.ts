@@ -129,6 +129,19 @@ export interface Quote {
   totalCents: number;
 }
 
+export interface Transfer {
+  id: string;
+  ticketId: string;
+  status: 'pending' | 'accepted' | 'cancelled' | 'expired';
+  toName: string;
+  toEmail: string;
+  fromName: string | null;
+  event: { id: string; title: string; startsAt: string; venueName: string | null };
+  ticketTypeName: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export interface Ticket {
   id: string;
   status: 'valid' | 'locked' | 'used' | 'void' | 'cancelled' | 'refunded';

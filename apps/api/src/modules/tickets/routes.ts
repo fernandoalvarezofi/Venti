@@ -1,6 +1,6 @@
 import { createPublicKey, randomUUID } from 'node:crypto';
 import { TICKET_STATUSES, isTerminal, signTicketQr, transitionTicket, verifyTicketQr } from '@venti/domain';
-import { and, desc, eq, events, gt, isNotNull, lte, organizations, sql, staffAssignments, ticketClaims, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
+import { and, desc, eq, events, gt, ne, isNotNull, lte, organizations, sql, staffAssignments, ticketClaims, ticketEvents, ticketTypes, tickets, users, venues, withContext } from '@venti/db';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -241,7 +241,8 @@ Si ya tenés cuenta, ingresá y confirmá tu email.`,
         .innerJoin(ticketTypes, eq(ticketTypes.id, tickets.ticketTypeId))
         .innerJoin(events, eq(events.id, tickets.eventId))
         .leftJoin(venues, eq(venues.id, events.venueId))
-        .where(eq(tickets.ownerUserId, userId))
+        // Las anuladas por reemplazo (transferidas o reemitidas) no se muestran: la vigente es la nueva.
+        .where(and(eq(tickets.ownerUserId, userId), ne(tickets.status, 'void')))
         .orderBy(desc(events.startsAt)),
     );
     return { items: rows.map(toDto) };
