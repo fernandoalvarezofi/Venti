@@ -5,6 +5,8 @@ export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
+  /** Versión HTML opcional (el texto queda como alternativa para clientes sin HTML). */
+  html?: string;
   /** Etiqueta para búsqueda en tests y métricas: verify_email, password_reset, account_exists, tickets_pending_claim. */
   kind: string;
   /** Datos estructurados (enlaces) para tests; nunca contienen secretos que no estén ya en el texto. */
@@ -30,7 +32,7 @@ class ResendSender implements EmailSender {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ from: this.from, to: [msg.to], subject: msg.subject, text: msg.text, tags: [{ name: 'kind', value: msg.kind }] }),
+      body: JSON.stringify({ from: this.from, to: [msg.to], subject: msg.subject, text: msg.text, ...(msg.html ? { html: msg.html } : {}), tags: [{ name: 'kind', value: msg.kind }] }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {

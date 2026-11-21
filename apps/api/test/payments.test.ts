@@ -162,8 +162,17 @@ describe('Mercado Pago: compra', () => {
     expect(mine.body.items[0]).toMatchObject({ holderName: 'Ana Compradora', priceCents: 1_500_000, status: 'valid' });
     expect(mine.body.items[0].qr).toMatch(/^V1\./);
 
+    // Mail de confirmación con el detalle de la compra (una sola vez).
+    const mail = ctx.outbox.last(buyer.email, 'purchase_confirmed');
+    expect(mail?.subject).toContain('Tus entradas para');
+    expect(mail?.text).toContain('Total pagado: $');
+    expect(mail?.text).toContain('Cargo por servicio');
+    expect(mail?.text).toContain('/mis-entradas');
+    expect(mail?.html).toContain('Ver mis entradas');
+
     // Notificación repetida: no duplica.
     await webhook(orgId, co.body.orderId, '9001', { sign: 'ok' });
+    expect(ctx.outbox.sent.filter((m) => m.to === buyer.email.toLowerCase() && m.kind === 'purchase_confirmed')).toHaveLength(1);
     expect((await call(ctx, 'GET', '/v1/me/tickets', { token: buyer.token })).body.items).toHaveLength(2);
 
     // El stock pasó de reservado a vendido y la productora ve la plata con la comisión.

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sendPurchaseConfirmation } from './emails.ts';
 import { transitionTicket } from '@venti/domain';
 import {
   and,
@@ -83,11 +84,16 @@ export async function startCheckout(s: Services, userId: string, holdId: string)
 
   // Entradas gratuitas: no hay nada que cobrar, se emiten al instante.
   if (h.subtotalCents + h.feeCents === 0) {
+    let issuedNow = false;
     const orderId = await withContext(s.db, { orgId: h.organizationId, userId }, async (tx) => {
       const order = await upsertOrder(tx, h, userId);
-      if (order.status === 'pending_payment') await fulfillOrder(tx, s, order.id, null);
+      if (order.status === 'pending_payment') {
+        await fulfillOrder(tx, s, order.id, null);
+        issuedNow = true;
+      }
       return order.id;
     });
+    if (issuedNow) await sendPurchaseConfirmation(s, h.organizationId, orderId).catch((err) => console.error('[email] confirmación (gratis)', orderId, err instanceof Error ? err.message : err));
     return { orderId, status: 'paid', checkoutUrl: null };
   }
 
@@ -243,6 +249,7 @@ export async function applyPayment(s: Services, orgId: string, orderId: string, 
   if (payment.externalReference !== orderId) return 'ignored';
   const now = s.now();
   let needsRefund = false;
+  let justPaid = false;
   const outcome = await withContext(s.db, { orgId }, async (tx) => {
     const [order] = await tx.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.organizationId, orgId))).for('update');
     if (!order) return 'ignored' as const;
@@ -268,6 +275,7 @@ export async function applyPayment(s: Services, orgId: string, orderId: string, 
         await tx.execute(sql`savepoint fulfill`);
         await fulfillOrder(tx, s, orderId, payment.id);
         await tx.execute(sql`release savepoint fulfill`);
+        justPaid = true;
         return 'paid' as const;
       } catch (err) {
         if (!(err instanceof OutOfStock)) throw err;
@@ -299,6 +307,8 @@ export async function applyPayment(s: Services, orgId: string, orderId: string, 
     const seller = await sellerAccess(s, orgId);
     await s.mp!.refund(seller.token, payment.id, `refund-${orderId}-${payment.id}`);
   }
+  // Mail de confirmación: una sola vez (sólo cuando la orden recién pasó a pagada). Si falla, la compra igual vale.
+  if (justPaid) await sendPurchaseConfirmation(s, orgId, orderId).catch((err) => console.error('[email] confirmación de compra', orderId, err instanceof Error ? err.message : err));
   return outcome;
 }
 
