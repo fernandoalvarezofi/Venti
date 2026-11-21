@@ -219,3 +219,17 @@ describe('H7 — auditoría encadenada por la base', () => {
     ).rejects.toMatchObject({ cause: { code: '42501' } });
   });
 });
+
+describe('CSRF — un cambio pedido desde otra web se rechaza', () => {
+  it('Origin ajeno → 403; Origin de Lintick o sin Origin → pasa', async () => {
+    const u = await registerUser(ctx);
+    const cookie = `venti_session=${u.token}`;
+    const evil = await ctx.venti.app.inject({ method: 'POST', url: '/v1/organizations', headers: { origin: 'https://evil.example', cookie, 'content-type': 'application/json' }, payload: { name: 'Ataque CSRF' } });
+    expect(evil.statusCode).toBe(403);
+    expect(evil.json().error.code).toBe('cross_site_request');
+    const own = await ctx.venti.app.inject({ method: 'POST', url: '/v1/organizations', headers: { origin: new URL(ctx.venti.services.config.PUBLIC_WEB_URL).origin, cookie, 'content-type': 'application/json' }, payload: { name: 'Productora propia' } });
+    expect(own.statusCode).toBe(201);
+    const noOrigin = await ctx.venti.app.inject({ method: 'POST', url: '/v1/organizations', headers: { cookie, 'content-type': 'application/json' }, payload: { name: 'Sin origin' } });
+    expect(noOrigin.statusCode).toBe(201);
+  });
+});

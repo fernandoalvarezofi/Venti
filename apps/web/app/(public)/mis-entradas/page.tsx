@@ -6,7 +6,7 @@ import { TicketPass } from '@/components/ticket-pass';
 import { EmptyState, ErrorState } from '@/components/states';
 import { getMyTickets } from '@/lib/api';
 
-export const metadata: Metadata = { title: 'Mis entradas' };
+export const metadata: Metadata = { title: 'Mis entradas', robots: { index: false, follow: false } };
 
 export default async function MyTicketsPage() {
   const r = await getMyTickets();

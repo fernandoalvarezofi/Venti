@@ -13,7 +13,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://lintick.com'),
   title: { default: 'Lintick — Entradas para lo que pasa', template: '%s · Lintick' },
   description: 'Descubrí recitales, fiestas, festivales y obras en Argentina. Comprá tus entradas en Lintick.',
-  robots: { index: false, follow: false },
+  // Lo público se indexa (Google); el panel, Access y las cuentas llevan noindex en su propio layout/página.
+  robots: { index: true, follow: true },
   // El ícono de la pestaña sale de app/icon.svg y app/favicon.ico (convención de Next).
   icons: { apple: '/app/apple-touch-icon.png' },
   appleWebApp: { capable: true, title: 'Lintick', statusBarStyle: 'default' },

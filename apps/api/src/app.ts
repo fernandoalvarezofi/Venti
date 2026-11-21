@@ -104,6 +104,23 @@ export async function buildApp(opts: BuildOptions): Promise<VentiApp> {
   await app.register(cookie);
   await app.register(rateLimit, { global: true, max: 300, timeWindow: '1 minute' });
 
+  // Defensa CSRF extra (además de la cookie SameSite=Lax): un cambio pedido desde OTRA web se rechaza.
+  // Sólo se mira cuando el navegador manda Origin; los avisos de Mercado Pago y los scripts no lo mandan.
+  const originOf = (u: string) => {
+    try { return new URL(u).origin; } catch { return null; }
+  };
+  const trustedOrigins = new Set(
+    [services.config.PUBLIC_WEB_URL, services.config.PUBLIC_API_URL, ...services.config.CORS_ORIGINS].map(originOf).filter((o): o is string => Boolean(o)),
+  );
+  app.addHook('onRequest', async (req) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
+    const origin = req.headers.origin;
+    if (!origin || origin === 'null' && !req.cookies?.venti_session) return;
+    if (trustedOrigins.has(origin)) return;
+    if (services.config.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return;
+    throw new AppError(403, 'cross_site_request', 'Pedido rechazado: viene de otro sitio.');
+  });
+
   await app.register(swagger, {
     openapi: {
       info: { title: 'Lintick API', version: '0.1.0', description: 'Núcleo de Lintick, Lintick Business, Lintick Access y White Label.' },
