@@ -4,16 +4,44 @@
  * Prepara una foto para subir: corrige la orientación, la achica a 2000 px como máximo y la re-codifica.
  * Re-codificar en un canvas elimina TODOS los metadatos (EXIF: ubicación GPS, cámara, fecha).
  */
-export async function prepareImage(file: File, maxSide = 2000, minSide = 400): Promise<Blob> {
-  if (!/^image\/(jpeg|png|webp|heic|heif|avif)$/i.test(file.type) && !/\.(jpe?g|png|webp|heic|avif)$/i.test(file.name)) {
-    throw new Error('Elegí una imagen JPG, PNG o WebP.');
+const isHeic = (f: File) => /heic|heif/i.test(f.type) || /.(heic|heif)$/i.test(f.name);
+
+/** Abre cualquier foto que el navegador sepa leer; HEIC/HEIF (iPhone y algunos Android) se convierte a JPG si hace falta. */
+async function decode(file: Blob & { name?: string; type: string }): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    /* algunos navegadores no abren ciertos formatos con createImageBitmap: se intenta con <img> */
   }
-  if (file.size > 25 * 1024 * 1024) throw new Error('La foto pesa más de 25 MB. Elegí otra.');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+    await img.decode();
+    return await createImageBitmap(img);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export async function prepareImage(file: File, maxSide = 2000, minSide = 400): Promise<Blob> {
+  // Como en las redes sociales: se acepta cualquier foto (JPG, PNG, WebP, HEIC/HEIF, AVIF, GIF…) y se convierte sola.
+  if (file.type && !file.type.startsWith('image/') && !isHeic(file)) throw new Error('Ese archivo no es una foto. Elegí una imagen.');
+  if (file.size > 40 * 1024 * 1024) throw new Error('La foto pesa más de 40 MB. Elegí otra.');
   let bitmap: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    bitmap = await decode(file);
   } catch {
-    throw new Error('No pudimos abrir esa imagen. Probá con otra o exportala como JPG.');
+    if (!isHeic(file)) throw new Error('No pudimos abrir esa imagen. Probá con otra foto.');
+    try {
+      // Chrome (Android y computadora) no lee HEIC: se convierte a JPG en el teléfono, sin subir el original.
+      const { default: heic2any } = await import('heic2any');
+      const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+      bitmap = await decode(Array.isArray(out) ? out[0]! : out);
+    } catch {
+      throw new Error('No pudimos convertir esa foto HEIC. Probá con otra o compartila como JPG.');
+    }
   }
   const { width, height } = bitmap;
   if (Math.min(width, height) < minSide) {

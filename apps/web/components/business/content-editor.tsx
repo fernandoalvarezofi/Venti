@@ -81,7 +81,7 @@ export function MediaEditor({ orgId, event }: { orgId: string; event: AdminEvent
             <div className="flex gap-2 sm:flex-col">
               <label className={`btn btn-ink h-10 cursor-pointer text-sm ${busy ? 'pointer-events-none opacity-50' : ''}`}>
                 {event.coverImage ? 'Cambiar' : 'Subir portada'}
-                <input ref={coverInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic" className="sr-only" onChange={(e) => upload(e.target.files, 'cover')} />
+                <input ref={coverInput} type="file" accept="image/*" className="sr-only" onChange={(e) => upload(e.target.files, 'cover')} />
               </label>
               {event.coverImage ? (
                 <button type="button" disabled={Boolean(busy)} onClick={() => remove(event.coverImage!.id)} className="btn btn-ghost h-10 text-sm">
@@ -123,7 +123,7 @@ export function MediaEditor({ orgId, event }: { orgId: string; event: AdminEvent
                   <PlusIcon className="mx-auto mb-1 size-5" />
                   Agregar fotos
                 </span>
-                <input ref={galleryInput} type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic" className="sr-only" onChange={(e) => upload(e.target.files, 'gallery')} />
+                <input ref={galleryInput} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => upload(e.target.files, 'gallery')} />
               </label>
             </li>
           ) : null}

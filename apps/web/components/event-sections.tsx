@@ -1,3 +1,4 @@
+import { GalleryViewer } from './gallery-viewer';
 import { AMENITY_LABELS, LINEUP_ROLE_LABELS, LINEUP_ROLE_PLURALS, dateParts, mediaSrc } from '@/lib/format';
 import type { EventContent, LineupItem, PageSectionKey, Sponsor, SponsorTier } from '@/lib/types';
 
@@ -257,16 +258,7 @@ export function EventSections({ content, description, title }: { content: EventC
     gallery: () =>
       c.gallery.length ? (
         <Section id="gallery" title={SECTION_LABELS.gallery}>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {c.gallery.map((img, i) => (
-              <li key={img.id} className={i === 0 && c.gallery.length > 2 ? 'col-span-2 row-span-2' : ''}>
-                <a href={mediaSrc(img.url)} target="_blank" rel="noreferrer" className="block h-full overflow-hidden rounded-xl bg-ink/5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={mediaSrc(img.url)} alt={`Foto ${i + 1} de ${title}`} width={img.width} height={img.height} loading="lazy" decoding="async" className="aspect-square h-full w-full object-cover transition-transform duration-500 hover:scale-[1.03]" />
-                </a>
-              </li>
-            ))}
-          </ul>
+          <GalleryViewer title={title} images={c.gallery.map((img) => ({ id: img.id, src: mediaSrc(img.url), width: img.width, height: img.height }))} />
         </Section>
       ) : null,
     amenities: () => {

@@ -400,7 +400,7 @@ export function EventWizard({ orgId, venues }: { orgId: string; venues: Venue[] 
                 </div>
                 <label className="btn btn-ghost h-10 cursor-pointer text-sm">
                   {cover ? 'Cambiar' : 'Elegir imagen'}
-                  <input type="file" accept="image/jpeg,image/png,image/webp,image/heic" className="sr-only" onChange={(e) => pickCover(e.target.files?.[0])} />
+                  <input type="file" accept="image/*" className="sr-only" onChange={(e) => pickCover(e.target.files?.[0])} />
                 </label>
               </div>
               {coverError ? <p className="mt-1.5 text-sm text-danger">{coverError}</p> : null}

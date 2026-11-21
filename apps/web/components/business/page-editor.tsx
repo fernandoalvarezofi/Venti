@@ -182,7 +182,7 @@ function ImagePick({ orgId, eventId, value, onChange, disabled, round = false }:
       <div className="text-sm">
         <label className={`cursor-pointer font-semibold underline ${busy || disabled ? 'pointer-events-none opacity-50' : ''}`}>
           {busy ? 'Subiendo…' : value ? 'Cambiar' : 'Subir imagen'}
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/heic" className="sr-only" disabled={busy || disabled} onChange={(e) => pick(e.target.files?.[0])} />
+          <input type="file" accept="image/*" className="sr-only" disabled={busy || disabled} onChange={(e) => pick(e.target.files?.[0])} />
         </label>
         {value ? (
           <button type="button" onClick={() => onChange(null)} className="ml-3 text-muted hover:text-danger" disabled={disabled}>
