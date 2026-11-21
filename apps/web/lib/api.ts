@@ -11,10 +11,12 @@ async function apiGet<T>(path: string, opts: { auth?: boolean; revalidate?: numb
     if (!session) return { ok: false, status: 401, error: null };
     headers.authorization = `Bearer ${session}`;
   }
+  const init = { headers, ...(opts.auth ? { cache: 'no-store' as const } : { next: { revalidate: opts.revalidate ?? 30 } }) };
   try {
-    const res = await fetch(`${API_URL}${path}`, {
-      headers,
-      ...(opts.auth ? { cache: 'no-store' as const } : { next: { revalidate: opts.revalidate ?? 30 } }),
+    // Lecturas: si la conexión se corta (ECONNRESET / "other side closed" entre Vercel y la API), un reintento.
+    const res = await fetch(`${API_URL}${path}`, init).catch(async () => {
+      await new Promise((r) => setTimeout(r, 250));
+      return fetch(`${API_URL}${path}`, init);
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
