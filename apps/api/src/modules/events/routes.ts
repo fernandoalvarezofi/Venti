@@ -614,7 +614,8 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
       schema: {
         tags: ['catalog'],
         summary: 'Detalle público de un evento con entradas disponibles',
-        params: z.object({ eventId: z.string().uuid() }),
+        description: 'Acepta el id completo o el código corto de 8 caracteres que va al final del enlace para compartir (/eventos/nombre-xxxxxxxx).',
+        params: z.object({ eventId: z.string().regex(/^([0-9a-f]{8}|[0-9a-f-]{36})$/i) }),
         response: { 200: PublicEventDto.extend({ ticketTypes: z.array(PublicTicketTypeDto) }).merge(EventContentDto) },
       },
     },
@@ -624,7 +625,13 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
           .select({ event: events, org: { id: organizations.id, slug: organizations.slug, name: organizations.name } })
           .from(events)
           .innerJoin(organizations, eq(organizations.id, events.organizationId))
-          .where(and(eq(events.id, req.params.eventId), inArray(events.status, ['published', 'cancelled', 'finished'])));
+          .where(
+            and(
+              req.params.eventId.length === 8 ? sql`replace(${events.id}::text, '-', '') like ${req.params.eventId.toLowerCase() + '%'}` : eq(events.id, req.params.eventId),
+              inArray(events.status, ['published', 'cancelled', 'finished']),
+            ),
+          )
+          .limit(1);
         if (!row) throw notFound('Evento');
         const e = row.event;
         const types = (await loadTicketTypes(tx, e.id, s.now())).filter((t) => !t.hidden);

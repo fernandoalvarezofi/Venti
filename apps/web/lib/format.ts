@@ -111,3 +111,24 @@ export function ticketCode(id: string): string {
   const h = id.replace(/-/g, '').slice(0, 8).toUpperCase();
   return `${h.slice(0, 4)}-${h.slice(4)}`;
 }
+
+/** Enlace lindo para compartir: /eventos/nombre-del-evento-1a2b3c4d (el código corto identifica el evento). */
+export function eventPath(e: { id: string; slug?: string | null; title?: string }): string {
+  const name =
+    (e.slug ?? e.title ?? 'evento')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'evento';
+  return `/eventos/${name}-${e.id.replace(/-/g, '').slice(0, 8)}`;
+}
+
+/** De lo que viene en la dirección (/eventos/…): el id completo o el código corto del final. */
+export function eventRef(param: string): string {
+  const p = decodeURIComponent(param);
+  if (/^[0-9a-f-]{36}$/i.test(p)) return p;
+  const m = /([0-9a-f]{8})$/i.exec(p);
+  return m ? m[1]!.toLowerCase() : p;
+}

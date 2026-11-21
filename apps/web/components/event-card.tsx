@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { categoryLabel, dateParts, formatMoney, mediaSrc, posterColors } from '@/lib/format';
+import { categoryLabel, dateParts, formatMoney, mediaSrc, posterColors, eventPath } from '@/lib/format';
 import type { PublicEvent } from '@/lib/types';
 
 /**
@@ -51,7 +51,7 @@ export function EventCard({ event }: { event: PublicEvent }) {
   const d = dateParts(event.startsAt);
   return (
     <Link
-      href={`/eventos/${event.id}`}
+      href={eventPath(event)}
       className="group block rounded-[var(--radius-ticket)] focus-visible:outline-offset-4"
       aria-label={`${event.title}, ${d.long} ${d.time} h${event.venue ? `, ${event.venue.name}` : ''}`}
     >

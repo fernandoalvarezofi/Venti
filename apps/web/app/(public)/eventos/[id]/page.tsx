@@ -8,14 +8,17 @@ import { BuyPanel } from '@/components/checkout';
 import { LinksAndMap, QuickFacts } from '@/components/event-content';
 import { EventSections } from '@/components/event-sections';
 import { getCurrentUser, getEvent } from '@/lib/api';
-import { categoryLabel, dateParts, mediaSrc } from '@/lib/format';
+import { categoryLabel, dateParts, eventPath, eventRef, mediaSrc } from '@/lib/format';
+import { ShareEvent } from '@/components/share-event';
 
 type Params = Promise<{ id: string }>;
-const UUID = /^[0-9a-f-]{36}$/;
+/** Acepta el id completo (enlaces viejos) o el enlace lindo /eventos/nombre-1a2b3c4d. */
+const REF = /^([0-9a-f-]{36}|[0-9a-f]{8})$/i;
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://lintick.com').replace(/\/+$/, '');
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { id } = await params;
-  if (!UUID.test(id)) return { title: 'Evento' };
+  const id = eventRef((await params).id);
+  if (!REF.test(id)) return { title: 'Evento' };
   const r = await getEvent(id);
   if (!r.ok) return { title: 'Evento' };
   const e = r.data;
@@ -27,15 +30,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title,
     description,
-    alternates: { canonical: `/eventos/${e.id}` },
-    openGraph: { type: 'website', title, description, url: `/eventos/${e.id}`, siteName: 'Lintick', locale: 'es_AR', ...(image ? { images: [{ url: image, width: e.coverImage!.width, height: e.coverImage!.height, alt: e.title }] } : {}) },
+    alternates: { canonical: eventPath(e) },
+    openGraph: { type: 'website', title, description, url: eventPath(e), siteName: 'Lintick', locale: 'es_AR', ...(image ? { images: [{ url: image, width: e.coverImage!.width, height: e.coverImage!.height, alt: e.title }] } : {}) },
     twitter: { card: image ? 'summary_large_image' : 'summary', title, description, ...(image ? { images: [image] } : {}) },
   };
 }
 
 export default async function EventPage({ params }: { params: Params }) {
-  const { id } = await params;
-  if (!UUID.test(id)) notFound();
+  const id = eventRef((await params).id);
+  if (!REF.test(id)) notFound();
   const [r, user] = await Promise.all([getEvent(id), getCurrentUser()]);
   if (!r.ok) {
     if (r.status === 404) notFound();
@@ -65,6 +68,7 @@ export default async function EventPage({ params }: { params: Params }) {
             {categoryLabel(e.category)} · {e.organization.name}
           </p>
           <h1 className="mt-3 text-[clamp(2.2rem,5.5vw,4rem)] font-extrabold leading-[0.95]">{e.title}</h1>
+          <ShareEvent className="mt-4" url={`${SITE}${eventPath(e)}`} title={e.title} text={`${e.title} · ${start.long}${e.venue ? ` · ${e.venue.name}` : ''}. Entradas en Lintick:`} />
 
           <QuickFacts c={e} />
 

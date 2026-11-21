@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { fromLocalInput, parseMoneyToCents, send, toLocalInput } from '@/lib/client-api';
-import { formatMoney } from '@/lib/format';
+import { eventPath, formatMoney } from '@/lib/format';
+import { ShareEvent } from '../share-event';
 import type { AdminEvent, AdminTicketType, Stage } from '@/lib/types';
 import { PlusIcon } from '../icons';
 import { KIND_LABELS } from './event-wizard';
@@ -74,9 +75,10 @@ export function EventActions({ orgId, event }: { orgId: string; event: AdminEven
             <a href={`/acceso/${orgId}/${event.id}`} className="btn btn-ink">
               Control de ingreso
             </a>
-            <a href={`/eventos/${event.id}`} target="_blank" rel="noreferrer" className="btn btn-ghost">
+            <a href={eventPath(event)} target="_blank" rel="noreferrer" className="btn btn-ghost">
               Ver en Lintick ↗
             </a>
+            <ShareEvent url={`${typeof window === 'undefined' ? 'https://lintick.com' : window.location.origin}${eventPath(event)}`} title={event.title} />
           </>
         ) : null}
         {event.status === 'draft' ? (
