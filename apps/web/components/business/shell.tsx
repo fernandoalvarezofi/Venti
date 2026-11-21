@@ -52,7 +52,8 @@ export function BusinessShell({ org, orgs, userName, children }: { org: Org; org
             </Link>
             <div className="lg:mt-6">
               <p className="hidden text-xs text-muted lg:block">Productora</p>
-              {orgs.length > 1 ? (
+              {/* Siempre con menú: para cambiar de productora o crear una propia (aunque sólo tengas una). */}
+              {orgs.length >= 1 ? (
                 <details className="relative">
                   <summary className="cursor-pointer list-none truncate font-semibold lg:mt-0.5">{org.name} ▾</summary>
                   <ul className="absolute right-0 z-20 mt-2 w-56 rounded-xl bg-paper p-1.5 shadow-[0_12px_32px_-12px_rgb(23_20_17/0.4)] lg:left-0">
