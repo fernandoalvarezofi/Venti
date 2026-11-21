@@ -8,6 +8,7 @@ import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
 import { simpleEmail } from '../../lib/email-layout.ts';
+import { sendCourtesyTickets } from '../payments/emails.ts';
 import { assertCanScanEvent } from '../../lib/access.ts';
 import { protectDocument } from '../../lib/identity.ts';
 
@@ -111,7 +112,7 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
       const b = req.body;
       // H1: sólo se entrega directo a una cuenta que DEMOSTRÓ controlar ese email.
       const [owner] = await s.db
-        .select({ id: users.id })
+        .select({ id: users.id, fullName: users.fullName })
         .from(users)
         .where(and(sql`lower(${users.email}) = ${b.holderEmail}`, isNotNull(users.emailVerifiedAt)));
       // H3: el DNI nunca se guarda en claro.
@@ -174,7 +175,10 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
         return { ids, eventTitle: e.title };
       });
       // Aviso al invitado (si el proveedor de email no está configurado, la cortesía igual queda emitida).
-      if (s.email.enabled) {
+      if (s.email.enabled && owner) {
+        // Ya tiene cuenta: mail con el diseño de entradas (portada, datos y talones).
+        await sendCourtesyTickets(s, access.orgId, ticketIds.ids, b.holderEmail, owner.fullName).catch((err) => req.log.warn({ err }, 'No se pudo avisar por email de una cortesía'));
+      } else if (s.email.enabled) {
         await s.email
           .send({
             to: b.holderEmail,

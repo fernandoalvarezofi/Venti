@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Lintick',
     description: 'Tus entradas con QR, aunque no tengas señal. Y el control de ingreso para productoras.',
     lang: 'es-AR',
-    start_url: '/mis-entradas?app=1',
+    start_url: '/?app=1',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
