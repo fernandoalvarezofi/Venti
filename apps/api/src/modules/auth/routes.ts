@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { bindPendingClaims } from '../../lib/claims.ts';
 import { dummyPasswordHash, hashPassword, randomToken, sha256, verifyPassword } from '../../lib/crypto.ts';
 import { AppError, unauthorized } from '../../lib/errors.ts';
+import { simpleEmail } from '../../lib/email-layout.ts';
 import { requireAuth, type Services } from '../../lib/context.ts';
 import { GoogleAuthError, pkceChallenge, type GoogleProfile } from '../../lib/google.ts';
 
@@ -106,6 +107,15 @@ async function sendVerification(s: Services, user: Pick<UserRow, 'id' | 'email'>
     kind: 'verify_email',
     subject: 'Confirmá tu email en Lintick',
     text: `Hola ${pending.fullName.split(' ')[0]}:\n\nConfirmá tu email para activar tu cuenta y recibir tus entradas:\n${url}\n\nVas a necesitar la contraseña que elegiste al registrarte. El enlace vence en 24 horas.\nSi no creaste una cuenta en Lintick, ignorá este mensaje.`,
+    html: simpleEmail({
+      web: s.config.PUBLIC_WEB_URL.replace(/\/+$/, ''),
+      preheader: 'Un toque y tu cuenta queda lista para recibir entradas.',
+      title: `¡Hola, ${pending.fullName.split(' ')[0]}! Confirmá tu email`,
+      paragraphs: ['Estás a un paso de tener tu cuenta en Lintick. Confirmá tu email para activarla y recibir tus entradas.', 'Te vamos a pedir la contraseña que elegiste al registrarte.'],
+      cta: { href: url, label: 'Confirmar mi email' },
+      note: 'El enlace vence en 24 horas. Si no creaste una cuenta en Lintick, ignorá este mensaje.',
+      reason: 'Te llega este mail porque alguien se registró en Lintick con esta dirección.',
+    }),
     meta: { url, token },
   });
 }
@@ -150,6 +160,15 @@ export async function authRoutes(app: FastifyInstance, s: Services): Promise<voi
             kind: 'account_exists',
             subject: 'Ya tenés una cuenta en Lintick',
             text: `Alguien (quizás vos) intentó crear una cuenta con este email, pero ya existe.\n\nIngresá: ${s.config.PUBLIC_WEB_URL}/ingresar\n¿No recordás la contraseña? ${s.config.PUBLIC_WEB_URL}/recuperar\n\nSi no fuiste vos, no tenés que hacer nada.`,
+            html: simpleEmail({
+              web: s.config.PUBLIC_WEB_URL.replace(/\/+$/, ''),
+              preheader: 'Ya tenés una cuenta con este email.',
+              title: 'Ya tenés una cuenta en Lintick',
+              paragraphs: ['Alguien (quizás vos) intentó crear una cuenta con este email, pero ya existe.', `¿No recordás la contraseña? <a href="${s.config.PUBLIC_WEB_URL.replace(/\/+$/, '')}/recuperar" style="color:#171411;font-weight:600">Elegí una nueva acá</a>.`],
+              cta: { href: `${s.config.PUBLIC_WEB_URL.replace(/\/+$/, '')}/ingresar`, label: 'Ingresar a Lintick' },
+              note: 'Si no fuiste vos, no tenés que hacer nada: tu cuenta sigue igual.',
+              reason: 'Te llega este mail por un intento de registro con esta dirección.',
+            }),
           });
         }
       }
@@ -269,6 +288,15 @@ export async function authRoutes(app: FastifyInstance, s: Services): Promise<voi
           kind: 'password_reset',
           subject: 'Cambiá tu contraseña de Lintick',
           text: `Para elegir una contraseña nueva entrá acá:\n${url}\n\nEl enlace vence en 30 minutos y sirve una sola vez. Si no lo pediste, ignorá este mensaje: tu contraseña sigue igual.`,
+          html: simpleEmail({
+            web: s.config.PUBLIC_WEB_URL.replace(/\/+$/, ''),
+            preheader: 'Elegí una contraseña nueva para tu cuenta.',
+            title: 'Cambiá tu contraseña',
+            paragraphs: ['Recibimos un pedido para cambiar la contraseña de tu cuenta de Lintick. Tocá el botón para elegir una nueva.'],
+            cta: { href: url, label: 'Elegir contraseña nueva' },
+            note: 'El enlace vence en 30 minutos y sirve una sola vez. Si no lo pediste, ignorá este mensaje: tu contraseña sigue igual.',
+            reason: 'Te llega este mail porque se pidió cambiar la contraseña de esta cuenta.',
+          }),
           meta: { url, token },
         });
       }

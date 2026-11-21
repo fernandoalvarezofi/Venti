@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { formatMoney } from '@/lib/format';
+import { InstallApp } from './app-install';
 import { Mascot } from './mascot';
 
 type Order = { id: string; status: 'pending_payment' | 'paid' | 'cancelled' | 'expired' | 'refunded' | 'partially_refunded'; eventId: string; totalCents: number; currency: string; tickets: number };
@@ -90,6 +91,8 @@ export function OrderStatus({ orderId }: { orderId: string }) {
             Ver mis entradas
           </Link>
         </div>
+        {/* Justo después de comprar es cuando más sirve tener la app (el QR sin señal en la puerta). */}
+        <InstallApp className="mt-4 text-left" />
       </div>
     );
   }

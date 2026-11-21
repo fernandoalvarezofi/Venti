@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { audit, recordTicketEvents } from '../../lib/audit.ts';
 import { inOrg, requireAuth, requireOrgPermission, type Services } from '../../lib/context.ts';
 import { AppError, conflict, notFound } from '../../lib/errors.ts';
+import { simpleEmail } from '../../lib/email-layout.ts';
 import { assertCanScanEvent } from '../../lib/access.ts';
 import { protectDocument } from '../../lib/identity.ts';
 
@@ -183,6 +184,16 @@ export async function ticketRoutes(app: FastifyInstance, s: Services): Promise<v
               ? `Ya están en "Mis entradas": ${s.config.PUBLIC_WEB_URL}/mis-entradas`
               : `Para recibirlas, creá tu cuenta en Lintick con este mismo email y confirmalo: ${s.config.PUBLIC_WEB_URL}/registrarse?next=/mis-entradas
 Si ya tenés cuenta, ingresá y confirmá tu email.`,
+            html: simpleEmail({
+              web: s.config.PUBLIC_WEB_URL.replace(/\/+$/, ''),
+              preheader: `Te invitaron a ${ticketIds.eventTitle}.`,
+              title: `Tenés ${b.quantity === 1 ? 'una entrada' : `${b.quantity} entradas`} para ${ticketIds.eventTitle}`,
+              paragraphs: owner
+                ? ['¡Te invitaron! Tus entradas ya están en "Mis entradas". Mostrá el QR en la puerta: funciona aunque no tengas señal.']
+                : ['¡Te invitaron! Para recibir tus entradas, creá tu cuenta en Lintick con este mismo email y confirmalo.', 'Si ya tenés cuenta, ingresá y confirmá tu email.'],
+              cta: owner ? { href: `${s.config.PUBLIC_WEB_URL.replace(/\/+$/, '')}/mis-entradas`, label: 'Ver mis entradas' } : { href: `${s.config.PUBLIC_WEB_URL.replace(/\/+$/, '')}/registrarse?next=/mis-entradas`, label: 'Crear mi cuenta y recibirlas' },
+              reason: 'Te llega este mail porque una productora te envió entradas por Lintick.',
+            }),
           })
           .catch((err) => req.log.warn({ err }, 'No se pudo avisar por email de una cortesía'));
       }
