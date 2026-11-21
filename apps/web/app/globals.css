@@ -1614,3 +1614,8 @@
   /* Sin selección accidental ni "rebote" de la página como en una app nativa. */
   html { overscroll-behavior-y: none; }
 }
+
+/* iPhone/Safari: con letra menor a 16px, Safari agranda la página al tocar un campo. En pantallas táctiles, 16px. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea { font-size: 16px; }
+}
