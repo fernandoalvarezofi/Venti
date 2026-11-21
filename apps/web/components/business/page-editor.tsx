@@ -92,13 +92,15 @@ function problems(d: Draft): string[] {
     if (l.link && !isHttps(l.link)) p.push(`Line-up ${i + 1}: el enlace tiene que empezar con https://`);
   });
   d.videos.forEach((v, i) => {
-    if (!videoEmbed(v.url)) p.push(`Video ${i + 1}: pegá un enlace de YouTube o Vimeo.`);
+    if (v.url.trim() && !videoEmbed(v.url)) p.push(`Video ${i + 1}: pegá un enlace de YouTube o Vimeo.`);
   });
   d.sponsors.forEach((s, i) => {
+    if (!s.name.trim() && !s.url.trim() && !s.logoId) return;
     if (!s.name.trim()) p.push(`Patrocinador ${i + 1}: falta el nombre.`);
     if (s.url && !isHttps(s.url)) p.push(`Patrocinador ${i + 1}: el enlace tiene que empezar con https://`);
   });
   d.faq.forEach((f, i) => {
+    if (!f.q.trim() && !f.a.trim()) return;
     if (f.q.trim().length < 3 || !f.a.trim()) p.push(`Pregunta ${i + 1}: completá la pregunta y la respuesta.`);
   });
   for (const [k, label] of LINK_FIELDS) if (d.links[k] && !isHttps(d.links[k]!)) p.push(`${label}: el enlace tiene que empezar con https://`);
@@ -113,8 +115,8 @@ function payload(d: Draft) {
     summary: d.summary,
     lineup: d.lineup.filter((l) => l.name.trim()).map((l) => ({ name: l.name.trim(), role: l.role, startsAt: fromLocalInput(l.startsAt), stage: l.stage.trim() || null, bio: l.bio.trim(), link: l.link.trim() || null, imageId: l.imageId })),
     videos: d.videos.filter((v) => v.url.trim()).map((v) => ({ url: v.url.trim(), title: v.title.trim() })),
-    sponsors: d.sponsors.map((s) => ({ name: s.name.trim(), tier: s.tier, url: s.url.trim() || null, logoId: s.logoId })),
-    faq: d.faq.map((f) => ({ q: f.q.trim(), a: f.a.trim() })),
+    sponsors: d.sponsors.filter((s) => s.name.trim() || s.url.trim() || s.logoId).map((s) => ({ name: s.name.trim(), tier: s.tier, url: s.url.trim() || null, logoId: s.logoId })),
+    faq: d.faq.filter((f) => f.q.trim() || f.a.trim()).map((f) => ({ q: f.q.trim(), a: f.a.trim() })),
     amenities: d.amenities,
     extraAmenities: d.extraAmenities,
     doorsOpenAt: fromLocalInput(d.doorsOpenAt),
@@ -338,7 +340,7 @@ export function PageEditor({ orgId, event }: { orgId: string; event: AdminEvent 
         </ul>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] 2xl:grid-cols-[230px_minmax(0,1fr)_360px]">
+      <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[260px_minmax(0,1fr)_360px]">
         {/* 1 · Módulos */}
         <nav aria-label="Módulos de la página" className="min-w-0 lg:sticky lg:top-6 lg:self-start">
           <p className="px-2 pb-2 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted">Módulos</p>
