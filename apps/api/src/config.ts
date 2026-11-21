@@ -55,7 +55,7 @@ const ConfigSchema = z.object({
    */
   EMAIL_PROVIDER: z.enum(['resend', 'outbox', 'disabled']).default('outbox'),
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('Lintick <no-reply@lintick.local>'),
+  EMAIL_FROM: z.string().default('Lintick <entradas@lintick.com>'),
   /** Clave HMAC para el DNI (32+ bytes en base64). El DNI nunca se guarda en claro. */
   DOC_HMAC_KEY: z
     .string()
@@ -117,6 +117,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Configuración inválida:\n${issues}`);
   }
   const c = parsed.data;
+  // Si se cargó la clave de Resend y el proveedor estaba apagado, se usa Resend (así no hace falta editar EMAIL_PROVIDER).
+  if (c.RESEND_API_KEY && c.EMAIL_PROVIDER === 'disabled') c.EMAIL_PROVIDER = 'resend';
   // SITE_URL manda: así se cambia el dominio de la web sin tocar la variable original.
   return c.SITE_URL ? { ...c, PUBLIC_WEB_URL: c.SITE_URL.replace(/\/+$/, '') } : c;
 }
