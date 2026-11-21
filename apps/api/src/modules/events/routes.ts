@@ -8,6 +8,7 @@ import {
   gt,
   gte,
   inArray,
+  isNull,
   lte,
   organizations,
   priceStages,
@@ -314,9 +315,37 @@ export async function eventRoutes(app: FastifyInstance, s: Services): Promise<vo
     async (req) => {
       const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.read');
       const items = await inOrg(s.db, access, (tx) =>
-        tx.select().from(events).where(eq(events.organizationId, access.orgId)).orderBy(asc(events.startsAt)),
+        tx.select().from(events).where(and(eq(events.organizationId, access.orgId), isNull(events.archivedAt))).orderBy(asc(events.startsAt)),
       );
       return { items };
+    },
+  );
+
+  // ─── Eliminar un evento ───
+  // Sin ventas ni entradas: se borra del todo. Con ventas: sólo si ya terminó o se canceló, y se ARCHIVA (las compras
+  // y el historial de cobros se conservan). Publicado y por venir con entradas: primero hay que cancelarlo.
+  r.delete(
+    '/v1/organizations/:orgId/events/:eventId',
+    { schema: { tags: ['events'], summary: 'Eliminar (o archivar) un evento', params: OrgParams.extend({ eventId: z.string().uuid() }), response: { 200: z.object({ result: z.enum(['deleted', 'archived']) }) } } },
+    async (req) => {
+      const access = await requireOrgPermission(s.db, req, req.params.orgId, 'events.write');
+      const now = s.now();
+      return inOrg(s.db, access, async (tx) => {
+        const [e] = await tx.select().from(events).where(and(eq(events.id, req.params.eventId), eq(events.organizationId, access.orgId))).for('update');
+        if (!e) throw notFound('Evento');
+        const counted = (await tx.execute(sql`select (select count(*) from tickets where event_id = ${e.id}) + (select count(*) from orders where event_id = ${e.id}) as n`)) as unknown as { rows?: { n: string }[] } & { n: string }[];
+        const n = (counted.rows ?? counted)[0]?.n ?? 0;
+        if (Number(n) === 0) {
+          await tx.delete(events).where(eq(events.id, e.id));
+          await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'event.deleted', entityType: 'event', entityId: e.id, data: { title: e.title }, ip: req.ip });
+          return { result: 'deleted' as const };
+        }
+        const closed = e.status === 'cancelled' || e.status === 'finished' || e.endsAt <= now || e.status === 'draft';
+        if (!closed) throw conflict('event_has_sales', 'Este evento tiene entradas vendidas y todavía no terminó: primero cancelalo (así se avisa a los compradores).');
+        await tx.update(events).set({ archivedAt: now, updatedAt: now }).where(eq(events.id, e.id));
+        await audit(tx, { orgId: access.orgId, actorUserId: access.userId, action: 'event.archived', entityType: 'event', entityId: e.id, data: { title: e.title }, ip: req.ip });
+        return { result: 'archived' as const };
+      });
     },
   );
 

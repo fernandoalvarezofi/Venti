@@ -10,6 +10,7 @@ import {
   holds,
   eventMedia,
   inArray,
+  isNull,
   memberships,
   orders,
   organizations,
@@ -218,7 +219,7 @@ export async function businessRoutes(app: FastifyInstance, s: Services): Promise
           })
           .from(events)
           .leftJoin(venues, eq(venues.id, events.venueId))
-          .where(eq(events.organizationId, access.orgId))
+          .where(and(eq(events.organizationId, access.orgId), isNull(events.archivedAt)))
           .orderBy(desc(events.startsAt));
         const [money] = await tx
           .select({ commissionCents: sql<number>`coalesce(sum(${orders.commissionCents}), 0)`.mapWith(Number) })

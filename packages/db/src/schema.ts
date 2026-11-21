@@ -277,6 +277,8 @@ export const events = pgTable(
     seo: jsonb('seo').$type<{ title?: string; description?: string }>().notNull().default({}),
     /** Orden y visibilidad de las secciones de la página pública (vacío = orden por defecto). */
     pageSections: jsonb('page_sections').$type<EventSection[]>().notNull().default([]),
+    /** La productora lo sacó de sus listas (tuvo ventas, así que no se borra). */
+    archivedAt: ts('archived_at'),
     coverMediaId: uuid('cover_media_id'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

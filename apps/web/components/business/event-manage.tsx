@@ -47,9 +47,24 @@ function Feedback({ error, ok }: { error: string | null; ok: string | null }) {
 export function EventActions({ orgId, event }: { orgId: string; event: AdminEvent }) {
   const a = useAction();
   const [cancelling, setCancelling] = useState(false);
-  const [reason, setReason] = useState('');
-  const base = `/v1/organizations/${orgId}/events/${event.id}`;
   const closed = event.status === 'cancelled' || event.status === 'finished';
+  const [reason, setReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [delError, setDelError] = useState<string | null>(null);
+  const [delBusy, setDelBusy] = useState(false);
+  const router = useRouter();
+  const base = `/v1/organizations/${orgId}/events/${event.id}`;
+  const canDelete = event.status === 'draft' || closed || new Date(event.endsAt).getTime() <= Date.now();
+
+  async function remove() {
+    setDelBusy(true);
+    setDelError(null);
+    const r = await send<{ result: 'deleted' | 'archived' }>('DELETE', base);
+    setDelBusy(false);
+    if (!r.ok) return setDelError(r.message);
+    router.push(`/business/${orgId}/eventos`);
+    router.refresh();
+  }
 
   return (
     <div>
@@ -74,7 +89,23 @@ export function EventActions({ orgId, event }: { orgId: string; event: AdminEven
             Cancelar evento
           </button>
         ) : null}
+        {canDelete ? (
+          <button type="button" onClick={() => setDeleting((v) => !v)} className="btn btn-ghost text-danger">
+            Eliminar evento
+          </button>
+        ) : null}
       </div>
+      {deleting ? (
+        <div className="mt-4 rounded-[14px] bg-danger/5 p-4 shadow-[inset_0_0_0_1px_rgb(180_35_24/0.25)]">
+          <p className="font-semibold text-danger">Eliminar “{event.title}”</p>
+          <p className="mt-1 text-sm text-ink-soft">Desaparece de tus listas. Si nunca vendió entradas, se borra del todo; si tuvo ventas, se guardan las compras y los cobros para tu historial, pero no lo ves más en el panel.</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => setDeleting(false)} className="btn btn-ghost h-10 text-sm">Volver</button>
+            <button type="button" disabled={delBusy} onClick={remove} className="btn h-10 bg-danger text-sm text-white hover:bg-danger/90">{delBusy ? 'Eliminando…' : 'Sí, eliminar'}</button>
+          </div>
+          {delError ? <p role="alert" className="mt-2 text-sm text-danger">{delError}</p> : null}
+        </div>
+      ) : null}
       {cancelling ? (
         <div className="mt-4 rounded-[14px] bg-danger/5 p-4 shadow-[inset_0_0_0_1px_rgb(180_35_24/0.25)]">
           <p className="font-semibold text-danger">Cancelar “{event.title}”</p>

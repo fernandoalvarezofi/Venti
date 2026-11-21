@@ -144,3 +144,25 @@ describe('puerta: quién dejó pasar, búsqueda manual, ingreso manual y estadí
     expect([403, 404]).toContain((await call(ctx, 'POST', `${base}/check-in/manual`, { token: extra.token, body: { ticketId: s.tickets[2]!.id } })).status);
   });
 });
+
+describe('eliminar eventos', () => {
+  it('sin ventas se borra; con ventas futuro → pedir cancelar; cancelado con ventas → se archiva y sale de la lista', async () => {
+    const s = await setup(1);
+    const base = `/v1/organizations/${s.ev.orgId}/events`;
+    const draft = await call(ctx, 'POST', base, { token: s.owner.token, body: { title: 'Borrador de prueba', category: 'music', startsAt: new Date(Date.now() + 9e8), endsAt: new Date(Date.now() + 9.2e8) } });
+    expect((await call(ctx, 'DELETE', `${base}/${draft.body.id}`, { token: s.owner.token })).body.result).toBe('deleted');
+    expect((await call(ctx, 'GET', `${base}/${draft.body.id}`, { token: s.owner.token })).status).toBe(404);
+
+    // Con entradas y por venir: no se puede.
+    expect((await call(ctx, 'DELETE', `${base}/${s.ev.eventId}`, { token: s.owner.token })).status).toBe(409);
+    await call(ctx, 'POST', `${base}/${s.ev.eventId}/cancel`, { token: s.owner.token, body: { reason: 'Prueba de cancelación' } });
+    expect((await call(ctx, 'DELETE', `${base}/${s.ev.eventId}`, { token: s.owner.token })).body.result).toBe('archived');
+    const list = await call(ctx, 'GET', base, { token: s.owner.token });
+    expect(list.body.items.map((e: { id: string }) => e.id)).not.toContain(s.ev.eventId);
+    // Las entradas del comprador siguen existiendo (historial).
+    expect((await call(ctx, 'GET', '/v1/me/tickets', { token: s.ana.token })).body.items).toHaveLength(1);
+    // Alguien de afuera no puede borrar.
+    const x = await registerUser(ctx, 'Ajeno');
+    expect([403, 404]).toContain((await call(ctx, 'DELETE', `${base}/${s.ev.eventId}`, { token: x.token })).status);
+  });
+});
