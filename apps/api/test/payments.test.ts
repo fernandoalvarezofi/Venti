@@ -272,3 +272,25 @@ describe('Mercado Pago: API de Orders', () => {
     expect(res.statusCode).toBe(200);
   });
 });
+
+describe('Mercado Pago: aviso de desconexión', () => {
+  it('sin firma se ignora (no desconecta a la productora); firmado, sí', async () => {
+    const owner = await registerUser(ctx);
+    const { orgId } = await publishedEvent(ctx, owner.token);
+    await connectSeller(owner.token, orgId);
+    const seller = mp.lastSeller;
+    const payload = { type: 'mp-connect', action: 'application.deauthorized', user_id: Number(seller), data: { id: seller } };
+    const fake = await ctx.venti.app.inject({ method: 'POST', url: '/v1/webhooks/mercadopago', remoteAddress: randomIp(), payload });
+    expect(fake.statusCode).toBe(200);
+    let st = await call(ctx, 'GET', `/v1/organizations/${orgId}/payments/mercadopago`, { token: owner.token });
+    expect(st.body.connected).toBe(true);
+
+    const requestId = `req-${randomBytes(4).toString('hex')}`;
+    const ts = String(Math.floor(Date.now() / 1000));
+    const v1 = createHmac('sha256', WEBHOOK_SECRET).update(`id:${seller};request-id:${requestId};ts:${ts};`).digest('hex');
+    const real = await ctx.venti.app.inject({ method: 'POST', url: '/v1/webhooks/mercadopago', remoteAddress: randomIp(), headers: { 'x-signature': `ts=${ts},v1=${v1}`, 'x-request-id': requestId }, payload });
+    expect(real.statusCode).toBe(200);
+    st = await call(ctx, 'GET', `/v1/organizations/${orgId}/payments/mercadopago`, { token: owner.token });
+    expect(st.body.connected).toBe(false);
+  });
+});

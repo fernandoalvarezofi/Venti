@@ -268,8 +268,10 @@ export async function paymentRoutes(app: FastifyInstance, s: Services): Promise<
       }
       if (!paymentsEnabled(s)) return reply.status(200).send({ ok: true });
 
-      // El vendedor desconectó Lintick desde Mercado Pago.
+      // El vendedor desconectó Lintick desde Mercado Pago. Este aviso CAMBIA datos sin volver a consultar a Mercado Pago,
+      // así que sólo se acepta firmado (si no, cualquiera que conozca el número de cuenta podría desconectar a una productora).
       if (type === 'mp-connect' && body.action?.includes('deauthorized') && body.user_id !== undefined) {
+        if (!s.config.MP_WEBHOOK_SECRET || typeof sig !== 'string') return reply.status(200).send({ ok: true, ignored: 'unsigned' });
         const rows = await withContext(s.db, {}, (tx) => tx.execute(sql`select venti_payment_account_org('mercadopago', ${String(body.user_id)}) as org`));
         const org = ((rows as unknown as { rows?: { org: string | null }[] }).rows?.[0] ?? (rows as unknown as { org: string | null }[])[0])?.org;
         if (org) {
