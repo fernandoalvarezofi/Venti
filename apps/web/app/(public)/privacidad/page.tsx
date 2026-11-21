@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage } from '@/components/legal-page';
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
 export const metadata: Metadata = { title: 'Política de privacidad' };
 
@@ -93,6 +94,13 @@ export default function PrivacyPage() {
           title: 'Tus derechos',
           body: (
             <>
+              <p>
+                Para pedirlo escribinos por WhatsApp al{' '}
+                <a href={SUPPORT_WHATSAPP_URL} target="_blank" rel="noreferrer">
+                  {SUPPORT_WHATSAPP}
+                </a>
+                . Te respondemos dentro de los 10 días corridos que fija la ley.
+              </p>
               <p>
                 Podés pedir acceso, rectificación, actualización o eliminación de tus datos en cualquier momento y en forma gratuita (art. 14 y 16 de la Ley 25.326). Podés cambiar tu contraseña
                 desde <Link href="/recuperar">Recuperar contraseña</Link> y cerrar sesión desde el menú de tu cuenta.

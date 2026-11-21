@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage } from '@/components/legal-page';
+import { SUPPORT_WHATSAPP, SUPPORT_WHATSAPP_URL } from '@/lib/contact';
 
 export const metadata: Metadata = { title: 'Términos y condiciones' };
 
@@ -71,7 +72,11 @@ export default function TermsPage() {
               </p>
               <p>
                 Tenés derecho a revocar la compra dentro de los 10 días corridos conforme al art. 34 de la Ley 24.240 de Defensa del Consumidor, en los casos en que corresponda según la normativa
-                vigente. Para pedirlo, usá el <Link href="/ayuda">centro de ayuda</Link>.
+                vigente. Para pedirlo, escribinos por WhatsApp al{' '}
+                <a href={SUPPORT_WHATSAPP_URL} target="_blank" rel="noreferrer">
+                  {SUPPORT_WHATSAPP}
+                </a>
+                .
               </p>
             </>
           ),
