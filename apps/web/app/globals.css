@@ -1572,3 +1572,10 @@
 :root[data-anim] [data-reveal] .demo-bar { transform: scaleY(0); transform-origin: bottom; transition: transform 520ms var(--ease-settle); transition-delay: calc(300ms + var(--i, 0) * 28ms); }
 :root[data-anim] [data-reveal][data-in='true'] .demo-bar { transform: scaleY(1); }
 @media (prefers-reduced-motion: reduce) { [data-reveal] .demo-bar { transform: none; transition: none; } }
+
+/* Notas con chinche sobre secciones claras (compradores). */
+.hz-note-light {
+  max-width: 17rem;
+  background: linear-gradient(180deg, #fffdf8, #f6efe2);
+  box-shadow: 0 0 0 1px rgb(23 20 17 / 0.06), 0 1px 0 rgb(0 0 0 / 0.06), 0 16px 26px -16px rgb(23 20 17 / 0.45);
+}

@@ -52,6 +52,13 @@ const FEATURES = [
   },
 ];
 
+const NOTE_LOOK = [
+  { tilt: '-rotate-2', pin: '', note: 'en segundos', pos: 'bottom' },
+  { tilt: 'rotate-2 sm:translate-y-6', pin: 'hz-pin-ink', note: 'imposible de copiar', pos: 'top' },
+  { tilt: 'rotate-1', pin: 'hz-pin-ink', note: 'sin wifi, igual', pos: 'bottom' },
+  { tilt: '-rotate-3 sm:translate-y-6', pin: '', note: 'cero sorpresas', pos: 'top' },
+] as const;
+
 /** "Comprá. Mostrá. Listo." — para compradores (referencia: explicación 1). */
 export function BuyersSection() {
   return (
@@ -102,16 +109,27 @@ export function BuyersSection() {
             Mostrá. <span className="hz-ghost">Listo.</span>
           </h2>
           <p className="hz-muted mt-6 max-w-md text-lg">Cuatro cosas que valen oro cuando estás haciendo la fila a las 23:50 con tu amigo apurándote.</p>
-          <ul className="hz-panel mt-10 grid overflow-hidden rounded-2xl sm:grid-cols-2">
-            {FEATURES.map((f, i) => (
-              <li key={f.title} className={`p-6 ${i % 2 === 0 ? 'sm:border-r' : ''} ${i < 2 ? 'border-b' : i === 2 ? 'border-b sm:border-b-0' : ''} hz-rule`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="size-6 text-accent" aria-hidden>
-                  {f.icon}
-                </svg>
-                <h3 className="mt-4 font-semibold">{f.title}</h3>
-                <p className="hz-muted mt-1.5 text-sm leading-relaxed">{f.body}</p>
-              </li>
-            ))}
+          {/* Notas con chinche, como en "¿Cómo funciona?": inclinación y anotación a mano distintas en cada una. */}
+          <ul data-reveal className="mt-14 grid justify-items-center gap-x-6 gap-y-20 sm:grid-cols-2">
+            {FEATURES.map((f, i) => {
+              const look = NOTE_LOOK[i]!;
+              return (
+                <li key={f.title} className={`relative w-full max-w-[17rem] ${look.tilt}`}>
+                  <div className="rv" style={{ ['--d' as string]: `${(i + 1) * 110}ms` }}>
+                    {look.pos === 'top' ? <span className="hand absolute -top-10 right-3 w-max">{look.note}</span> : null}
+                    <div className="hz-note hz-note-light text-left">
+                      <span className={`hz-pin ${look.pin}`} aria-hidden />
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="size-6 text-accent" aria-hidden>
+                        {f.icon}
+                      </svg>
+                      <h3 className="mt-2 font-display text-lg font-bold leading-tight">{f.title}</h3>
+                      <p className="mt-2 text-[0.82rem] leading-relaxed text-ink-soft">{f.body}</p>
+                    </div>
+                    {look.pos === 'bottom' ? <span className="hand absolute -bottom-9 left-6 w-max">{look.note}</span> : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
